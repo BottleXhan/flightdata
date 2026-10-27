@@ -429,7 +429,7 @@ class App(ctk.CTk):
             self._last_ap = a.icao
         extra = f"  외 {len(codes) - 1}곳" if len(codes) > 1 else ""
         self.v_apname.set(a.name + extra)
-        self.v_apinfo.set(f"{', '.join(x for x in (a.city, a.country) if x)}  ·  {a.lat:.3f}, {a.lon:.3f}" + (f"  ·  {a.ko}" if a.ko else ""))
+        self.v_apinfo.set(f"{', '.join(x for x in (a.city, a.country) if x)}  ·  {abs(a.lat):.3f}°{'N' if a.lat >= 0 else 'S'} {abs(a.lon):.3f}°{'E' if a.lon >= 0 else 'W'}" + (f"  ·  {a.ko}" if a.ko else ""))
         self._update_tz_for_period(a)
         if move_map:
             self.map.show(a, zoom=max(self.map.k, 25))
