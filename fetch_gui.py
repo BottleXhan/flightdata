@@ -84,7 +84,11 @@ class App(ctk.CTk):
         theme = load_settings().get("theme", "system")       # 처음엔 Windows 밝게/어둡게를 따르고, 버튼으로 바꾸면 기억
         ctk.set_appearance_mode(theme if theme in ("light", "dark") else "system")
         super().__init__(fg_color=BG)
-        self.title("FlightData 수집기")
+        try:
+            from _build import BUILD                         # GitHub Actions 가 빌드할 때 만드는 파일 (빌드 번호)
+        except ImportError:
+            BUILD = ""
+        self.title("FlightData 수집기" + (f"  ({BUILD})" if BUILD else ""))
         self.geometry("1240x820")
         self.minsize(1060, 700)
         fam = "Malgun Gothic" if sys.platform.startswith("win") else "Noto Sans CJK KR"
@@ -305,6 +309,8 @@ class App(ctk.CTk):
             k = ctk.ScalingTracker.get_widget_scaling(left)
             for lb in self.hints:
                 lb.configure(wraplength=max(160, (e.width / k) - 60))
+            # 줄바꿈으로 높이가 바뀐 뒤 스크롤 범위를 한 번 더 맞춤
+            left.after_idle(lambda: left._parent_canvas.configure(scrollregion=left._parent_canvas.bbox("all")))
         left.bind("<Configure>", rewrap, add="+")         # add: 스크롤 범위를 고치는 customtkinter 기본 처리를 지우지 않게
 
         # ── 오른쪽 카드: 공항 찾기 · 지도 ──
