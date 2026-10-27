@@ -152,8 +152,9 @@ class App(ctk.CTk):
                                  font=self.f["big"], **kw)
         kw.setdefault("height", 34)
         kw.setdefault("font", self.f["btn"])
+        kw.setdefault("corner_radius", 10)
         return ctk.CTkButton(parent, text=text, command=cmd, fg_color=FIELD, hover_color=("#d8dee6", "#283039"),
-                             text_color=TEXT, corner_radius=10, **kw)
+                             text_color=TEXT, **kw)
 
     # ---------- 밝게 / 어둡게 ----------
     def _sync_theme_btn(self):
@@ -252,37 +253,42 @@ class App(ctk.CTk):
             if i == 0:
                 ctk.CTkLabel(prow, text="~", text_color=MUTED).pack(side="left", padx=8)
         add(prow, sticky="w")
-        qrow = ctk.CTkFrame(left, fg_color="transparent")
-        for txt, fn in (("최근 7일", self._last7), ("최근 30일", self._last30)):
-            self._btn(qrow, txt, fn, width=86, height=30).pack(side="left", padx=(0, 6))
-        add(qrow, pady=(8, 0), sticky="w")
+        # 빠른 선택: 왼쪽 이름 열 + 오른쪽 버튼 줄 (세 줄의 버튼 시작 위치·높이를 맞춤)
+        qg = ctk.CTkFrame(left, fg_color="transparent")
+        qg.grid_columnconfigure(0, minsize=64)
+        chip = ctk.CTkFont(family=self.f["btn"].cget("family"), size=12, weight="bold")
+        H = 30
+        def qrow(i, name):
+            ctk.CTkLabel(qg, text=name, font=self.f["small"], text_color=MUTED, anchor="w") \
+                .grid(row=i, column=0, sticky="w", pady=(0 if i == 0 else 6, 0))
+            f = ctk.CTkFrame(qg, fg_color="transparent")
+            f.grid(row=i, column=1, sticky="w", pady=(0 if i == 0 else 6, 0))
+            return f
+        def qbtn(parent, text, fn, w):
+            self._btn(parent, text, fn, width=w, height=H, font=chip, corner_radius=8).pack(side="left", padx=(0, 6))
+        om_style = dict(height=H, corner_radius=8, fg_color=FIELD, button_color=FIELD, button_hover_color=("#d8dee6", "#283039"),
+                        text_color=TEXT, dropdown_fg_color=CARD, dropdown_text_color=TEXT, font=chip, dropdown_font=self.f["small"])
+        r0 = qrow(0, "최근")
+        qbtn(r0, "7일", self._last7, 64)
+        qbtn(r0, "30일", self._last30, 64)
         # 1년 단위: 최근 3개 연도 버튼 + 그 전 연도는 목록 (올해는 1월 1일 ~ 오늘)
-        yrow = ctk.CTkFrame(left, fg_color="transparent")
-        ctk.CTkLabel(yrow, text="1년 단위", font=self.f["small"], text_color=TEXT2).pack(side="left", padx=(0, 8))
+        r1 = qrow(1, "1년 단위")
         this = dt.date.today().year
         for y in range(this - 2, this + 1):
-            self._btn(yrow, f"{y}" + (" (오늘까지)" if y == this else ""), lambda y=y: self._year(y),
-                      width=120 if y == this else 64, height=30).pack(side="left", padx=(0, 6))
+            qbtn(r1, f"{y}" + (" ~오늘" if y == this else ""), lambda y=y: self._year(y), 84 if y == this else 64)
         older = [str(y) for y in range(this - 3, 2016, -1)]          # OpenSky 과거 운항 자료는 2017년 무렵부터
-        self.v_year = tk.StringVar(value="이전 연도")
-        ctk.CTkOptionMenu(yrow, values=older, variable=self.v_year, width=104, height=30, corner_radius=10,
-                          fg_color=FIELD, button_color=FIELD, button_hover_color=("#d8dee6", "#283039"), text_color=TEXT,
-                          dropdown_fg_color=CARD, dropdown_text_color=TEXT, font=self.f["btn"], dropdown_font=self.f["small"],
-                          command=lambda v: self._year(int(v))).pack(side="left")
-        add(yrow, pady=(6, 0), sticky="w")
+        self.v_year = tk.StringVar(value="이전")
+        ctk.CTkOptionMenu(r1, values=older, variable=self.v_year, width=76, command=lambda v: self._year(int(v)),
+                          **om_style).pack(side="left")
         # 여러 해 (N년): 시작 연도 ~ 끝 연도
-        mrow = ctk.CTkFrame(left, fg_color="transparent")
-        ctk.CTkLabel(mrow, text="여러 해", font=self.f["small"], text_color=TEXT2).pack(side="left", padx=(0, 8))
+        r2 = qrow(2, "여러 해")
         years = [str(y) for y in range(this, 2016, -1)]
         self.v_y0, self.v_y1 = tk.StringVar(value=str(this - 2)), tk.StringVar(value=str(this - 1))
-        om = dict(values=years, width=84, height=30, corner_radius=10, fg_color=FIELD, button_color=FIELD,
-                  button_hover_color=("#d8dee6", "#283039"), text_color=TEXT, dropdown_fg_color=CARD, dropdown_text_color=TEXT,
-                  font=self.f["btn"], dropdown_font=self.f["small"])
-        ctk.CTkOptionMenu(mrow, variable=self.v_y0, **om).pack(side="left")
-        ctk.CTkLabel(mrow, text="~", text_color=MUTED).pack(side="left", padx=6)
-        ctk.CTkOptionMenu(mrow, variable=self.v_y1, **om).pack(side="left")
-        self._btn(mrow, "적용", self._years, width=56, height=30).pack(side="left", padx=(6, 0))
-        add(mrow, pady=(6, 0), sticky="w")
+        ctk.CTkOptionMenu(r2, values=years, variable=self.v_y0, width=84, **om_style).pack(side="left")
+        ctk.CTkLabel(r2, text="~", text_color=MUTED, width=10).pack(side="left", padx=6)
+        ctk.CTkOptionMenu(r2, values=years, variable=self.v_y1, width=84, **om_style).pack(side="left", padx=(0, 6))
+        qbtn(r2, "적용", self._years, 56)
+        add(qg, pady=(10, 0), sticky="w")
         self.v_split = tk.BooleanVar(value=True)
         add(ctk.CTkCheckBox(left, text="연도별로 CSV 나누기", variable=self.v_split, command=self._update_span,
                             font=self.f["small"], text_color=TEXT2, fg_color=ACCENT, hover_color=ACCENT_HOVER,
