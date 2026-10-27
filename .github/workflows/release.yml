@@ -30,7 +30,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: OpenSky CSV 수집기 (빌드 ${{ github.run_number }})
+          name: FlightData 수집기 (빌드 ${{ github.run_number }})
           make_latest: true
           body: |
             Windows 용 FlightData 수집기입니다. 설치 없이 FlightData_Collector.exe 를 더블클릭하세요.
