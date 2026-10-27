@@ -233,7 +233,6 @@ class App(ctk.CTk):
         self.e_tz.pack(side="left", padx=(8, 8))
         self._hint(tzrow, textvariable=self.v_tzinfo).pack(side="left", fill="x", expand=True)
         add(tzrow, pady=(8, 0))
-        add(self._hint(left, text="ICAO 코드를 모르면 오른쪽 '공항 찾기' 에서 이름으로 찾거나 지도를 누르세요"), pady=(4, 0))
 
         add(self._step(left, 3, "기간 (현지)"), pady=(16, 6), sticky="w")
         prow = ctk.CTkFrame(left, fg_color="transparent")
@@ -328,7 +327,7 @@ class App(ctk.CTk):
         self.res_box.grid_columnconfigure(0, weight=1)
 
         mapf = ctk.CTkFrame(right, fg_color=FIELD, corner_radius=12)
-        mapf.grid(row=3, column=0, sticky="nsew", padx=20, pady=(10, 4))
+        mapf.grid(row=3, column=0, sticky="nsew", padx=20, pady=(10, 20))
         self.map = AirportMap(mapf, self.db, lambda a: self._choose(a, move_map=False), self._map_colors(),
                               scale=ctk.ScalingTracker.get_widget_scaling(self), family=self.f["body"].cget("family"))
         self.map.pack(fill="both", expand=True, padx=6, pady=6)
@@ -337,8 +336,6 @@ class App(ctk.CTk):
         for t, fn in (("+", self.map.zoom_in), ("−", self.map.zoom_out)):
             ctk.CTkButton(zf, text=t, width=30, height=30, corner_radius=8, fg_color=CARD, hover_color=FIELD, text_color=TEXT,
                           font=self.f["h"], command=fn).pack(pady=(0, 4))
-        ctk.CTkLabel(right, text="휠로 확대 · 끌어서 이동 · 누르면 가장 가까운 공항을 고릅니다 (인터넷 없이 동작)",
-                     font=self.f["small"], text_color=MUTED, anchor="w").grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 12))
 
         # ── 아래 카드: 진행 · 기록 ──
         # ── 아래 카드: 실행 버튼 · 진행 · 기록 (항상 보임) ──
@@ -456,7 +453,7 @@ class App(ctk.CTk):
         self.tz_auto = h0
         self.e_tz.configure(placeholder_text=f"{h0:g}")
         self._show_placeholder(self.e_tz)
-        note = f"{a.tz} 기준 자동 ({fmt_tz(h0)}) · 비워 두면 이 값"
+        note = f"{a.tz} 기준 자동 ({fmt_tz(h0)})"
         if h1 is not None and h1 != h0:
             note += f" · 기간 중 서머타임 변경({fmt_tz(h1)}), 시작일 기준"
         self.v_tzinfo.set(note)
