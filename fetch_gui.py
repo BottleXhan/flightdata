@@ -264,28 +264,14 @@ class App(ctk.CTk):
             return f
         def qbtn(parent, text, fn, w):
             self._btn(parent, text, fn, width=w, height=H, font=chip, corner_radius=8).pack(side="left", padx=(0, 6))
-        om_style = dict(height=H, corner_radius=8, fg_color=FIELD, button_color=FIELD, button_hover_color=("#d8dee6", "#283039"),
-                        text_color=TEXT, dropdown_fg_color=CARD, dropdown_text_color=TEXT, font=chip, dropdown_font=self.f["small"])
         r0 = qrow(0, "최근")
         qbtn(r0, "7일", self._last7, 64)
         qbtn(r0, "30일", self._last30, 64)
-        # 1년 단위: 최근 3개 연도 버튼 + 그 전 연도는 목록 (올해는 1월 1일 ~ 오늘)
-        r1 = qrow(1, "1년 단위")
-        this = dt.date.today().year
-        for y in range(this - 2, this + 1):
-            qbtn(r1, f"{y}" + (" ~오늘" if y == this else ""), lambda y=y: self._year(y), 84 if y == this else 64)
-        older = [str(y) for y in range(this - 3, 2016, -1)]          # OpenSky 과거 운항 자료는 2017년 무렵부터
-        self.v_year = tk.StringVar(value="이전")
-        ctk.CTkOptionMenu(r1, values=older, variable=self.v_year, width=76, command=lambda v: self._year(int(v)),
-                          **om_style).pack(side="left")
-        # 여러 해 (N년): 시작 연도 ~ 끝 연도
-        r2 = qrow(2, "여러 해")
-        years = [str(y) for y in range(this, 2016, -1)]
-        self.v_y0, self.v_y1 = tk.StringVar(value=str(this - 2)), tk.StringVar(value=str(this - 1))
-        ctk.CTkOptionMenu(r2, values=years, variable=self.v_y0, width=84, **om_style).pack(side="left")
-        ctk.CTkLabel(r2, text="~", text_color=MUTED, width=10).pack(side="left", padx=6)
-        ctk.CTkOptionMenu(r2, values=years, variable=self.v_y1, width=84, **om_style).pack(side="left", padx=(0, 6))
-        qbtn(r2, "적용", self._years, 56)
+        # 연도: 달력처럼 연도 표를 띄워 한 해 또는 여러 해(시작 연도 → 끝 연도)를 고름
+        r1 = qrow(1, "연도")
+        self.b_years = self._btn(r1, "📅  연도 선택", lambda: self._open_years(self.b_years), width=120, height=H,
+                                 font=chip, corner_radius=8)
+        self.b_years.pack(side="left")
         add(qg, pady=(10, 0), sticky="w")
         self.v_split = tk.BooleanVar(value=True)
         add(ctk.CTkCheckBox(left, text="연도별로 CSV 나누기", variable=self.v_split, command=self._update_span,
@@ -469,12 +455,65 @@ class App(ctk.CTk):
     def _set_period(self, a, b):
         self.v_start.set(a.isoformat())
         self.v_end.set(b.isoformat())
+        full = a.month == 1 and a.day == 1 and (b == dt.date(b.year, 12, 31) or b == dt.date.today())
+        if hasattr(self, "b_years"):                              # 연도 단위면 버튼에 고른 연도 표시
+            self.b_years.configure(text="📅  " + (("%d" % a.year if a.year == b.year else f"{a.year} ~ {b.year}") if full else "연도 선택"))
         self._update_tz_for_period()
 
-    def _years(self):
+    def _years(self, y0, y1):
         """여러 해: 시작 연도 1월 1일 ~ 끝 연도 12월 31일 (올해면 오늘까지)."""
-        y0, y1 = sorted((int(self.v_y0.get()), int(self.v_y1.get())))
+        y0, y1 = sorted((y0, y1))
         self._set_period(dt.date(y0, 1, 1), min(dt.date(y1, 12, 31), dt.date.today()))
+
+    def _open_years(self, anchor):
+        """연도 표 (2017 ~ 올해). 한 번 누르면 그 해, 이어서 다른 해를 누르면 두 해 사이 전체."""
+        dark = ctk.get_appearance_mode() == "Dark"
+        bg = CARD[1] if dark else "#ffffff"
+        top = tk.Toplevel(self)
+        top.overrideredirect(True)
+        top.configure(bg=bg)
+        top.geometry(f"+{anchor.winfo_rootx()}+{anchor.winfo_rooty() + anchor.winfo_height() + 4}")
+        box = ctk.CTkFrame(top, fg_color=bg, corner_radius=0)
+        box.pack(padx=10, pady=10)
+        msg = tk.StringVar(value="한 해를 누르거나, 시작 연도와 끝 연도를 차례로 누르세요")
+        ctk.CTkLabel(box, textvariable=msg, font=self.f["small"], text_color=MUTED, anchor="w") \
+            .grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 8))
+        this = dt.date.today().year
+        years = list(range(2017, this + 1))                      # OpenSky 과거 운항 자료는 2017년 무렵부터
+        try:
+            s, e = self._dates()
+            sel = [s.year, e.year] if s.month == 1 and s.day == 1 else []
+        except ValueError:
+            sel = []
+        state = {"first": None}
+        btns = {}
+
+        def paint(lo, hi):
+            for y, b in btns.items():
+                on = lo is not None and lo <= y <= hi
+                b.configure(fg_color=ACCENT if on else FIELD, text_color="#ffffff" if on else TEXT)
+
+        def click(y):
+            if state["first"] is None:                            # 첫 번째: 그 해만 적용, 끝 연도를 기다림
+                state["first"] = y
+                self._year(y)
+                paint(y, y)
+                msg.set(f"{y}년 선택 · 여러 해면 끝 연도를 누르세요")
+            else:                                                 # 두 번째: 두 해 사이 전체 적용 후 닫기
+                self._years(state["first"], y)
+                top.destroy()
+
+        for i, y in enumerate(years):
+            b = ctk.CTkButton(box, text=str(y) + (" ~오늘" if y == this else ""), width=78, height=32, corner_radius=8,
+                              fg_color=FIELD, hover_color=("#d8dee6", "#283039"), text_color=TEXT, font=self.f["btn"],
+                              command=lambda y=y: click(y))
+            b.grid(row=1 + i // 4, column=i % 4, padx=3, pady=3)
+            btns[y] = b
+        if sel:
+            paint(min(sel), max(sel))
+        top.bind("<Escape>", lambda e: top.destroy())
+        top.bind("<FocusOut>", lambda e: top.after(150, lambda: top.winfo_exists() and top.focus_get() is None and top.destroy()))
+        top.focus_force()
 
     def _segments(self, s, e):
         """연도별로 나누기를 켜고 기간이 해를 넘으면 [(시작, 끝), …] 연도별 구간, 아니면 한 구간."""
@@ -528,7 +567,7 @@ class App(ctk.CTk):
         def pick(_e=None):
             var.set(cal.get_date())
             top.destroy()
-            self._update_tz_for_period()
+            self._set_period(*self._dates())                     # 연도 버튼 표시·UTC 도 함께 맞춤
         cal.bind("<<CalendarSelected>>", pick)
         top.bind("<Escape>", lambda e: top.destroy())
         top.bind("<FocusOut>", lambda e: top.after(150, lambda: top.winfo_exists() and top.focus_get() is None and top.destroy()))
