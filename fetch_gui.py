@@ -180,8 +180,6 @@ class App(ctk.CTk):
         tbox = ctk.CTkFrame(head, fg_color="transparent")
         tbox.pack(side="left", padx=(12, 0))
         ctk.CTkLabel(tbox, text="FlightData 수집기", font=self.f["title"], text_color=TEXT, anchor="w").pack(anchor="w")
-        ctk.CTkLabel(tbox, text="받은 CSV 는 FlightData 분석기의 \"운항 CSV 파일\" 에서 고릅니다", font=self.f["small"],
-                     text_color=MUTED, anchor="w").pack(anchor="w")
         self._btn(head, "분석기 열기 ↗", lambda: webbrowser.open(ANALYZER_URL), width=130).pack(side="right")
         self.b_theme = self._btn(head, "", self._toggle_theme, width=44, font=ctk.CTkFont(size=18))
         self.b_theme.pack(side="right", padx=(0, 8))
