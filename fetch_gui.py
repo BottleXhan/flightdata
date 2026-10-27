@@ -281,9 +281,10 @@ class App(ctk.CTk):
         self._btn(mrow, "적용", self._years, width=56, height=30).pack(side="left", padx=(6, 0))
         add(mrow, pady=(6, 0), sticky="w")
         self.v_split = tk.BooleanVar(value=True)
-        add(ctk.CTkCheckBox(left, text="연도별로 CSV 나누기 (분석기에서 1년씩 보기 좋음)", variable=self.v_split, command=self._update_span,
+        add(ctk.CTkCheckBox(left, text="연도별로 CSV 나누기", variable=self.v_split, command=self._update_span,
                             font=self.f["small"], text_color=TEXT2, fg_color=ACCENT, hover_color=ACCENT_HOVER,
                             checkbox_width=18, checkbox_height=18, corner_radius=5), pady=(8, 0), sticky="w")
+        add(self._hint(left, text="분석기에서 1년씩 보기 좋습니다"), pady=(2, 0))
         self.v_span = tk.StringVar(value="")
         add(ctk.CTkLabel(left, textvariable=self.v_span, font=self.f["small"], text_color=TEXT, anchor="w", justify="left"), pady=(4, 0))
         add(self._hint(left, text="오늘·어제 자료는 OpenSky 가 밤에 갱신해 일부만 있을 수 있습니다 (다음에 받을 때 다시 조회)"), pady=(4, 0))
@@ -294,16 +295,17 @@ class App(ctk.CTk):
         self._entry(frow, self.v_dir).grid(row=0, column=0, sticky="ew")
         self._btn(frow, "바꾸기…", self._pick_dir, width=80, height=36).grid(row=0, column=1, padx=(8, 0))
         add(frow)
-        add(ctk.CTkCheckBox(left, text="기종·운항사 정보 붙이기 (처음 한 번 항공기 DB 내려받음)", variable=self.v_aircraft,
+        add(ctk.CTkCheckBox(left, text="기종·운항사 정보 붙이기", variable=self.v_aircraft,
                             font=self.f["small"], text_color=TEXT2, fg_color=ACCENT, hover_color=ACCENT_HOVER,
                             checkbox_width=18, checkbox_height=18, corner_radius=5), pady=(10, 0), sticky="w")
+        add(self._hint(left, text="처음 한 번 OpenSky 항공기 DB 를 내려받습니다"), pady=(2, 0))
 
         add(ctk.CTkFrame(left, fg_color="transparent", height=12))
         def rewrap(e):                              # 도움말은 카드 너비에 맞춰 줄바꿈 (화면 배율과 상관없이)
             k = ctk.ScalingTracker.get_widget_scaling(left)
             for lb in self.hints:
                 lb.configure(wraplength=max(160, (e.width / k) - 60))
-        left.bind("<Configure>", rewrap)
+        left.bind("<Configure>", rewrap, add="+")         # add: 스크롤 범위를 고치는 customtkinter 기본 처리를 지우지 않게
 
         # ── 오른쪽 카드: 공항 찾기 · 지도 ──
         right = self._card(body)
