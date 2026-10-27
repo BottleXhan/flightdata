@@ -29,12 +29,13 @@ class AirportMap(tk.Canvas):
         self.land = [(lod(p), self._bbox(p)) for p in d["land"]]
         self.holes = [(lod(p), self._bbox(p)) for p in d.get("holes", [])]
         self._redraw_job = None
+        self._span = None                                          # 창 크기를 알게 되면 맞출 위도 폭 (처음 배율)
         # 확대했을 때 보일 공항: 주요 공항(한글 이름 사전에 있는 곳)이 글자 자리를 먼저 차지
         self.small = sorted((a for a in db.items if a.iata), key=lambda a: 0 if a.ko else 1)
         self.lon, self.lat, self.k = 127.0, 37.0, 12.0              # 가운데 경도·위도, 1도당 픽셀
         self.selected, self.marks = None, []
         self._drag = None
-        self.bind("<Configure>", lambda e: self.redraw())
+        self.bind("<Configure>", self._on_configure)
         self.bind("<ButtonPress-1>", self._press)
         self.bind("<B1-Motion>", self._motion)
         self.bind("<ButtonRelease-1>", self._release)
@@ -165,12 +166,24 @@ class AirportMap(tk.Canvas):
         self.tag_raise("lbl")                                       # 글자는 항상 점보다 위
         self.create_text(w - 8 * S, h - 6 * S, text="지도: Natural Earth", anchor="se", fill=self.c["muted"], font=font(11))
 
+    def _on_configure(self, _e):
+        if self._span and self.winfo_height() > 10:                # 처음 한 번: 지도 높이에 위도 span 도가 들어가게
+            self.k = max(self.k, self.winfo_height() / self._span)
+            self._span = None
+        self.redraw()
+
     # ---------- 바깥에서 부르는 것 ----------
-    def show(self, airport, zoom=None):
+    def show(self, airport, zoom=None, span=None):
+        """공항을 가운데로. span: 지도 높이에 들어갈 위도 폭(도) — 이보다 넓게 보고 있으면 그만큼 확대."""
         self.selected = airport
         self.lon, self.lat = airport.lon, airport.lat
         if zoom:
             self.k = zoom
+        if span:
+            if self.winfo_height() > 10:
+                self.k = max(self.k, self.winfo_height() / span)
+            else:
+                self._span = span
         self.redraw()
 
     def set_marks(self, airports):

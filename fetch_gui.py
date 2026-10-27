@@ -418,7 +418,7 @@ class App(ctk.CTk):
         self.v_apinfo.set(f"{', '.join(x for x in (a.city, a.country) if x)}  ·  {abs(a.lat):.3f}°{'N' if a.lat >= 0 else 'S'} {abs(a.lon):.3f}°{'E' if a.lon >= 0 else 'W'}" + (f"  ·  {a.ko}" if a.ko else ""))
         self._update_tz_for_period(a)
         if move_map:
-            self.map.show(a, zoom=max(self.map.k, 25))
+            self.map.show(a, span=5.2)                           # 한반도가 지도 높이에 꽉 차는 정도
         else:
             self.map.selected = a
             self.map.redraw()
@@ -535,8 +535,6 @@ class App(ctk.CTk):
         txt = f"선택한 기간: {n:,}일 (하루씩 조회)"
         if len(seg) > 1:
             txt += f" · 연도별 CSV {len(seg)}개 ({seg[0][0].year}~{seg[-1][0].year})"
-        if n > 366:
-            txt += " · 오래 걸리니 중간에 멈춰도 받은 날은 저장되어 이어받습니다"
         self.v_span.set(txt)
 
     def _open_calendar(self, var, anchor):
