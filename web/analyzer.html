@@ -158,6 +158,14 @@
   .dtoggle { display: inline-flex; align-items: center; gap: 6px; }
   .dtoggle svg { transition: transform .15s; }
   .dtoggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .ccheck { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--text-secondary); cursor: pointer; }
+  .apsearch { position: relative; }
+  .apres { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 60; background: var(--surface); border-radius: 10px; padding: 4px;
+           box-shadow: 0 10px 30px rgba(0,0,0,.18); max-height: 320px; overflow-y: auto; }
+  .apres button { display: block; width: 100%; text-align: left; padding: .4rem .55rem; border-radius: 7px; font-size: .78rem; color: var(--text-primary); }
+  .apres button:hover, .apres button:focus { background: var(--surface-2); }
+  .apres button b { font-family: var(--font-data); margin-right: 6px; }
+  .apres button small { color: var(--text-muted); }
   .saved { display: flex; flex-direction: column; gap: 4px; }
   .saved .srow { display: flex; align-items: stretch; gap: 4px; }
   .saved .sopen { flex: 1; min-width: 0; text-align: left; padding: .4rem .6rem; border-radius: 8px; background: var(--surface); font-size: .78rem; font-weight: 600; color: var(--text-primary); }
@@ -437,7 +445,7 @@
           <span class="lbl">저장된 데이터 <span class="snote">이 브라우저에만 · 다음에 열면 마지막 데이터가 바로 열림</span></span>
           <div id="savedList" class="saved"></div>
         </div>
-        <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData_Collector.exe" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">CSV가 없나요? 수집기(exe) 받기</a>
+        <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData.exe" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">CSV가 없나요? FlightData 프로그램(exe) 받기</a>
       </div>
 
       <div id="trinoOpts" class="sub-panel" style="display:none">
@@ -449,10 +457,35 @@
         <span class="text-xs muted">처음 수집할 때 OpenSky 로그인 창이 열립니다. 받은 날짜는 저장되어 다시 조회하지 않습니다.</span>
         <pre id="trinoLog" class="text-xs muted overflow-auto" style="max-height:9rem;white-space:pre-wrap;display:none"></pre>
       </div>
+
+      <!-- FlightData 프로그램(exe) 안에서만: OpenSky 에서 바로 받기 (공항·기간은 아래 2번 칸을 씀) -->
+      <div id="collectOpts" class="sub-panel" style="display:none">
+        <div class="row2">
+          <div><label class="lbl" for="cUser">OpenSky 사용자명</label><input id="cUser" class="field" autocomplete="username" placeholder="사용자명"></div>
+          <div><label class="lbl" for="cPw">비밀번호</label><input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비우면 브라우저 로그인"></div>
+        </div>
+        <label class="ccheck"><input type="checkbox" id="cRemember" checked> 이 PC에 비밀번호 기억 (Windows 자격 증명 관리자)</label>
+        <label class="ccheck"><input type="checkbox" id="cSplit" checked> 여러 해면 연도별로 CSV 나누기</label>
+        <label class="ccheck"><input type="checkbox" id="cAircraft" checked> 기종·운항사 정보 붙이기 (처음 한 번 항공기 DB 내려받음)</label>
+        <div>
+          <label class="lbl" for="cDir">저장 폴더</label>
+          <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0"><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="cStop" class="btn" type="button" disabled style="padding:.35rem .7rem;font-size:.75rem">받기 중지</button>
+          <button id="cLogBtn" class="btn" type="button" style="padding:.35rem .7rem;font-size:.75rem" aria-expanded="false">기록 보기</button>
+        </div>
+        <pre id="cLog" class="text-xs muted overflow-auto" style="max-height:11rem;white-space:pre-wrap" hidden></pre>
+        <p class="text-xs muted">공항·기간은 아래 2번에서 고르고 [CSV 받고 보기]를 누르세요. 받은 날짜는 저장되어 다시 조회하지 않습니다.</p>
+      </div>
     </div>
 
     <div class="step">
       <div class="step-head"><span class="step-num">2</span>공항 · 기간</div>
+      <div class="apsearch">
+        <input id="apSearch" class="field" placeholder="공항 찾기 — 이름·도시·한글 (예: 하네다, Frankfurt)" autocomplete="off" aria-label="공항 찾기">
+        <div id="apResults" class="apres" hidden></div>
+      </div>
       <div class="row2">
         <div>
           <label class="lbl" for="icao">공항 (ICAO)</label>
@@ -615,22 +648,22 @@
         <div><b>2. 운항 패턴</b>시간대·일·요일·월별 도착·출발과 가장 바쁜 때(PEAK)를 봅니다.</div>
         <div><b>3. 운항 구성</b>노선·항공사·기종별 운항을 봅니다.</div>
       </div>
-      <div class="kit">
+      <div class="kit" id="kitGuide">
         <div class="kit-head">
           <div>
             <b>처음이라면: CSV 수집 도구</b>
             <p class="text-xs muted">웹페이지는 OpenSky에 직접 접속할 수 없어서, PC에서 FlightData 수집기로 CSV를 만듭니다 (Windows, 설치 필요 없음).</p>
           </div>
-          <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData_Collector.exe" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+          <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData.exe" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-            수집기 받기 (exe)
+            FlightData 받기 (exe)
           </a>
         </div>
         <ol class="kit-steps">
           <li><b>처음 한 번</b> OpenSky 계정과 Trino 사용 승인을 받아 둡니다</li>
-          <li><b>실행</b> 받은 <code>FlightData_Collector.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행])</li>
-          <li><b>받기</b> OpenSky 사용자명·비밀번호 · 공항(이름·지도로 찾기) · 기간을 고르고 [CSV 받기]</li>
-          <li><b>보기</b> 수집기의 [분석기 열기]를 누르면 이 분석기가 열리고 받은 CSV가 바로 불러와집니다 (이 웹 링크에서는 문서\OpenSky_CSV 의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
+          <li><b>실행</b> 받은 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
+          <li><b>받기</b> "OpenSky에서 받기"에 사용자명·비밀번호, 공항(이름으로 찾기)·기간을 넣고 [CSV 받고 보기]</li>
+          <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 문서\OpenSky_CSV 의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
         <p class="text-xs muted">수집기 소스·명령창 버전: <a href="https://github.com/BottleXhan/flightdata" target="_blank" rel="noopener" style="color:var(--accent)">github.com/BottleXhan/flightdata</a></p>
       </div>
@@ -1615,6 +1648,96 @@ let localApp = false;
    FlightData 수집기가 127.0.0.1 에서 이 페이지를 제공하고 /api/collector · /csv/<번호> 를 연다. */
 const WEB_URL = 'https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5';
 let COLLECTOR = false;
+/* ---------- FlightData 프로그램(exe) 안: "OpenSky에서 받기" ----------
+   local_web 서버의 /api/collect 로 수집을 시작하고 /api/collect/status 를 지켜본 뒤, 받은 CSV 를 그대로 분석한다 */
+function setupCollectUI(info) {
+  const opt = document.createElement('option');
+  opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기 (이 프로그램에서 바로)';
+  $('source').prepend(opt);
+  const st = info.settings || {};
+  if (st.user) $('cUser').value = st.user;
+  $('cRemember').checked = st.remember !== false; $('cRemember').disabled = !info.canRemember;
+  $('cSplit').checked = st.split !== false; $('cAircraft').checked = st.aircraft !== false;
+  $('cDir').value = st.outDir || '';
+  const pwHint = saved => { $('cPw').placeholder = saved ? '저장된 비밀번호 사용 (바꾸려면 입력)' : '비우면 브라우저 로그인'; };
+  pwHint(info.pwSaved);
+  $('cUser').addEventListener('change', async () => {
+    try { pwHint((await (await fetch('/api/pwsaved?user=' + encodeURIComponent($('cUser').value.trim()), { cache: 'no-store' })).json()).saved); } catch (e) {}
+  });
+  const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+  $('cOpenDir').onclick = () => post('/api/open-folder', { dir: $('cDir').value });
+  $('cStop').onclick = () => { post('/api/collect/stop'); $('cStop').disabled = true; setStatus('중지 요청 — 지금 받는 날짜가 끝나면 멈춥니다.'); };
+  $('cLogBtn').onclick = () => { const open = $('cLog').hidden; $('cLog').hidden = !open; $('cLogBtn').setAttribute('aria-expanded', String(open)); $('cLogBtn').textContent = open ? '기록 닫기' : '기록 보기'; };
+  $('source').value = 'collect'; $('source').onchange();
+  $('kitGuide').hidden = true;                          // 이 프로그램 안에서는 "수집기 받기" 안내가 필요 없음
+  $('kitBtn2').hidden = true;
+}
+async function collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH) {
+  const user = $('cUser').value.trim();
+  if (!user) throw new Error('OpenSky 사용자명을 입력하세요.');
+  const r = await fetch('/api/collect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+    user, password: $('cPw').value, remember: $('cRemember').checked, airport, start: sd, end: ed, tz: offsetH,
+    split: $('cSplit').checked, aircraft: $('cAircraft').checked, outDir: $('cDir').value }) });
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `받기를 시작하지 못했습니다 (HTTP ${r.status})`);
+  $('cPw').value = '';
+  if ($('cRemember').checked) $('cPw').placeholder = '저장된 비밀번호 사용 (바꾸려면 입력)';
+  $('cStop').disabled = false; $('cLog').textContent = '';
+  let since = 0, st;
+  for (;;) {                                              // 진행 지켜보기
+    await new Promise(ok => setTimeout(ok, 700));
+    st = await (await fetch('/api/collect/status?since=' + since, { cache: 'no-store' })).json();
+    if (st.log.length) { $('cLog').textContent += st.log.join('\n') + '\n'; $('cLog').scrollTop = 1e9; since = st.logLen; }
+    if (st.n) setProgress(st.i / st.n);
+    setStatus(st.authUrl ? '브라우저에 OpenSky 로그인 창이 열렸습니다. 로그인하면 이어집니다.' : `받는 중 · ${st.text}${st.n ? ` · 전체 ${Math.round(st.i / st.n * 100)}%` : ''}`);
+    if (st.state !== 'running') break;
+  }
+  $('cStop').disabled = true;
+  if (st.state === 'error' && !st.results.length) throw new Error(st.error || '받기 중 오류');
+  // 받은 CSV 를 불러와(이 브라우저에도 저장) 분석
+  const info = await (await fetch('/api/collector', { cache: 'no-store' })).json();
+  const files = [];
+  for (let i = 0; i < info.files.length; i++) files.push(new File([await (await fetch(`/csv/${i}`, { cache: 'no-store' })).text()], info.files[i], { type: 'text/csv' }));
+  await onCsvSelected(files);
+  $('startDate').value = sd; $('endDate').value = ed; updateSpan();
+  if (st.state === 'error') showMsg(esc(`일부만 받았습니다: ${st.error}`), 'err');
+  if (!csvFlights) throw new Error('받은 CSV 를 읽지 못했습니다.');
+  return flightsToMovements(csvFlights, airport, beginUtc, endUtc);
+}
+
+/* ---------- 공항 찾기 (이름·도시·한글·IATA) — airports_min.json ---------- */
+function searchAirports(q) {
+  q = q.trim().toLowerCase();
+  if (!q || !MAPDATA) return [];
+  const out = [];
+  for (const [code, a] of Object.entries(MAPDATA.airports)) {
+    const [name, city, , , , iata, , , , ko] = a;
+    let sc = null;
+    if (code.toLowerCase() === q || (iata && iata.toLowerCase() === q)) sc = 0;
+    else if (ko && ko.includes(q)) sc = 1;
+    else if (name.toLowerCase().startsWith(q) || (city || '').toLowerCase().startsWith(q)) sc = 2;
+    else if (name.toLowerCase().includes(q) || (city || '').toLowerCase().includes(q) || code.toLowerCase().startsWith(q)) sc = 3;
+    if (sc != null) out.push([sc, iata ? 0 : 1, code, a]);
+  }
+  return out.sort((x, y) => x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1)).slice(0, 8);
+}
+let apTimer = null;
+$('apSearch').addEventListener('input', () => {
+  clearTimeout(apTimer);
+  apTimer = setTimeout(async () => {
+    await loadMapData();
+    const res = searchAirports($('apSearch').value);
+    $('apResults').innerHTML = res.map(([, , code, a]) => `<button type="button" data-ap="${esc(code)}"><b>${esc(code)}</b>${a[5] ? esc(a[5]) + ' · ' : ''}${esc(a[0])}<small> — ${esc([a[1], a[2]].filter(Boolean).join(', '))}${a[9] ? ` (${esc(a[9])})` : ''}</small></button>`).join('') ||
+      ($('apSearch').value.trim() ? '<p class="text-xs muted" style="padding:.5rem">맞는 공항이 없습니다</p>' : '');
+    $('apResults').hidden = !$('apResults').innerHTML;
+  }, 120);
+});
+$('apResults').onclick = e => {
+  const b = e.target.closest('[data-ap]'); if (!b) return;
+  $('icao').value = b.dataset.ap; $('apSearch').value = ''; $('apResults').hidden = true;
+  $('icao').dispatchEvent(new Event('input')); $('icao').dispatchEvent(new Event('change'));
+};
+document.addEventListener('click', e => { if (!e.target.closest('.apsearch')) $('apResults').hidden = true; });
+
 async function detectCollector() {
   if (!['localhost', '127.0.0.1'].includes(location.hostname)) return false;
   try {
@@ -1622,6 +1745,7 @@ async function detectCollector() {
     if (!r.ok) return false;
     const info = await r.json();
     COLLECTOR = true;
+    if (info.app) setupCollectUI(info);
     if (!info.files?.length) return true;
     setStatus('수집기에서 받은 CSV 불러오는 중…');
     const files = [];
@@ -2092,7 +2216,7 @@ function renderAll() {
   $('sumAirport').textContent = STATE.data.airport;
   $('sumPeriod').textContent = `${fmtDate(STATE.data.startLocal)} ~ ${fmtDate(STATE.data.startLocal + (STATE.data.days - 1) * DAY)} · ${STATE.data.days}일`;
   $('sumMeta').textContent = `운항 ${STATE.view.movements.length.toLocaleString()}편` + (movements.length !== STATE.data.movements.length ? ` (전체 ${STATE.data.movements.length.toLocaleString()}편 중 필터)` : '') +
-    ` · ${{ demo: '데모 데이터', csv: 'CSV (OpenSky Trino)', trino: 'OpenSky Trino (내 PC)' }[STATE.data.source]} · UTC${STATE.data.offsetH >= 0 ? '+' : ''}${STATE.data.offsetH}`;
+    ` · ${{ demo: '데모 데이터', csv: 'CSV (OpenSky Trino)', trino: 'OpenSky Trino (내 PC)', collect: 'OpenSky에서 받음' }[STATE.data.source]} · UTC${STATE.data.offsetH >= 0 ? '+' : ''}${STATE.data.offsetH}`;
   $('kMethodBadge').textContent = { icao_peak: 'ICAO Peak', icao_busy: 'ICAO Busy', nth_hour: '§3.4.3 a', adpm: '§3.4.3 b', iata_sbd: '§3.4.3 c', pct_day: '§3.4.3 d', pct5: '§3.4.3 e' }[sel.id];
   $('kDesign').innerHTML = `${fmtN(sel.v)} <span class="text-sm font-medium muted">편/시간</span>`;
   $('kDesignSub').textContent = `${sel.when} · 도착 ${fmtN(sel.arr)} / 출발 ${fmtN(sel.dep)}`;
@@ -3281,6 +3405,7 @@ async function run() {
     let movements;
     if (source === 'demo') { setStatus('데모 데이터 생성 중…'); movements = generateDemo(airport, startLocal, days, offsetH); setProgress(1); }
     else if (source === 'trino') movements = await loadFromLocalTrino(airport, beginUtc, endUtc, sd, ed, offsetH);
+    else if (source === 'collect') movements = await collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH);
     else if (source === 'csv') {
       if (!csvFlights) throw new Error('CSV 파일을 먼저 고르세요.');
       movements = flightsToMovements(csvFlights, airport, beginUtc, endUtc); setProgress(1);
@@ -3368,6 +3493,8 @@ $('busyN').onchange = () => { updateMethodOptions(); STATE.data && renderAll(); 
 $('source').onchange = () => {
   $('csvOpts').style.display = $('source').value === 'csv' ? '' : 'none';
   $('trinoOpts').style.display = $('source').value === 'trino' ? '' : 'none';
+  $('collectOpts').style.display = $('source').value === 'collect' ? '' : 'none';
+  $('runBtn').textContent = $('source').value === 'collect' ? 'CSV 받고 보기' : '데이터 보기';
   buildYearButtons();
 };
 // 수집 도구(zip) 받기 — 페이지와 함께 올린 kit/*.txt 세 파일을 브라우저에서 zip 으로 묶어 내려준다
@@ -3542,7 +3669,7 @@ try { if (innerWidth >= 1024 && localStorage.getItem('sideOpen') === '0') setSid
 $('trinoStop').onclick = () => { fetch('/api/stop', { method: 'POST' }); $('trinoStop').disabled = true; setStatus('중지 요청됨 — 지금 조회 중인 날짜가 끝나면 멈춥니다.'); };
 detectLocalApp().then(async () => {
   renderSaved();
-  if (COLLECTOR || localApp) return;                 // 수집기에서 연 경우는 방금 받은 CSV 를 씀
+  if (localApp || (COLLECTOR && csvFlights)) return;  // 수집기에서 방금 받은 CSV 가 있으면 그것을 씀 (없으면 지난번 저장 데이터)
   let id = null; try { id = localStorage.getItem(DS_LAST); } catch (e) {}
   if (id) try { await openSaved(id, true); } catch (e) { console.warn(e); }
 });
