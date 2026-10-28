@@ -97,11 +97,18 @@ def _warmup():
         import requests  # noqa: F401
         import trino.dbapi  # noqa: F401
         import opensky_auth  # noqa: F401
+        import updater  # noqa: F401
+        import fetch_flights  # noqa: F401
+        import zoneinfo
+        zoneinfo.ZoneInfo("Asia/Seoul")
     except Exception:  # noqa: BLE001
         pass
 
 
 def main():
+    # 무거운 모듈(requests·trino·로그인·업데이트)은 창을 띄우기 **전에** 불러 둔다.
+    # 예전(1.0.46)엔 창과 동시에 뒤에서 불러서, 파이썬 GIL 을 오래 잡는 동안 창(WinForms)이 멈춰 "응답 없음"이 떴음
+    _warmup()
     import updater
     srv = local_web.AnalyzerServer()
     if "--after-update" in sys.argv:                      # 업데이트로 다시 켜짐: 예전 창이 닫힐 때까지 포트를 기다리고 .old 를 지움
@@ -109,9 +116,6 @@ def main():
     url = srv.url()
     threading_cleanup = __import__("threading").Thread(target=updater.cleanup_old, daemon=True)
     threading_cleanup.start()
-    # 첫 로그인·받기가 느리지 않게 무거운 모듈을 미리 불러 둠 (뒤에서)
-    import threading
-    threading.Thread(target=_warmup, daemon=True).start()
     try:
         import webview
         try:
