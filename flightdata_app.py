@@ -33,6 +33,20 @@ def selftest():
     return 0
 
 
+class Api:
+    """화면(JavaScript)에서 window.pywebview.api.<이름>() 으로 부르는 것 — 프로그램 창에서만 되는 일."""
+
+    window = None
+
+    def choose_folder(self, start=""):
+        """저장 폴더 고르기 창. 고른 폴더 경로(취소하면 None)."""
+        import webview
+        kind = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
+        start = start if start and os.path.isdir(start) else os.path.expanduser("~")
+        res = self.window.create_file_dialog(kind, directory=start)
+        return (res[0] if isinstance(res, (list, tuple)) else res) if res else None
+
+
 def main():
     srv = local_web.AnalyzerServer()
     url = srv.url()
@@ -42,7 +56,8 @@ def main():
             webview.settings["ALLOW_DOWNLOADS"] = True      # 보관함의 CSV 내려받기 (pywebview 5+)
         except Exception:  # noqa: BLE001
             pass
-        webview.create_window("FlightData", url, width=1480, height=920, min_size=(1100, 700), maximized=True)
+        api = Api()
+        api.window = webview.create_window("FlightData", url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api)
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
         return 0

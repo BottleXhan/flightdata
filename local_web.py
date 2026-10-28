@@ -6,6 +6,7 @@
   받은 CSV 목록(/api/collector)과 그 내용(/csv/<번호>). 경로를 받지 않고 번호로만 열어 다른 파일은 읽을 수 없다
 - 수집: POST /api/collect → 작업 스레드에서 fetch_flights.collect_many (연도별로 나눠 받기 가능),
   GET /api/collect/status 로 진행·기록, POST /api/collect/stop, POST /api/open-folder
+- 저장 폴더 바꾸기: POST /api/settings {outDir} (쓰기 확인 후 설정에 저장), 회원가입 안내: POST /api/open-url (OpenSky 홈페이지만)
 - 보관함: GET /api/files 로 저장 폴더의 CSV 목록, /api/file/<번호> 로 그 내용 (경로는 받지 않음)
 - 비밀번호는 화면에서 받아 이 PC 의 Windows 자격 증명 관리자에만 저장(선택)하고, 화면으로 돌려주지 않는다
 - 머리의 로그인: POST /api/login 이 OpenSky 인증 서버에서 토큰을 받아 확인하고, 이 실행 동안 메모리에만 들고 있다가 수집에 쓴다
@@ -314,6 +315,27 @@ class AnalyzerServer:
                             oa.forget_password(user)
                         except Exception:  # noqa: BLE001
                             pass
+                    return self._json({"ok": True})
+                if path == "/api/settings":                  # 저장 폴더 바꾸기
+                    d = os.path.abspath(os.path.expanduser((body.get("outDir") or "").strip()))
+                    if not (body.get("outDir") or "").strip():
+                        return self._json({"error": "폴더를 고르세요."}, 400)
+                    try:
+                        os.makedirs(d, exist_ok=True)
+                        probe = os.path.join(d, ".flightdata_write_test")
+                        with open(probe, "w") as f:
+                            f.write("ok")
+                        os.remove(probe)
+                    except OSError as e:
+                        return self._json({"error": f"이 폴더에 저장할 수 없습니다: {e}"}, 400)
+                    save_settings({"out_dir": d})
+                    return self._json({"ok": True, "outDir": d})
+                if path == "/api/open-url":                  # 회원가입 안내: OpenSky 홈페이지만 기본 브라우저로
+                    u = (body.get("url") or "").strip()
+                    if not (u == "https://opensky-network.org/" or u.startswith("https://opensky-network.org/")):
+                        return self._send(403, b"forbidden")
+                    import webbrowser
+                    webbrowser.open(u)
                     return self._json({"ok": True})
                 if path == "/api/collect/stop":
                     srv.collector.stop = True

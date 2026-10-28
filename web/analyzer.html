@@ -211,6 +211,13 @@
   .hl-msg { position: absolute; right: 0; top: calc(100% + 8px); width: max-content; max-width: 420px; margin: 0; padding: 8px 12px; border-radius: 10px; font-size: .75rem;
             background: var(--surface); color: var(--text-secondary); box-shadow: 0 8px 24px rgba(0,0,0,.16); z-index: 40; }
   .hl-msg.err { color: var(--danger, #c0392b); }
+  .hl-form .link-btn { font-size: .78rem; white-space: nowrap; }
+  #cDirMsg.err { color: var(--danger, #c0392b); }
+  .hl-pop { position: absolute; right: 0; top: calc(100% + 8px); width: 380px; z-index: 45; background: var(--surface); border-radius: 14px; padding: 16px 18px;
+            box-shadow: 0 12px 32px rgba(0,0,0,.2); display: flex; flex-direction: column; gap: 10px; font-size: .82rem; }
+  .hl-pop[hidden] { display: none; }
+  .hl-pop ol { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; list-style: decimal; color: var(--text-secondary); }
+  .hl-pop ol b { color: var(--text-primary); margin-right: 4px; }
   .amap { position: relative; height: max(380px, calc(100vh - var(--bar-h) - 330px)); border-radius: 12px; overflow: hidden; background: var(--map-water); touch-action: none; }
   body.has-data .amap { height: max(420px, calc(100vh - var(--bar-h) - 150px)); }
   .amap canvas { display: block; width: 100%; height: 100%; cursor: grab; }
@@ -510,12 +517,24 @@
           <input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호">
           <label class="hl-rem" title="Windows 자격 증명 관리자에 저장"><input type="checkbox" id="cRemember" checked> 기억</label>
           <button id="hLoginBtn" class="btn btn-primary" type="submit">로그인</button>
+          <button id="hSignup" class="link-btn" type="button" aria-expanded="false" aria-controls="hSignupPop">회원가입</button>
         </form>
         <div class="hl-on" id="hLoginOn" hidden>
           <span class="hl-dot" aria-hidden="true"></span><b id="hLoginUser"></b><span class="text-xs muted">로그인됨</span>
           <button id="hLogout" class="link-btn" type="button">로그아웃</button>
         </div>
         <p class="hl-msg" id="hLoginMsg" role="status" hidden></p>
+        <div class="hl-pop" id="hSignupPop" role="dialog" aria-label="OpenSky 회원가입 안내" hidden>
+          <b>OpenSky 계정 만들기</b>
+          <p class="text-xs muted">FlightData 는 따로 회원가입이 없고, OpenSky Network 계정으로 로그인합니다. 계정은 무료이며 비상업적 연구·교육용입니다.</p>
+          <ol>
+            <li><b>회원가입</b> OpenSky 홈페이지에서 계정을 만듭니다 (이메일 확인 포함)</li>
+            <li><b>과거 데이터(Trino) 사용 신청</b> 운항 기록을 받으려면 계정에 과거 데이터 사용 권한이 있어야 합니다 — 홈페이지 안내에 따라 신청하고 승인을 기다립니다</li>
+            <li><b>로그인</b> 승인되면 여기에 사용자명·비밀번호를 넣고 [로그인]</li>
+          </ol>
+          <p class="text-xs muted">한 사람이 여러 계정을 만들면 OpenSky 규칙에 따라 영구 차단될 수 있습니다.</p>
+          <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
+        </div>
       </div>
       <a href="icao-source.html" class="link-btn">ICAO 원문</a>
       <button id="themeBtn" class="icon-btn" type="button"></button>
@@ -709,7 +728,7 @@
         <div class="panel-head">
           <h3 class="panel-title" id="dvTitle">데이터 보기</h3>
           <div class="tabs dv-tabs" role="tablist" aria-label="데이터 화면">
-            <button class="tab" role="tab" type="button" aria-selected="true" data-dvmode="form">공항 · 기간 · 받기</button>
+            <button class="tab" role="tab" type="button" aria-selected="true" data-dvmode="form">데이터 받기</button>
             <button class="tab" role="tab" type="button" aria-selected="false" data-dvmode="map">지도에서 공항 찾기</button>
           </div>
           <span class="text-xs muted" id="dvSub"></span>
@@ -774,7 +793,8 @@
               <label class="ccheck"><input type="checkbox" id="cAircraft" checked> 기종·운항사 정보 붙이기 (처음 한 번 항공기 DB 내려받음)</label>
               <div>
                 <label class="lbl" for="cDir">저장 폴더</label>
-                <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0"><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
+                <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0" spellcheck="false" title="직접 고쳐 넣어도 됩니다"><button id="cPickDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">바꾸기…</button><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
+                <p id="cDirMsg" class="text-xs muted" hidden></p>
               </div>
             </div>
           </div>
@@ -784,7 +804,7 @@
             <div id="amapSearchSlot" class="amap-search"></div>
             <div class="amap-pick"><span class="text-xs muted">선택한 공항</span><b id="amapSel"></b></div>
             <span class="text-xs muted amap-hint">휠 확대 · 끌어서 이동 · 공항을 누르면 선택</span>
-            <button id="amapClose" class="btn btn-primary" type="button">이 공항으로 → 기간 · 받기</button>
+            <button id="amapClose" class="btn btn-primary" type="button">이 공항으로 → 데이터 받기</button>
           </div>
       <div class="amap" id="amap">
         <canvas id="amapCv" aria-label="공항 지도"></canvas>
@@ -1916,6 +1936,28 @@ function setupCollectUI(info) {
   else if (info.pwSaved && st.user) doLogin(true);        // 기억한 비밀번호가 있으면 바로 로그인
   else showLogin(null);
   $('cOpenDir').onclick = $('cOpenDir2').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
+  // 저장 폴더 바꾸기: 프로그램 창의 폴더 고르기 창 (pywebview js_api). 직접 고쳐 넣어도 저장됨
+  const setDir = async d => {
+    const r = await apiPost('/api/settings', { outDir: d }), j = await r.json().catch(() => ({}));
+    $('cDirMsg').hidden = false; $('cDirMsg').classList.toggle('err', !r.ok);
+    $('cDirMsg').textContent = r.ok ? `저장 폴더를 바꿨습니다 — 다음 받기부터 ${j.outDir} 에 저장합니다` : (j.error || '이 폴더를 쓸 수 없습니다');
+    if (r.ok) $('cDir').value = $('cDir').dataset.ok = j.outDir;
+    else if ($('cDir').dataset.ok) $('cDir').value = $('cDir').dataset.ok;   // 못 쓰는 폴더면 원래대로
+  };
+  $('cDir').dataset.ok = $('cDir').value;
+  $('cPickDir').onclick = async () => {
+    const api = window.pywebview?.api;
+    if (!api?.choose_folder) { $('cDir').focus(); $('cDir').select(); $('cDirMsg').hidden = false; $('cDirMsg').textContent = '폴더 경로를 직접 고쳐 넣고 Enter 를 누르세요'; return; }
+    const d = await api.choose_folder($('cDir').value);
+    if (d) setDir(d);
+  };
+  $('cDir').addEventListener('change', () => $('cDir').value.trim() && setDir($('cDir').value.trim()));
+  // 회원가입 안내 (OpenSky 계정)
+  const signup = open => { $('hSignupPop').hidden = !open; $('hSignup').setAttribute('aria-expanded', String(open)); };
+  $('hSignup').onclick = () => signup($('hSignupPop').hidden);
+  $('hSignupClose').onclick = () => signup(false);
+  $('hSignupGo').onclick = () => apiPost('/api/open-url', { url: 'https://opensky-network.org/' });
+  document.addEventListener('click', e => { if (!e.target.closest('#hSignupPop, #hSignup')) signup(false); });
   $('cStop').onclick = () => { apiPost('/api/collect/stop'); $('cStop').disabled = true; dvProg({ text: '중지 요청 — 지금 받는 날짜가 끝나면 멈춥니다.' }); };
   $('cLogCopy').onclick = () => navigator.clipboard?.writeText($('cLog').textContent);
   $('source').value = 'collect'; $('source').onchange();
