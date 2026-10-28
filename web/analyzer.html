@@ -149,7 +149,7 @@
   .snote { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
   .sfoot { display: flex; flex-direction: column; gap: 8px; }
   .sfoot:empty { display: none; }
-  /* 운항 구성: 사이드바 "보기"에서 고른 구역 하나만 (Time 과 같은 방식) */
+  /* 운항 구성: 사이드바 "보기"에서 고른 구역 하나만 (운항량과 같은 방식) */
   #ch-mix[data-mv="route"] #sec-airline, #ch-mix[data-mv="route"] #sec-type,
   #ch-mix[data-mv="airline"] #sec-route, #ch-mix[data-mv="airline"] #sec-type,
   #ch-mix[data-mv="type"] #sec-route, #ch-mix[data-mv="type"] #sec-airline { display: none; }
@@ -402,7 +402,7 @@
     </div>
     <nav class="chapnav" id="sideToc" aria-label="결과 바로가기" hidden>
       <a href="#ch-overview" data-pane="overview">개요</a>
-      <a href="#sec-profile" data-pane="profile">운항 패턴</a>
+      <a href="#sec-profile" data-pane="profile">운항량</a>
       <a href="#ch-mix" data-pane="mix">운항 구성</a>
       <a href="#ch-peak" data-pane="peak" id="tocPeak" hidden>첨두시간 산정</a>
     </nav>
@@ -419,7 +419,7 @@
   <aside class="side" id="sidePanel" aria-label="분석 설정">
     <nav class="snav" id="sideNav" aria-label="목차">
       <button type="button" data-pane="overview" aria-current="true" title="데이터 · 공항 · 기간"><span>개요</span><small>데이터 · 공항 · 기간</small></button>
-      <button type="button" data-pane="profile" disabled title="시간대별 · 일별 · 요일별 · 월별 운항"><span>Time</span><small>보기 · 필터</small></button>
+      <button type="button" data-pane="profile" disabled title="시간대별 · 일별 · 요일별 · 월별 운항"><span>운항량</span><small>보기 · 필터</small></button>
       <button type="button" data-pane="mix" disabled title="노선 · 항공사 · 기종"><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
       <button type="button" data-pane="peak" hidden title="ICAO 기준 선택"><span>첨두시간</span><small>ICAO 기준 선택</small></button>
     </nav>
@@ -570,7 +570,7 @@
     </div>
 
     <div class="step" id="filterStep" hidden>
-      <div class="step-head">필터 <span class="snote">운항 패턴·운항 구성에 함께 적용</span><button id="fReset" type="button" class="freset" hidden>초기화</button></div>
+      <div class="step-head">필터 <span class="snote">운항량·운항 구성에 함께 적용</span><button id="fReset" type="button" class="freset" hidden>초기화</button></div>
       <div>
         <div hidden>   <!-- 여객·화물 구분 필터: 사용자 요청으로 숨김, 값은 항상 전체 -->
           <label class="lbl" for="catFilter">운항 구분 (추정)</label>
@@ -645,7 +645,7 @@
       <p class="secondary" style="max-width:68ch">OpenSky 운항 데이터로 공항의 시간대·일·요일·월별 운항 패턴과 노선·항공사·기종 구성을 봅니다.</p>
       <div class="steps">
         <div><b>1. CSV 받기</b>아래 "수집 도구 받기"로 받은 도구를 PC에서 실행하면 OpenSky 운항 CSV가 만들어집니다. 왼쪽에서 그 CSV를 고르세요.</div>
-        <div><b>2. 운항 패턴</b>시간대·일·요일·월별 도착·출발과 가장 바쁜 때(PEAK)를 봅니다.</div>
+        <div><b>2. 운항량</b>시간대·일·요일·월별 도착·출발과 가장 바쁜 때(PEAK)를 봅니다.</div>
         <div><b>3. 운항 구성</b>노선·항공사·기종별 운항을 봅니다.</div>
       </div>
       <div class="kit" id="kitGuide">
@@ -721,7 +721,7 @@
         </div>
 
         <div class="ovgo" data-sec="overview">
-          <button type="button" data-goto="profile"><b>Time</b><span>시간대별 · 일별 · 요일별 · 월별 운항</span><i aria-hidden="true">→</i></button>
+          <button type="button" data-goto="profile"><b>운항량</b><span>시간대별 · 일별 · 요일별 · 월별 운항</span><i aria-hidden="true">→</i></button>
           <button type="button" data-goto="mix"><b>운항 구성</b><span>노선 지도 · 항공사 · 기종</span><i aria-hidden="true">→</i></button>
           <button type="button" data-goto="peak" class="design-only"><b>첨두시간 산정</b><span>ICAO Doc 9184 기준</span><i aria-hidden="true">→</i></button>
         </div>
@@ -729,7 +729,7 @@
         <!-- 운항 프로파일: 시간대별 · 일별 · 요일별 · 월별 -->
         <div class="panel" id="sec-profile" data-sec="profile">
           <div class="panel-head">
-            <h3 class="panel-title">운항 패턴 <span class="ptitle-sub" id="pViewName">· 시간대별</span></h3>
+            <h3 class="panel-title">운항량 <span class="ptitle-sub" id="pViewName">· 시간대별</span></h3>
             <!-- 보기 탭은 사이드바 "보기"로 옮김 (사용자 요청) — 여기 버튼은 숨겨 두고 사이드바가 눌러 씀. 이 자리에 표시 대상 줄이 들어감 -->
             <div class="tabs" role="tablist" hidden>
               <button class="tab" role="tab" aria-selected="true" data-ptab="hour">시간대별</button>
