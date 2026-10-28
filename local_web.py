@@ -348,6 +348,22 @@ class AnalyzerServer:
                         pass
                     save_settings({"user": user, "remember_pw": remember})
                     return self._json({"ok": True, "user": user, "saved": saved})
+                if path == "/api/autologin":                 # 로그인한 뒤 자동 로그인 켜기·끄기
+                    import opensky_auth as oa
+                    on = bool(body.get("on"))
+                    user = srv.session[0] if srv.session else load_settings().get("user", "")
+                    try:
+                        if on:
+                            if not srv.session:
+                                return self._json({"error": "먼저 로그인하세요."}, 400)
+                            if not oa.save_password(srv.session[0], srv.session[1]):
+                                return self._json({"error": "이 PC 에 비밀번호를 저장하지 못했습니다."}, 500)
+                        elif user:
+                            oa.forget_password(user)
+                    except Exception as e:  # noqa: BLE001
+                        return self._json({"error": f"자동 로그인 설정 실패: {e}"}, 500)
+                    save_settings({"remember_pw": on})
+                    return self._json({"ok": True, "on": on})
                 if path == "/api/logout":
                     import opensky_auth as oa
                     user = srv.session[0] if srv.session else load_settings().get("user", "")

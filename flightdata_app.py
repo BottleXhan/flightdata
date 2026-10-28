@@ -53,10 +53,10 @@ class Api:
         try:
             import ctypes
             from ctypes import wintypes
-            try:
-                hwnd = wintypes.HWND(int(str(self.window.native.Handle.ToInt64())))
-            except Exception:  # noqa: BLE001 — 창 제목으로 찾기
-                hwnd = ctypes.windll.user32.FindWindowW(None, self.window.title)
+            # 창 찾기: 제목으로 (다른 스레드에서 .NET 창 객체를 건드리지 않게 — 멈춤 방지)
+            hwnd = ctypes.windll.user32.FindWindowW(None, self.window.title)
+            if not hwnd:
+                return False
             dwm = ctypes.windll.dwmapi
 
             def setattr_(attr, value):
@@ -70,7 +70,7 @@ class Api:
                 if rgb:
                     setattr_(attr, rgb[0] | (rgb[1] << 8) | (rgb[2] << 16))
             # 제목줄을 다시 그리게 (Windows 10 은 이게 있어야 바로 바뀜)
-            ctypes.windll.user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0020)
+            ctypes.windll.user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0020 | 0x0010 | 0x4000)  # +NOACTIVATE·ASYNC (안 기다림)
             return True
         except Exception:  # noqa: BLE001 — 제목줄 색은 꾸밈이라 실패해도 무시
             return False
@@ -90,9 +90,21 @@ def _css_rgb(css):
     return None
 
 
+def _warmup():
+    try:
+        import requests  # noqa: F401
+        import trino.dbapi  # noqa: F401
+        import opensky_auth  # noqa: F401
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def main():
     srv = local_web.AnalyzerServer()
     url = srv.url()
+    # 첫 로그인·받기가 느리지 않게 무거운 모듈을 미리 불러 둠 (뒤에서)
+    import threading
+    threading.Thread(target=_warmup, daemon=True).start()
     try:
         import webview
         try:
