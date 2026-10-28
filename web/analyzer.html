@@ -618,7 +618,7 @@
           <button id="hSignup" class="link-btn" type="button" aria-expanded="false" aria-controls="hSignupPop">회원가입</button>
         </form>
         <div class="hl-on" id="hLoginOn" hidden>
-          <span class="hl-dot" aria-hidden="true"></span><b id="hLoginUser"></b><span class="text-xs muted">로그인됨</span>
+          <span class="hl-dot" title="로그인됨" aria-label="로그인됨"></span><b id="hLoginUser"></b>
           <label class="hl-rem" title="다음 실행 시 자동 로그인 (비밀번호는 Windows 자격 증명 관리자에 저장)"><input type="checkbox" id="cAuto2"> 자동 로그인</label>
           <button id="hLogout" class="link-btn" type="button">로그아웃</button>
         </div>
@@ -4628,7 +4628,7 @@ async function renderHome(list) {
     : '<p class="home-empty">분석 중인 데이터가 없습니다.</p>';
   const v = $('brandVer').textContent; $('homeVer').textContent = v || '';
   $('homeStatus').innerHTML = COLLECTOR
-    ? (LOGIN_USER ? `<span style="color:#2fa66a">●</span> <b>${esc(LOGIN_USER)}</b> 로그인됨` : '로그아웃 상태<br><span class="text-xs muted">우측 상단에서 로그인</span>')
+    ? (LOGIN_USER ? `<span style="color:#2fa66a">●</span> <b>${esc(LOGIN_USER)}</b>` : '로그아웃 상태<br><span class="text-xs muted">우측 상단에서 로그인</span>')
     : '웹 버전 · CSV 분석<br><span class="text-xs muted">다운로드는 FlightData 프로그램에서 지원</span>';
   if (!COLLECTOR) { $('haCollectT').textContent = 'CSV 데이터 분석'; $('haCollectD').textContent = '공항·기간 선택 후 CSV 분석'; }
 }
