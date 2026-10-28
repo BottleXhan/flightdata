@@ -29,5 +29,5 @@ FlightData_1.0.xx.zip 의 압축을 풀고 폴더 안의 FlightData.exe 를 더�
 - 설정·항공기 DB(aircraftDatabase.csv)·프로그램 데이터는 exe 와 같은 폴더에 저장됩니다. exe 를 쓰기 가능한 폴더(예: 바탕 화면의 새 폴더)에 두세요.
 - OpenSky 조회 규칙(하루 단위, 한 번에 하나씩)을 지킵니다. 계정을 여러 개 만들면 정지될 수 있습니다.
 - 공항 목록: mwgg/Airports (MIT License). 지도: Natural Earth.
-- 비상업적 연구용 데이터입니다. 발표·논문에 쓰면 인용하세요:
+- 데이터 출처: The OpenSky Network. 발표·논문에 쓰면 인용하세요:
   Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.

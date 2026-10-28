@@ -14,7 +14,7 @@
 
 ## 데이터 출처 · 인용
 
-- 운항 데이터: The OpenSky Network (비상업적 연구용). 발표·논문에 쓰면 인용: Matthias Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.
+- 운항 데이터: The OpenSky Network. 발표·논문에 쓰면 인용: Matthias Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.
 - 공항 목록 `airports.json`: [mwgg/Airports](https://github.com/mwgg/Airports) (MIT License)
 - 지도 윤곽 `land.json`: Natural Earth (public domain)
 
