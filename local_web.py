@@ -35,7 +35,20 @@ def web_dir():
 
 
 def default_out_dir():
-    return os.path.join(os.path.expanduser("~"), "Documents", "OpenSky_CSV")
+    """기본 저장 폴더 = FlightData.exe 가 있는 폴더 안의 OpenSky_CSV (사용자 요청 2026-10-28, 예전엔 문서 폴더의 OpenSky_CSV)."""
+    import fetch_flights as ff
+    return os.path.join(ff.APP_DIR, "OpenSky_CSV")
+
+
+OLD_DEFAULT_OUT = os.path.join(os.path.expanduser("~"), "Documents", "OpenSky_CSV")
+
+
+def out_dir_setting():
+    """설정의 저장 폴더. 예전 기본값(문서 폴더의 OpenSky_CSV)이 자동으로 저장돼 있던 것이면 새 기본값으로."""
+    d = load_settings().get("out_dir") or ""
+    if not d or os.path.normcase(os.path.abspath(d)) == os.path.normcase(OLD_DEFAULT_OUT):
+        return default_out_dir()
+    return d
 
 
 def load_settings():
@@ -114,7 +127,7 @@ class Collector:
                 oa.forget_password(user)
         except Exception:  # noqa: BLE001 — 저장 실패해도 이번 수집은 진행
             pass
-        out_dir = (p.get("outDir") or "").strip() or default_out_dir()
+        out_dir = (p.get("outDir") or "").strip() or out_dir_setting()
         os.makedirs(out_dir, exist_ok=True)
         save_settings({"user": user, "airport": ",".join(airports), "tz": tz, "out_dir": out_dir,
                        "aircraft": bool(p.get("aircraft", True)), "remember_pw": remember, "split": bool(p.get("split", True))})
@@ -226,7 +239,7 @@ class AnalyzerServer:
                                        "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
                                        "loggedIn": srv.session[0] if srv.session else None,
                                        "settings": {"user": user, "remember": st.get("remember_pw", True), "split": st.get("split", True),
-                                                    "aircraft": st.get("aircraft", True), "outDir": st.get("out_dir") or default_out_dir()}})
+                                                    "aircraft": st.get("aircraft", True), "outDir": out_dir_setting()}})
                 if path == "/api/pwsaved":
                     import opensky_auth as oa
                     try:
@@ -234,7 +247,7 @@ class AnalyzerServer:
                     except Exception:  # noqa: BLE001
                         return self._json({"saved": False})
                 if path == "/api/files":                     # 보관함: 저장 폴더의 CSV 목록 (번호로만 열 수 있음)
-                    d = load_settings().get("out_dir") or default_out_dir()
+                    d = out_dir_setting()
                     try:
                         names = sorted((n for n in os.listdir(d) if n.lower().endswith(".csv") and os.path.isfile(os.path.join(d, n))),
                                        key=lambda n: -os.path.getmtime(os.path.join(d, n)))
@@ -341,7 +354,7 @@ class AnalyzerServer:
                     srv.collector.stop = True
                     return self._json({"ok": True})
                 if path == "/api/open-folder":
-                    d = (body.get("dir") or "").strip() or load_settings().get("out_dir") or default_out_dir()
+                    d = (body.get("dir") or "").strip() or out_dir_setting()
                     os.makedirs(d, exist_ok=True)
                     if sys.platform.startswith("win"):
                         os.startfile(d)  # noqa: S606 — 사용자가 고른 저장 폴더를 탐색기로
