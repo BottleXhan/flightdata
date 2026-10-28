@@ -162,6 +162,14 @@
   .home-empty { color: var(--text-muted); font-size: .85rem; padding: 12px 0; }
   .srcwrap { position: relative; }
   .icon-btn[hidden] { display: none !important; }
+  /* 제목줄 없는 창: 헤더 오른쪽 창 버튼 */
+  .winctl { display: flex; align-self: stretch; margin: calc(-1 * var(--wc-pad, 0px)) 0; margin-left: 8px; }
+  .winctl[hidden] { display: none; }
+  .winctl button { width: 46px; display: grid; place-items: center; color: var(--text-secondary); border-radius: 0; }
+  .winctl button:hover { background: var(--surface-2); color: var(--text-primary); }
+  .winctl .wc-close:hover { background: #e81123; color: #fff; }
+  body.frameless .topbar { user-select: none; }
+  body.frameless .topbar { padding-right: 0; }
   .boot { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
   .boot[hidden] { display: none; }
   /* 오른쪽 아래 업데이트 알림 */
@@ -619,7 +627,7 @@
         </form>
         <div class="hl-on" id="hLoginOn" hidden>
           <span class="hl-dot" title="로그인됨" aria-label="로그인됨"></span><b id="hLoginUser"></b>
-          <label class="hl-rem" title="다음 실행 시 자동 로그인 (비밀번호는 Windows 자격 증명 관리자에 저장)"><input type="checkbox" id="cAuto2"> 자동 로그인</label>
+          <label class="hl-rem" hidden title="다음 실행 시 자동 로그인 (비밀번호는 Windows 자격 증명 관리자에 저장)"><input type="checkbox" id="cAuto2"> 자동 로그인</label>
           <button id="hLogout" class="link-btn" type="button">로그아웃</button>
         </div>
         <p class="hl-msg" id="hLoginMsg" role="status" hidden></p>
@@ -668,6 +676,11 @@
         </div>
       </div>
       <button id="themeBtn" class="icon-btn" type="button" hidden></button>
+    </div>
+    <div class="winctl" id="winCtl" hidden>
+      <button type="button" data-win="min" title="최소화" aria-label="최소화"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      <button type="button" data-win="max" title="이전 크기로" aria-label="최대화/이전 크기"><svg id="winMaxIco" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h7.5V9M1.5 3h7.5v7.5H1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button type="button" data-win="close" class="wc-close" title="닫기" aria-label="닫기"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.2"/></svg></button>
     </div>
   </div>
 </header>
@@ -751,8 +764,8 @@
 
     <div class="spane" data-spane="overview" hidden>
       <div class="step">
-        <p class="text-xs muted">다른 공항·기간이나 다른 CSV 를 보려면 <b>데이터</b> 탭에서 바꾸고 "데이터 보기"를 누르세요.</p>
-        <button type="button" class="btn" data-goto-pane="data" style="align-self:flex-start">데이터 탭으로</button>
+        <p class="text-xs muted">다른 공항·기간 또는 CSV를 분석하려면 <b>데이터</b> 탭에서 변경 후 [분석 시작]을 실행하세요.</p>
+        <button type="button" class="btn" data-goto-pane="data" style="align-self:flex-start">데이터 탭으로 이동</button>
       </div>
     </div>
 
@@ -4610,6 +4623,38 @@ function resetHome() {
 const goHome = () => setPane('home');
 $('homeBtn').onclick = goHome;
 // 데이터 출처는 ⚙ 설정 안 (사용자 요청)
+
+/* ---------- 제목줄 없는 프로그램 창: 헤더 오른쪽 창 버튼 + 헤더 끌어서 옮기기 ---------- */
+const MAX_ICO = '<path d="M3 1.5h7.5V9M1.5 3h7.5v7.5H1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/>';
+const RES_ICO = '<rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/>';
+function setMaxIco(maxed) { $('winMaxIco').innerHTML = maxed ? MAX_ICO : RES_ICO; document.querySelector('[data-win="max"]').title = maxed ? '이전 크기로' : '최대화'; }
+window.addEventListener('pywebviewready', async () => {
+  const api = window.pywebview?.api; if (!api?.win_close) return;
+  document.body.classList.add('frameless'); $('winCtl').hidden = false;
+  try { setMaxIco(await api.win_state()); } catch (e) {}
+  $('winCtl').onclick = async e => {
+    const b = e.target.closest('[data-win]'); if (!b) return;
+    if (b.dataset.win === 'min') api.win_min();
+    if (b.dataset.win === 'max') setMaxIco(await api.win_max());
+    if (b.dataset.win === 'close') api.win_close();
+  };
+  const bar = document.querySelector('.topbar');
+  const free = t => !t.closest('button, a, input, select, label, textarea, .hl-pop, .brand, .winctl');
+  bar.addEventListener('dblclick', async e => { if (free(e.target)) setMaxIco(await api.win_max()); });
+  bar.addEventListener('mousedown', e => {
+    if (e.button !== 0 || !free(e.target)) return;
+    const dpr = devicePixelRatio || 1;
+    let ox = e.clientX, oy = e.clientY, moved = false, raf = 0, last = null;
+    const mv = ev => {
+      if (!moved && Math.abs(ev.screenX - e.screenX) + Math.abs(ev.screenY - e.screenY) < 4) return;
+      if (!moved) { moved = true; if (innerWidth > screen.availWidth - 20) { ox = Math.min(ox, 700); setMaxIco(false); } }   // 최대화 상태에서 끌면 원래 크기로
+      last = [ev.screenX - ox, ev.screenY - oy];
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; api.win_move(last[0], last[1]); });
+    };
+    const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up);
+  });
+});
 
 /* ---------- 홈: 큰 바로가기 + 최근 데이터 + 지금 데이터 ---------- */
 async function renderHome(list) {

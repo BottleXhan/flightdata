@@ -48,6 +48,34 @@ class Api:
         res = self.window.create_file_dialog(kind, directory=start)
         return (res[0] if isinstance(res, (list, tuple)) else res) if res else None
 
+    # ---------- 제목줄 없는 창(frameless)의 창 버튼·끌기 (사용자 요청: Windows 제목줄 없애고 헤더 오른쪽에 버튼) ----------
+    _maxed = True                                            # 처음엔 최대화로 엶
+
+    def win_min(self):
+        self.window.minimize()
+
+    def win_max(self):
+        """최대화 ↔ 원래 크기. 바뀐 상태(True = 최대화)를 돌려줌."""
+        if self._maxed:
+            self.window.restore()
+        else:
+            self.window.maximize()
+        self._maxed = not self._maxed
+        return self._maxed
+
+    def win_state(self):
+        return self._maxed
+
+    def win_close(self):
+        self.window.destroy()
+
+    def win_move(self, x, y):
+        """화면 좌표(CSS 픽셀)로 창 옮기기 — 헤더를 끌 때."""
+        if self._maxed:
+            self.window.restore()
+            self._maxed = False
+        self.window.move(int(x), int(y))
+
     def set_theme(self, dark, caption="", text=""):
         """창 맨 위 제목 표시줄을 화면의 밝게/어둡게에 맞춘다 (Windows 10 1809+ 어두운 제목줄, Windows 11 은 색까지)."""
         if not sys.platform.startswith("win") or self.window is None:
@@ -123,7 +151,8 @@ def main():
         except Exception:  # noqa: BLE001
             pass
         api = Api()
-        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api)
+        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api,
+                                           frameless=True, easy_drag=False)   # Windows 제목줄 없이 — 창 버튼·끌기는 화면 헤더에서
         srv.close_window = lambda: api.window.destroy()
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
