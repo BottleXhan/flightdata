@@ -306,6 +306,11 @@
   @media (max-width: 1100px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
 
   /* 분석 요약 머리 (FIDS 느낌의 공항 코드) */
+  .hrun { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .hrun .apcode { font-size: 1.05rem; padding: .08rem .5rem; border-radius: 7px; }
+  .hrun .runmeta { gap: 0; line-height: 1.3; }
+  .hrun .runmeta b { font-size: .9rem; white-space: nowrap; }
+  .hrun .runmeta span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 46vw; }
   .runhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
   .apcode { font-family: var(--font-data); font-weight: 800; font-size: 1.75rem; letter-spacing: .05em; background: var(--sign); color: var(--sign-ink); border-radius: 10px; padding: .1rem .6rem; line-height: 1.3; }
   .runmeta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -354,6 +359,15 @@
       <div>
         <div class="brand-name">FlightData</div>
         <div class="brand-sub">OpenSky 데이터 · ICAO Doc 9184 첨두시간</div>
+      </div>
+    </div>
+    <!-- 헤더 가운데: 지금 보고 있는 공항·기간 (예전 상단 목차 자리) -->
+    <div class="hrun" id="hrun" hidden>
+      <span class="apcode" id="sumAirport">RKSI</span>
+      <div class="runmeta">
+        <b id="sumPeriod"></b>
+        <span class="text-xs secondary" id="sumApName" hidden></span>
+        <span class="text-xs muted" id="sumMeta"></span>
       </div>
     </div>
     <nav class="chapnav" id="sideToc" aria-label="결과 바로가기" hidden>
@@ -607,16 +621,8 @@
         <div id="demoNote" class="demo-note" hidden>
           <b>데모 데이터</b><span>합성한 운항 스케줄로 만든 예시입니다. 실제 분석은 왼쪽에서 CSV 파일을 고르세요.</span>
         </div>
-        <div class="runhead">
-          <div class="flex items-center gap-3" style="min-width:0">
-            <span class="apcode" id="sumAirport">RKSI</span>
-            <div class="runmeta">
-              <b id="sumPeriod"></b>
-              <span class="text-xs secondary" id="sumApName"></span>
-              <span class="text-xs muted" id="sumMeta"></span>
-              <div id="fChips" class="fchips" hidden></div>
-            </div>
-          </div>
+        <div id="fChips" class="fchips" hidden></div>
+        <div class="runhead" hidden>
           <div class="flex flex-wrap gap-2" hidden>   <!-- 2026-10-27 사용자 요청으로 숨김 (엑셀·CSV 내보내기) -->
             <button id="xlsxBtn" class="btn btn-primary" type="button" disabled>엑셀 내보내기</button>
             <button id="csvBtn" class="btn" type="button" disabled>시간대별 CSV</button>
@@ -1959,7 +1965,8 @@ function renderAll() {
 
   $('results').classList.remove('hidden');
   $('welcome').hidden = true;
-  // 상단 바 목차는 사용자 요청으로 쓰지 않음 (사이드바 목차만) — #sideToc 는 hidden 그대로
+  // 상단 바 목차는 사용자 요청으로 쓰지 않음 (사이드바 목차만) — 그 자리에 공항·기간(#hrun)
+  $('hrun').hidden = false;
   $('demoNote').hidden = STATE.data.source !== 'demo';
   $('sumAirport').textContent = STATE.data.airport;
   $('sumPeriod').textContent = `${fmtDate(STATE.data.startLocal)} ~ ${fmtDate(STATE.data.startLocal + (STATE.data.days - 1) * DAY)} · ${STATE.data.days}일`;
