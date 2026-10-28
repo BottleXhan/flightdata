@@ -1781,7 +1781,7 @@ async function renderSaved() {
   $('savedWrap').hidden = !list.length;
   renderLib(list);
 }
-async function openSaved(id, restoreDates) {
+async function openSaved(id, restoreDates, autoRun = true) {
   const files = await loadDataset(id);
   if (!files) return false;
   setStatus('저장된 데이터 불러오는 중…');
@@ -1795,7 +1795,7 @@ async function openSaved(id, restoreDates) {
   }
   $('csvInfo').textContent = '저장된 데이터 · ' + $('csvInfo').textContent;
   renderSaved();
-  if (csvFlights) run();
+  if (csvFlights && autoRun) run();
   return true;
 }
 $('savedList').onclick = async e => {
@@ -2006,7 +2006,7 @@ async function detectCollector() {
     if (!r.ok) return false;
     const info = await r.json();
     COLLECTOR = true;
-    if (info.app) setupCollectUI(info);
+    if (info.app) { setupCollectUI(info); return true; }   // 프로그램: 처음엔 데이터 탭 + "OpenSky에서 받기" (사용자 요청)
     if (!info.files?.length) return true;
     setStatus('수집기에서 받은 CSV 불러오는 중…');
     const files = [];
@@ -4304,9 +4304,10 @@ try { if (innerWidth >= 1024 && localStorage.getItem('sideOpen') === '0') setSid
 $('trinoStop').onclick = () => { fetch('/api/stop', { method: 'POST' }); $('trinoStop').disabled = true; setStatus('중지 요청됨 — 지금 조회 중인 날짜가 끝나면 멈춥니다.'); };
 detectLocalApp().then(async () => {
   renderSaved();
-  if (localApp || (COLLECTOR && csvFlights)) return;  // 수집기에서 방금 받은 CSV 가 있으면 그것을 씀 (없으면 지난번 저장 데이터)
+  // 첫 화면은 항상 데이터 탭 (사용자 요청). 프로그램은 "OpenSky에서 받기", 웹은 지난번 CSV 를 골라만 두고 분석은 버튼으로
+  if (localApp || COLLECTOR) return;
   let id = null; try { id = localStorage.getItem(DS_LAST); } catch (e) {}
-  if (id) try { await openSaved(id, true); } catch (e) { console.warn(e); }
+  if (id) try { await openSaved(id, true, false); setStatus('지난번 데이터를 골라 두었습니다 — [데이터 보기]를 누르면 분석합니다'); } catch (e) { console.warn(e); }
 });
 $('csvFile').onchange = () => onCsvSelected();
 // 공항을 바꾸면: 불러온 CSV 에 그 공항이 있으면 그 데이터로. 없으면 고른 공항을 그대로 두고 알려 줌
