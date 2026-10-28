@@ -149,6 +149,13 @@
   .snote { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
   .sfoot { display: flex; flex-direction: column; gap: 8px; }
   .sfoot:empty { display: none; }
+  .saved { display: flex; flex-direction: column; gap: 4px; }
+  .saved .srow { display: flex; align-items: stretch; gap: 4px; }
+  .saved .sopen { flex: 1; min-width: 0; text-align: left; padding: .4rem .6rem; border-radius: 8px; background: var(--surface); font-size: .78rem; font-weight: 600; color: var(--text-primary); }
+  .saved .sopen small { display: block; font-weight: 400; color: var(--text-muted); font-size: .7rem; }
+  .saved .sopen[aria-current="true"] { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .saved .sdel { padding: 0 .55rem; border-radius: 8px; background: var(--surface); color: var(--text-muted); font-size: .8rem; }
+  .saved .sdel:hover { color: var(--danger, #d64545); }
   .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: .8125rem; font-weight: 600; }
   .switch input { appearance: none; width: 34px; height: 20px; border-radius: 999px; background: var(--surface-2); position: relative; flex: 0 0 auto; cursor: pointer; transition: background .15s; }
   .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-muted); transition: transform .15s, background .15s; }
@@ -417,6 +424,10 @@
         <p class="text-xs muted leading-relaxed" id="csvInfo">
           수집 도구로 받은 CSV를 고르면 공항과 기간이 자동으로 채워집니다.
         </p>
+        <div id="savedWrap" hidden>
+          <span class="lbl">저장된 데이터 <span class="snote">이 브라우저에만 · 다음에 열면 마지막 데이터가 바로 열림</span></span>
+          <div id="savedList" class="saved"></div>
+        </div>
         <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData_Collector.exe" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">CSV가 없나요? 수집기(exe) 받기</a>
       </div>
 
@@ -1411,10 +1422,10 @@ function updateSpan() {
 }
 
 /** 파일을 고르면 모두 읽어 공항별로 묶고, 분석할 공항을 고르게 한다 */
-let CSV_NAMES = [];                                   // 불러온 CSV 이름 (최근 분석 기억용)
-async function onCsvSelected(list) {
-  const files = Array.isArray(list) ? list : [...$('csvFile').files];
-  CSV_NAMES = files.map(f => f.name);
+let CSV_NAMES = [], CSV_FILES = [];                   // 불러온 CSV 이름·파일 (최근 분석 기억·저장용)
+async function onCsvSelected(list, opts = {}) {
+  const files = Array.isArray(list) ? list : ($('csvFile').files.length ? [...$('csvFile').files] : CSV_FILES);
+  CSV_NAMES = files.map(f => f.name); CSV_FILES = files;
   csvFlights = null; csvSets = new Map();
   if (!files.length) return;
   await loadMapData();                               // 공항 시간대 (UTC 자동)
@@ -1434,10 +1445,95 @@ async function onCsvSelected(list) {
     const cur = apCode();
     selectCsvAirport(aps.includes(cur) ? cur : aps[0]);
     showMsg(null);
+    if (!opts.fromStore) saveDataset(files).catch(e => console.warn('데이터 저장 실패', e));
   } catch (e) {
     showMsg(esc(e.message), 'err');
   }
 }
+
+/* ---------- 불러온 CSV 저장 (이 브라우저의 IndexedDB, gzip 압축) ----------
+   다음에 페이지를 열면 마지막 데이터를 바로 불러와 분석한다. 서버나 다른 사람에게는 가지 않는다. */
+const DS_LAST = 'flightdata.lastDataset';
+function dsDB() {
+  return new Promise((ok, no) => {
+    const r = indexedDB.open('flightdata', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('datasets', { keyPath: 'id' });
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  });
+}
+async function dsTx(mode, fn) {
+  const db = await dsDB();
+  return new Promise((ok, no) => {
+    const t = db.transaction('datasets', mode), st = t.objectStore('datasets'); let out;
+    Promise.resolve(fn(st)).then(v => { out = v; });
+    t.oncomplete = () => ok(out); t.onerror = () => no(t.error);
+  });
+}
+const req = r => new Promise((ok, no) => { r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+async function gz(text) {
+  if (!window.CompressionStream) return { text };
+  return { blob: await new Response(new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))).blob() };
+}
+async function ungz(f) {
+  if (f.text != null) return f.text;
+  return new Response(f.blob.stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+async function saveDataset(files) {
+  const id = files.map(f => `${f.name}:${f.size}`).sort().join('|');
+  const trim = r => { const ys = csvYears(r), a = `${Math.min(...ys)}-01-01`, b = `${Math.max(...ys)}-12-31`; return [r[0] > a ? r[0] : a, r[1] < b ? r[1] : b]; };
+  const aps = [...csvSets.keys()], ranges = [...csvSets.values()].map(x => x.range).filter(Boolean).map(trim);
+  const lo = ranges.reduce((a, r) => (!a || r[0] < a ? r[0] : a), null), hi = ranges.reduce((a, r) => (!a || r[1] > a ? r[1] : a), null);
+  const packed = [];
+  for (const f of files) packed.push({ name: f.name, ...(await gz(await f.text())) });
+  const rec = { id, label: `${aps.join(', ')} · ${lo || '?'} ~ ${hi || '?'}`, files: packed, n: files.length,
+                bytes: files.reduce((t, f) => t + f.size, 0), savedAt: Date.now() };
+  await dsTx('readwrite', st => st.put(rec));
+  try { localStorage.setItem(DS_LAST, id); } catch (e) {}
+  renderSaved();
+}
+async function loadDataset(id) {
+  const rec = await dsTx('readonly', st => req(st.get(id)));
+  if (!rec) return null;
+  const files = [];
+  for (const f of rec.files) files.push(new File([await ungz(f)], f.name, { type: 'text/csv' }));
+  return files;
+}
+async function renderSaved() {
+  let list = [];
+  try { list = await dsTx('readonly', st => req(st.getAll())); } catch (e) { $('savedWrap').hidden = true; return; }
+  list.sort((a, b) => b.savedAt - a.savedAt);
+  let cur = null; try { cur = localStorage.getItem(DS_LAST); } catch (e) {}
+  const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1e3)) + 'KB';
+  const when = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  $('savedList').innerHTML = list.map(r => `<div class="srow"><button type="button" class="sopen" data-open="${esc(r.id)}" aria-current="${r.id === cur}" title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.label)}<small>파일 ${r.n}개 · ${mb(r.bytes)} · ${when(r.savedAt)} 저장</small></button><button type="button" class="sdel" data-del="${esc(r.id)}" title="이 데이터 지우기" aria-label="지우기">✕</button></div>`).join('');
+  $('savedWrap').hidden = !list.length;
+}
+async function openSaved(id, restoreDates) {
+  const files = await loadDataset(id);
+  if (!files) return false;
+  setStatus('저장된 데이터 불러오는 중…');
+  $('source').value = 'csv'; $('source').onchange();
+  await onCsvSelected(files, { fromStore: true });
+  try { localStorage.setItem(DS_LAST, id); } catch (e) {}
+  if (restoreDates) {                                  // 지난번에 보던 기간 (파일 안에 있으면)
+    let L = null; try { L = JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch (e) {}
+    const r = csvRangeNow();
+    if (L?.startDate && r && L.startDate >= r[0] && L.endDate <= r[1]) { $('startDate').value = L.startDate; $('endDate').value = L.endDate; updateSpan(); }
+  }
+  $('csvInfo').textContent = '저장된 데이터 · ' + $('csvInfo').textContent;
+  renderSaved();
+  if (csvFlights) run();
+  return true;
+}
+$('savedList').onclick = async e => {
+  const o = e.target.closest('[data-open]'), d = e.target.closest('[data-del]');
+  if (o) openSaved(o.dataset.open, false);
+  if (d) {
+    await dsTx('readwrite', st => st.delete(d.dataset.del));
+    try { if (localStorage.getItem(DS_LAST) === d.dataset.del) localStorage.removeItem(DS_LAST); } catch (e) {}
+    renderSaved();
+  }
+};
 
 function selectCsvAirport(ap) {
   const set = csvSets.get(ap);
@@ -3382,8 +3478,13 @@ $('sideBtn').onclick = () => {
 };
 try { if (innerWidth >= 1024 && localStorage.getItem('sideOpen') === '0') setSide(false, false); } catch (e) {}
 $('trinoStop').onclick = () => { fetch('/api/stop', { method: 'POST' }); $('trinoStop').disabled = true; setStatus('중지 요청됨 — 지금 조회 중인 날짜가 끝나면 멈춥니다.'); };
-detectLocalApp();
-$('csvFile').onchange = onCsvSelected;
+detectLocalApp().then(async () => {
+  renderSaved();
+  if (COLLECTOR || localApp) return;                 // 수집기에서 연 경우는 방금 받은 CSV 를 씀
+  let id = null; try { id = localStorage.getItem(DS_LAST); } catch (e) {}
+  if (id) try { await openSaved(id, true); } catch (e) { console.warn(e); }
+});
+$('csvFile').onchange = () => onCsvSelected();
 $('icao').addEventListener('change', () => { const ap = apCode(); if (csvSets.has(ap)) selectCsvAirport(ap); else if (csvSets.size) onCsvSelected(); });
 $('csvAirport').onchange = () => selectCsvAirport($('csvAirport').value);
 /** 기본 select 는 브라우저가 위로 펼치기도 해서, 항상 아래로 펼쳐지는 목록으로 바꾼다 (값·change 는 원래 select 그대로) */
