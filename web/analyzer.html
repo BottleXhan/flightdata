@@ -161,6 +161,7 @@
   .home-recent small { display: block; color: var(--text-muted); font-size: .72rem; }
   .home-empty { color: var(--text-muted); font-size: .85rem; padding: 12px 0; }
   .srcwrap { position: relative; }
+  .icon-btn[hidden] { display: none !important; }
   .boot { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
   .boot[hidden] { display: none; }
   /* 오른쪽 아래 업데이트 알림 */
@@ -188,6 +189,13 @@
   .set-h { font-size: .95rem; color: var(--text-primary); margin-bottom: 6px; }
   .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border, rgba(0,0,0,.07)); }
   .set-row[hidden] { display: none; }
+  .set-src { border-top: 1px solid var(--border, rgba(0,0,0,.07)); padding: 12px 0 2px; }
+  .set-src summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .set-src summary::-webkit-details-marker { display: none; }
+  .set-src summary::after { content: "▾"; color: var(--text-muted); font-size: .75rem; }
+  .set-src[open] summary::after { content: "▴"; }
+  .set-src > div { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; max-height: 40vh; overflow: auto; }
+  .set-src p { margin: 0; }
   .set-row > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .set-k { font-size: .72rem; font-weight: 600; color: var(--text-muted); }
   .set-row b { color: var(--text-primary); font-size: .9rem; }
@@ -627,7 +635,7 @@
           <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
         </div>
       </div>
-      <button id="homeBtn" class="icon-btn" type="button" title="홈" aria-label="홈"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
+      <button id="homeBtn" class="icon-btn" type="button" title="홈" aria-label="홈" hidden><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
       <div class="srcwrap" id="setWrap">
         <button id="setBtn" class="icon-btn" type="button" title="설정" aria-label="설정" aria-expanded="false" aria-controls="setPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         <div id="setPop" class="hl-pop set-pop" role="dialog" aria-label="설정" hidden>
@@ -645,22 +653,21 @@
             <label class="switch"><input type="checkbox" id="setAuto" role="switch"><span></span></label>
           </div>
           <div class="set-row">
-            <div><span class="set-k">화면</span><small class="muted">밝게 / 어둡게</small></div>
-            <div class="seg" id="setTheme"><button type="button" data-th="light">밝게</button><button type="button" data-th="dark">어둡게</button></div>
+            <div><span class="set-k">화면 테마</span><small class="muted">라이트 / 다크</small></div>
+            <div class="seg" id="setTheme"><button type="button" data-th="light">라이트</button><button type="button" data-th="dark">다크</button></div>
           </div>
-        </div>
-      </div>
-      <div class="srcwrap">
-        <button id="srcInfoBtn" class="icon-btn" type="button" title="데이터 출처" aria-label="데이터 출처" aria-expanded="false" aria-controls="srcInfoPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg></button>
-        <div id="srcInfoPop" class="hl-pop src-pop text-xs muted leading-relaxed" role="dialog" aria-label="데이터 출처" hidden>
-          <b style="font-size:.85rem;color:var(--text-primary)">데이터 출처</b>
+          <details class="set-src">
+            <summary><span class="set-k">데이터 출처</span><span class="muted text-xs">The OpenSky Network · 인용 정보</span></summary>
+            <div class="text-xs muted leading-relaxed">
       <p><b class="secondary">데이터 출처:</b> The OpenSky Network, <a href="https://opensky-network.org">https://opensky-network.org</a></p>
       <p class="mt-1"><b class="secondary">인용 (OpenSky 요청):</b> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
       <p class="mt-1">OpenSky 데이터는 ADS-B로 추정한 값이며 공항 운항 스케줄·지연 정보가 아닙니다. 계획 목적으로는 공항 공식 통계와 대조하세요.</p>
           <p style="margin-top:6px"><a href="icao-source.html" style="color:var(--accent)">참고: ICAO Doc 9184 원문 보기 →</a></p>
+            </div>
+          </details>
         </div>
       </div>
-      <button id="themeBtn" class="icon-btn" type="button"></button>
+      <button id="themeBtn" class="icon-btn" type="button" hidden></button>
     </div>
   </div>
 </header>
@@ -4602,11 +4609,7 @@ function resetHome() {
 // 홈 아이콘·로고: 홈 화면으로 (보던 데이터는 그대로 — 비우기는 홈의 [데이터 닫기])
 const goHome = () => setPane('home');
 $('homeBtn').onclick = goHome;
-// 데이터 출처 (머리 오른쪽 ⓘ)
-const srcPop = open => { $('srcInfoPop').hidden = !open; $('srcInfoBtn').setAttribute('aria-expanded', String(open)); };
-$('srcInfoBtn').onclick = e => { e.stopPropagation(); srcPop($('srcInfoPop').hidden); };
-document.addEventListener('click', e => { if (!e.target.closest('.srcwrap')) srcPop(false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') srcPop(false); });
+// 데이터 출처는 ⚙ 설정 안 (사용자 요청)
 
 /* ---------- 홈: 큰 바로가기 + 최근 데이터 + 지금 데이터 ---------- */
 async function renderHome(list) {
@@ -4642,7 +4645,7 @@ $('homeView').addEventListener('click', e => {
 });
 $('csvFile').addEventListener('change', () => { if (PANE === 'home' && $('csvFile').files.length) setPane('data'); });
 document.querySelector('.brand').style.cursor = 'pointer';
-document.querySelector('.brand').title = '홈';
+document.querySelector('.brand').title = '홈으로';
 document.querySelector('.brand').onclick = goHome;
 
 /* ---------- 사이드바 목차: 누르면 그 장으로 이동하고, 사이드바 내용도 그 장에 맞게 바꿈 ----------
