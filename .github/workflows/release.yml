@@ -37,12 +37,6 @@ jobs:
       - name: Versioned name
         shell: pwsh
         run: Copy-Item dist\FlightData.exe "dist\FlightData_${{ env.VER }}.exe"
-      - name: Command-line kit (Python 버전)
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path kitzip\FlightData_CLI | Out-Null
-          Copy-Item kit\run_fetch.bat, kit\README_KR.txt, fetch_flights.py -Destination kitzip\FlightData_CLI
-          Compress-Archive -Path kitzip\FlightData_CLI -DestinationPath dist\FlightData_CLI.zip -Force
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VER }}
@@ -52,9 +46,6 @@ jobs:
             Windows 용 FlightData_${{ env.VER }} 입니다. 설치 없이 FlightData_${{ env.VER }}.exe 를 더블클릭하세요.
             처음 실행할 때 "Windows의 PC 보호" 경고가 뜨면 [추가 정보] → [실행].
             한 창에서 OpenSky 운항 CSV 를 받고(1 데이터 → "OpenSky에서 받기") 바로 분석합니다.
-            사용법은 README_KR.txt 를 보세요.
-            FlightData_CLI.zip 은 Python 이 있는 PC 에서 쓰는 명령창 버전입니다 (run_fetch.bat 더블클릭).
+            사용법: https://github.com/${{ github.repository }}#readme
           files: |
             dist/FlightData_${{ env.VER }}.exe
-            dist/FlightData_CLI.zip
-            README_KR.txt

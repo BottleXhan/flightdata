@@ -2,8 +2,8 @@
 
 [OpenSky Network](https://opensky-network.org) Trino(과거 데이터)에서 공항 운항 CSV 를 받고, **같은 창에서 바로 분석**하는 Windows 프로그램입니다.
 
-**받기:** [최신 릴리스](../../releases/latest)에서 `FlightData_1.xx.exe` (이름의 숫자가 버전) — 설치 없이 더블클릭
-· 명령창 버전(Python 필요): [FlightData_CLI.zip](../../releases/latest/download/FlightData_CLI.zip)
+**받기:** [최신 릴리스](../../releases/latest)에서 `FlightData_1.0.xx.exe` (이름의 숫자가 버전) — 설치 없이 더블클릭
+· 명령창 버전(Python 필요): 이 저장소의 `kit/run_fetch.bat` + `fetch_flights.py` (Code → Download ZIP)
 
 - exe 를 켜면 FlightData 분석기(`web/analyzer.html`)가 프로그램 창(Edge WebView2, [pywebview](https://pywebview.flowrl.com))으로 열립니다. 화면은 이 PC 안에서만 열리는 작은 서버(127.0.0.1, `local_web.py`)가 보내고, "OpenSky에서 받기" 도 그 서버가 `fetch_flights.py` 로 수행합니다. 웹 버전: https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5
 - OpenSky 계정과 Trino 사용 승인이 필요합니다. 비밀번호를 넣으면 브라우저 없이 바로 로그인합니다(pyopensky 와 같은 방식). "이 PC에 비밀번호 기억" 은 Windows 자격 증명 관리자에 저장하며, 파일이나 저장소에는 남기지 않고 화면으로 돌려주지도 않습니다. 비밀번호를 비우면 브라우저 로그인 창이 열립니다.
