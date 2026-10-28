@@ -16,7 +16,6 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <style>
@@ -89,11 +88,6 @@
   .brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--sign); color: var(--sign-ink); display: grid; place-items: center; flex: none; }
   .brand-name { font-weight: 700; font-size: 1rem; letter-spacing: -0.01em; white-space: nowrap; }
   .brand-sub { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
-  .chapnav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1; justify-content: center; }
-  .chapnav::-webkit-scrollbar { display: none; }
-  .chapnav a { text-decoration: none; color: var(--text-secondary); font-size: .8125rem; font-weight: 600; padding: .4rem .7rem; border-radius: 999px; white-space: nowrap; }
-  .chapnav a:hover { background: var(--surface-2); color: var(--text-primary); }
-  .chapnav a[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
   .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: transparent; color: var(--text-secondary); }
   .icon-btn:hover { background: var(--surface-2); color: var(--text-primary); }
   .link-btn { text-decoration: none; font-size: .8125rem; font-weight: 600; color: var(--text-secondary); padding: .45rem .75rem; border-radius: 10px; white-space: nowrap; }
@@ -329,12 +323,6 @@
   .amap-tip { position: absolute; pointer-events: none; background: var(--surface); color: var(--text-primary); border-radius: 8px; padding: 6px 9px; font-size: .75rem; box-shadow: 0 4px 14px rgba(0,0,0,.18); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .amap-tip b { font-family: var(--font-data); margin-right: 6px; }
   .amap-note { position: absolute; right: 10px; bottom: 6px; margin: 0; font-size: .68rem; color: var(--text-muted); }
-  .ovgo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .ovgo button { position: relative; text-align: left; background: var(--surface); border-radius: 16px; padding: 18px 44px 18px 20px; display: flex; flex-direction: column; gap: 4px; }
-  .ovgo button:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
-  .ovgo b { font-size: 1rem; color: var(--text-primary); }
-  .ovgo span { font-size: .8rem; color: var(--text-secondary); }
-  .ovgo i { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--accent); font-size: 1.2rem; }
   .snav { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 12px; background: var(--surface-2); }
   .snav button { flex: 1 1 auto; min-width: 0; padding: .45rem .25rem; border-radius: 9px; color: var(--text-secondary); text-align: center; white-space: nowrap; }
   .snav button span { font-size: .78rem; font-weight: 700; letter-spacing: -.01em; }
@@ -390,8 +378,7 @@
     .side { position: static; max-height: none; }
     .brand-sub { display: none; }
     .topbar-inner { flex-wrap: wrap; row-gap: 0; }
-    .chapnav { order: 3; flex-basis: 100%; justify-content: flex-start; padding-bottom: 8px; }
-  }
+    }
 
   /* ── 설정 패널 ── */
   .step { display: flex; flex-direction: column; gap: 10px; }
@@ -620,13 +607,6 @@
         <span class="text-xs muted" id="sumMeta"></span>
       </div>
     </div>
-    <nav class="chapnav" id="sideToc" aria-label="결과 바로가기" hidden>
-      <a href="#dataView" data-pane="data">데이터</a>
-      <a href="#ch-overview" data-pane="overview">개요</a>
-      <a href="#sec-profile" data-pane="profile">운항량</a>
-      <a href="#ch-mix" data-pane="mix">운항 구성</a>
-      <a href="#ch-peak" data-pane="peak" id="tocPeak" hidden>첨두시간 산정</a>
-    </nav>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
       <!-- OpenSky 로그인 (FlightData 프로그램 안에서만 보임) -->
       <div class="hlogin" id="hLogin" hidden>
@@ -655,7 +635,6 @@
           <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
         </div>
       </div>
-      <button id="homeBtn" class="icon-btn" type="button" title="홈" aria-label="홈" hidden><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
       <div class="srcwrap" id="setWrap">
         <button id="setBtn" class="icon-btn" type="button" title="설정" aria-label="설정" aria-expanded="false" aria-controls="setPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
         <div id="setPop" class="hl-pop set-pop" role="dialog" aria-label="설정" hidden>
@@ -822,14 +801,6 @@
     <div class="step" id="filterStep" hidden>
       <div class="step-head">필터 <span class="snote">운항량·운항 구성에 함께 적용</span><button id="fReset" type="button" class="freset" hidden>초기화</button></div>
       <div>
-        <div hidden>   <!-- 여객·화물 구분 필터: 사용자 요청으로 숨김, 값은 항상 전체 -->
-          <label class="lbl" for="catFilter">운항 구분 (추정)</label>
-          <select id="catFilter" class="field">
-            <option value="all" selected>전체 운항</option>
-            <option value="여객">여객만</option>
-            <option value="화물">화물만</option>
-          </select>
-        </div>
         <div>
           <label class="lbl" for="fDir">방향</label>
           <select id="fDir" class="field">
@@ -1118,12 +1089,6 @@
           <b>데모 데이터</b><span>합성 운항 스케줄 기반 예시입니다. 실제 분석은 데이터 다운로드 또는 CSV 가져오기를 이용하세요.</span>
         </div>
         <div id="fChips" class="fchips" hidden></div>
-        <div class="runhead" hidden>
-          <div class="flex flex-wrap gap-2" hidden>   <!-- 2026-10-27 사용자 요청으로 숨김 (엑셀·CSV 내보내기) -->
-            <button id="xlsxBtn" class="btn btn-primary" type="button" disabled>엑셀 내보내기</button>
-            <button id="csvBtn" class="btn" type="button" disabled>시간대별 CSV</button>
-          </div>
-        </div>
 
         <div class="panel apcard" id="apCard" data-sec="overview" hidden>
           <div class="apglobe" id="apGlobe" aria-hidden="true"></div>
@@ -1175,11 +1140,6 @@
           <button type="button" class="panel" data-ovm="type"><span class="ovh">기종 Top 5 <small>기종 코드</small><i>→</i></span><ol id="ovTopType"></ol></button>
         </div>
 
-        <div class="ovgo" data-sec="overview" hidden>
-          <button type="button" data-goto="profile"><b>운항량</b><span>시간대별 · 일별 · 요일별 · 월별 운항</span><i aria-hidden="true">→</i></button>
-          <button type="button" data-goto="mix"><b>운항 구성</b><span>노선 지도 · 항공사 · 기종</span><i aria-hidden="true">→</i></button>
-          <button type="button" data-goto="peak" class="design-only"><b>첨두시간 산정</b><span>ICAO Doc 9184 기준</span><i aria-hidden="true">→</i></button>
-        </div>
 
         <!-- 운항 프로파일: 시간대별 · 일별 · 요일별 · 월별 -->
         <div class="panel" id="sec-profile" data-sec="profile">
@@ -1329,41 +1289,8 @@
           </div>
         </div>
 
-        <!-- 공항별 비교 (CSV 여러 공항) -->
-        <div class="panel" id="compareSection" data-sec="overview" style="display:none" hidden>
-          <h3 class="panel-title">공항별 비교</h3>
-          <p class="panel-desc" id="compareNote"></p>
-          <div class="overflow-x-auto mt-3"><table class="data" id="compareTable"></table></div>
-        </div>
       </section>
 
-      <!-- ═════════ 순위 ═════════ -->
-      <section class="chapter" id="ch-rank" hidden>
-        <div class="chapter-head"><h2>순위</h2><p>운항이 많은 순서 · 30번째는 표시만</p></div>
-        <div class="panel">
-          <div class="panel-head">
-            <div style="min-width:0">
-              <h3 class="panel-title">시간대별 · 일별 · 요일별 · 월별</h3>
-              <p class="panel-desc" id="rankListNote"></p>
-            </div>
-            <div class="tabs" role="tablist">
-              <button class="tab" role="tab" aria-selected="true" data-rtab="hour">시간대별</button>
-              <button class="tab" role="tab" aria-selected="false" data-rtab="day">일별</button>
-              <button class="tab" role="tab" aria-selected="false" data-rtab="wd">요일별</button>
-              <button class="tab" role="tab" aria-selected="false" data-rtab="month">월별</button>
-            </div>
-          </div>
-          <div id="rankHourOpts" class="flex flex-wrap items-center gap-2 mt-3">
-            <select id="rankHourView" class="field" style="width:auto" aria-label="시간대 보기">
-              <option value="all" selected>기간 전체 시간 (일시별)</option>
-              <option value="hod">하루 중 시간대 (00–23시 평균)</option>
-            </select>
-          </div>
-          <div class="overflow-auto mt-3" style="max-height:540px"><table class="data" id="rankListTable"></table></div>
-          <div class="flex items-center gap-3 mt-3"><button id="rankMore" class="btn" type="button">100개 더 보기</button><span class="text-xs muted" id="rankCount"></span></div>
-        </div>
-
-      </section>
 
       <!-- ═════════ 운항 구성 ═════════ -->
       <section class="chapter" id="ch-mix" data-sec="mix" data-mv="route">
@@ -1389,17 +1316,6 @@
           <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="alDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
           <div id="alDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="alTable"></table></div></div>
         </div>
-        <div class="panel" hidden>   <!-- 2026-10-27 사용자 요청으로 숨김 (여객·화물) -->
-          <h3 class="panel-title">여객 · 화물 구분 (추정)</h3>
-          <p class="panel-desc">이 도구의 추정입니다. 편명이 항공사 형식이 아니면 <b>기타</b>, 항공기 모델에 화물기 표기(747-8F, 747 406ERF, 777F, A330-243F, MD-11F, 개조 화물기 P2F·BCF·SF 등)가 있으면 <b>화물</b>,
-            화물 전용 항공사 편명(FDX, UPS, GTI, CLX, PAC, BOX, MPH, AZG 등)이나 운항사 이름에 Cargo가 있으면 <b>화물</b>, 모델이 있으면 <b>여객</b>, 없으면 <b>미상</b>입니다.
-            기종 코드(B748 등)는 여객기와 화물기가 같아 모델 이름으로 구분합니다. 왼쪽 "운항 구분"에서 여객만·화물만 골라 볼 수 있습니다.</p>
-          <p class="text-xs secondary mt-3" id="catNote"></p>
-          <div class="grid-2 mt-3">
-            <div class="overflow-x-auto"><table class="data" id="catTable"></table></div>
-            <div class="overflow-x-auto"><table class="data" id="catBasisTable"></table></div>
-          </div>
-        </div>
         <div class="panel" id="sec-type">
           <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 기종</span></h3>
           <p class="panel-desc" id="typeNote"></p>
@@ -1410,34 +1326,6 @@
         </div>
       </section>
 
-      <!-- ═════════ 원자료 ═════════ -->
-      <section class="chapter" id="ch-raw" hidden>
-        <div class="chapter-head"><h2>운항 목록</h2><p>운항 한 편 한 편과 시간대별 집계</p></div>
-        <div class="panel">
-          <div class="panel-head">
-            <div class="tabs" role="tablist">
-              <button class="tab" role="tab" aria-selected="true" data-tab="flights">운항 목록</button>
-              <button class="tab" role="tab" aria-selected="false" data-tab="hourly">시간대별 집계</button>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <select id="tblFilter" class="field" style="width:auto" aria-label="표시 범위" disabled>
-                <option value="all">전체 시간</option>
-                <option value="nonzero">운항 있는 시간</option>
-                <option value="top">상위 N 순위만</option>
-              </select>
-              <input id="tblSearch" class="field" style="width:12rem" placeholder="검색 (날짜·편명)" aria-label="검색">
-            </div>
-          </div>
-          <div class="overflow-auto mt-3" style="max-height:520px"><table class="data" id="detailTable"></table></div>
-          <div class="flex items-center justify-between mt-3 text-sm">
-            <span id="pageInfo" class="muted"></span>
-            <div class="flex gap-2">
-              <button id="prevPg" class="btn" type="button">이전</button>
-              <button id="nextPg" class="btn" type="button">다음</button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ═════════ 첨두시간 (선택) ═════════ -->
       <section class="chapter" id="ch-peak" data-sec="peak" hidden>
@@ -1619,35 +1507,6 @@
         </div>
       </section>
 
-      <!-- ═════════ 방법론 ═════════ -->
-      <section class="chapter" id="ch-about" hidden>
-        <div class="chapter-head"><h2>방법론 · 출처</h2></div>
-        <div class="panel text-sm leading-relaxed secondary">
-          <details open>
-            <summary class="font-semibold" style="color:var(--text-primary)">산정 방법과 원문 근거 (ICAO Doc 9184 Part I, 2023)</summary>
-            <p class="mt-2 text-xs muted">출처: ICAO Doc 9184, Airport Planning Manual, Part I – Master Planning, 3rd ed. (2023). 아래 인용은 원문, 해설은 이 도구의 구현 방식입니다.</p>
-            <ul class="list-disc pl-5 mt-2 space-y-2" style="max-width:90ch">
-              <li><b>Aircraft traffic demand</b> (Glossary, p. xiii): 해당 시간에 착륙하려는 항공기 수와 출발하려는 항공기 수의 합. → 도착(OpenSky <code>lastSeen</code>) + 출발(<code>firstSeen</code>)을 현지 시간으로 집계합니다. OpenSky 값은 실제 운항 실적이므로 엄밀히는 “current movement rate”에 해당합니다.</li>
-              <li><b>Peak aircraft traffic demand</b> (Glossary): <i>“The aircraft traffic demand which will be reached in the most active hour, averaged over two consecutive hours.”</i> → 연속 2시간 평균 (h시 + h+1시) ÷ 2의 최댓값. 자정을 넘는 창도 연속 시간으로 취급하며, 이동 60분 모드는 15분 간격으로 창을 이동합니다.</li>
-              <li><b>Busy hour aircraft traffic demand</b> (Glossary): <i>“The aircraft traffic demand which is reached, or exceeded, in the forty (or thirty) most active hours of the year, averaged over two consecutive hours.”</i> → 정시 기준 연속 2시간 평균의 40번째(또는 30번째) 값. 원문은 연간 기준이므로 1년치 데이터로 분석해야 정의와 일치합니다. 1년 미만이면 그 기간 안의 N번째를 쓰며 경고를 표시합니다.</li>
-              <li><b>§3.4.3 첨두시간 지표</b> (p. I-3-4):
-                <ul class="list-[circle] pl-5 mt-1 space-y-1">
-                  <li>a) 연중 20·30·40번째 바쁜 시간 → 단일 정시 운항 순위 N번째.</li>
-                  <li>b) 피크 월(또는 피크 2개월)의 평균일(또는 평균 평일) 피크 시간 — §3.4.4: FAA 사용. 피크 월은 일평균 운항이 가장 많은 달, 피크 2개월은 일평균이 가장 높은 연속 두 달로 정했습니다.</li>
-                  <li>c) 피크 월 평균 주의 두 번째로 바쁜 날의 피크 시간 — §3.4.4: IATA 권장. 피크 월의 요일별 평균으로 평균 주를 구성하고, 두 번째로 바쁜 요일 중 그 평균에 가장 가까운 실제 날짜의 최대 정시 운항을 씁니다(원문에 세부 절차가 없어 이 도구가 정한 해석).</li>
-                  <li>d) 90·95 백분위 바쁜 기간의 피크 시간 → 일 운항 기준 해당 백분위 날의 최대 정시 운항(“busy period”를 ‘일’로 해석).</li>
-                  <li>e) 5% busy hour: <i>“an hour selected so that all the hours of the years that are busier handle a cumulative total of 5 per cent of annual traffic.”</i> → 정시 운항 내림차순 누적이 총운항의 5%에 도달한 직후의 시간.</li>
-                </ul></li>
-              <li><b>참고 문헌</b>: Ashford, Stanton, Moore, Coutu, Beasley, <i>Airport Operations</i>, 3rd ed. (McGraw-Hill, 2013), Ch. 2 "Airport Peaks and Airline Scheduling" — SBR(30번째 바쁜 시간, 영국·유럽), BHR(5% busy hour), TPHP/PPH(피크 월 평균일 피크 시간, FAA), 독일 30번째, 파리 3% 초과 기준, 네덜란드 6번째(상위 20시간 평균에 근사) 등 각국 관행과 UK CAA 기준표(Table 2.1)를 소개합니다. "UK CAA 기준표 대조"의 근거입니다.</li>
-              <li><b>지표 선택</b> (§3.4.4): 공항·기관마다 지표가 다르고 국가 항공당국이 정할 수 있으며 데이터 가용성에 좌우됩니다. Section II §1.2.7은 “peak hour” 정의에 대한 이해관계자 합의를 마스터플랜에 문서화하도록 요구합니다.</li>
-              <li><b>구분 집계</b> (§3.4.5, §3.4.7 c): 첨두시간 운항은 도착·출발·합계로 나누어 산정하며 각각 다른 시간에 발생할 수 있습니다.</li>
-              <li><b>Absolute peak</b> (Section II §1.2.5): 가장 바쁜 달의 가장 바쁜 날 최대 60분 수요. 과잉 공급을 초래하므로 계획 기준으로 쓰지 않으며(§3.4.2) 참고값으로만 표시합니다.</li>
-              <li><b>첨두 집중률 / 연간 대비 비율</b> (§3.8.4): 첨두시간 운항 ÷ 설계일 총운항, 그리고 첨두시간 운항 ÷ 연간 운항(기간 일평균×365 환산). 후자는 연간 예측에 곱해 미래 첨두시간을 구하는 peak hour ratio입니다.</li>
-              <li>§3.8.5: 소규모 공항은 첨두에 1편만 추가돼도 프로파일이 크게 바뀌므로 단순한 방법이 적절할 수 있습니다. OpenSky는 ADS-B 수신 범위에 따라 운항이 누락될 수 있으므로 공항 공식 통계와 대조하십시오.</li>
-            </ul>
-          </details>
-        </div>
-      </section>
     </div>
 
     <!-- ───────────── 데이터 출처 · 인용 ───────────── -->
@@ -1727,35 +1586,6 @@ function parseCSV(text) {
 }
 
 const AIRCRAFT_FIELDS = ['registration', 'typecode', 'model', 'manufacturer', 'operator', 'icaoaircrafttype'];
-
-/* ---------- 여객·화물 구분 (추정 — Doc 9184 기준이 아니라 이 도구의 판정) ----------
-   1) 편명이 항공사 형식(영문 3자 + 숫자)이 아니면 기타 (일반·군용·등록번호 편명 등)
-   2) 모델 이름에 화물기 표기: 747-8F, 747 83QF, 747 406ERF, 777F, 777-FB5, A330-243F, MD-11F, P2F·BCF·SF(개조 화물기) …
-   3) 화물 전용 항공사 편명 (아래 목록)
-   4) 운항사 이름에 Cargo·Freight·Logistics
-   5) 모델이 있으면 여객, 없으면 미상 (대한항공·아시아나처럼 여객·화물을 함께 운항하는 항공사는 모델이 있어야 구분됨) */
-const CARGO_AIRLINES = new Set(['FDX', 'UPS', 'GTI', 'CLX', 'CKS', 'PAC', 'BOX', 'MPH', 'AZG', 'GEC', 'CAO', 'CKK', 'CSS', 'YZR', 'ABW', 'NCA',
-  'ABX', 'ATN', 'DHK', 'DHX', 'BCS', 'TAY', 'ICV', 'AHK', 'SQC', 'LCO', 'WGN', 'SOO', 'AIH', 'KYE', 'TPA']);
-const FREIGHTER_WORDS = new Set(['F', 'ERF', 'SF', 'BCF', 'PCF', 'BDSF', 'P2F', 'FREIGHTER', 'CARGO', 'CONVERTED']);
-const CATS = ['여객', '화물', '기타', '미상'];
-function isFreighterModel(model) {
-  const tok = model.toUpperCase().split(/[\s\-()\/,.]+/).filter(Boolean);
-  return tok.some((w, i) => FREIGHTER_WORDS.has(w) || (/\d/.test(w) && w.endsWith('F')) ||
-    (/^F[0-9A-Z]{2}$/.test(w) && /^7[4-7]7$/.test(tok[i - 1] || '')));            // 777-FB5 처럼 F + 고객 코드
-}
-function classifyMovement(m) {
-  const cs = (m.callsign || '').toUpperCase(), model = m.model || '';
-  if (!/^[A-Z]{3}\d/.test(cs) || /^H/.test(m.icaoaircrafttype || '')) return ['기타', '편명이 항공사 형식 아님 (일반·군용 등)'];
-  if (model && isFreighterModel(model)) return ['화물', '모델 (화물기형)'];
-  if (CARGO_AIRLINES.has(cs.slice(0, 3))) return ['화물', '편명 (화물 전용 항공사)'];
-  if (/cargo|freight|logistic/i.test(m.operator || '')) return ['화물', '운항사 이름'];
-  if (model) return ['여객', '모델 (화물기 표기 없음)'];
-  return ['미상', '모델 정보 없음'];
-}
-function tagCategories(movements) {
-  for (const m of movements) [m.cat, m.catBasis] = classifyMovement(m);
-  return movements;
-}
 
 function readFlightsCSV(text) {
   const rows = parseCSV(text.replace(/^\ufeff/, ''));
@@ -2071,40 +1901,6 @@ function selectCsvAirport(ap) {
 
 /* ---------- 공항별 비교 (CSV 여러 공항을 불러왔을 때) ----------
    각 공항을 자기 파일 기간으로, 지금 선택한 산정 기준·옵션 그대로 분석해 핵심 값만 나란히 보여 준다. */
-function renderAirportCompare() {
-  const show = $('source').value === 'csv' && csvSets.size > 1;
-  $('compareSection').style.display = show ? '' : 'none';
-  STATE.compareRows = null;
-  if (!show) return;
-  const cfg = cfgFromUI();
-  const rows = [];
-  for (const [ap, set] of csvSets) {
-    if (!set.range) continue;
-    const startLocal = dateToLocalSec(set.range[0]);
-    const days = Math.round((dateToLocalSec(set.range[1]) - startLocal) / DAY) + 1;
-    const offsetH = offsetFor(ap, set.range[0]);
-    const beginUtc = startLocal - offsetH * HOUR, endUtc = startLocal + days * DAY - offsetH * HOUR;
-    const movements = applyFilters(tagCategories(flightsToMovements(set.flights, ap, beginUtc, endUtc)), { airport: ap, offsetH });
-    if (!movements.length) continue;
-    const r = analyze({ movements, startLocal, days, offsetH }, cfg);
-    const m = id => r.methods.find(x => x.id === id);
-    const sel = m(cfg.method) || r.methods[0];
-    const sbr = ranked(r.s.tot)[29];
-    rows.push({ ap, days, total: movements.length, avg: r.overallAvgDaily, peak: m('icao_peak')?.v, busy: m('icao_busy')?.v,
-                sbr: sbr?.v, bhr: m('pct5')?.v, sel: sel.v, selWhen: sel.when, conc: sel.conc, current: ap === STATE.data?.airport });
-  }
-  rows.sort((a, b) => b.total / b.days - a.total / a.days);
-  STATE.compareRows = rows;
-  $('compareTable').innerHTML = `<thead><tr><th>공항</th><th class="num">기간</th><th class="num">총운항</th><th class="num">일평균</th>
-    <th class="num">Peak (2h 평균)</th><th class="num">Busy hour (${cfgFromUI().N}번째)</th><th class="num">SBR (30번째)</th><th class="num">5% BHR</th>
-    <th class="num">설계 첨두 (선택 기준)</th><th>설계 첨두 시간대</th><th class="num">첨두 집중률</th><th></th></tr></thead><tbody>` +
-    rows.map(r => `<tr class="${r.current ? 'hl' : ''}"><td><b>${esc(r.ap)}</b></td><td class="num">${r.days}일</td><td class="num">${r.total.toLocaleString()}</td>
-      <td class="num">${fmtN(r.avg)}</td><td class="num">${fmtN(r.peak)}</td><td class="num">${fmtN(r.busy)}</td><td class="num">${fmtN(r.sbr)}</td>
-      <td class="num">${fmtN(r.bhr)}</td><td class="num"><b>${fmtN(r.sel)}</b></td><td class="secondary">${esc(r.selWhen)}</td><td class="num">${fmtPct(r.conc)}</td>
-      <td>${r.current ? '<span class="badge">분석 중</span>' : `<button class="btn" type="button" style="padding:.25rem .6rem" data-switch="${esc(r.ap)}">이 공항 분석</button>`}</td></tr>`).join('') + '</tbody>';
-  $('compareTable').querySelectorAll('[data-switch]').forEach(b => b.onclick = () => { selectCsvAirport(b.dataset.switch); run(); });
-  $('compareNote').textContent = `불러온 CSV ${csvSets.size}개 공항을 각 파일 기간으로, 위에서 고른 산정 기준·옵션 그대로 계산했습니다. 기간이 서로 다르면 순위 기반 값(Busy hour·SBR 등)은 직접 비교하기 어렵습니다.`;
-}
 
 /* ---------- OpenSky Trino (내 PC): trino/app.py 로 연 경우에만 사용 ----------
    app.py 가 이 페이지를 http://localhost 에서 제공하고 /api/* 로 Trino 수집을 대신한다. */
@@ -2719,7 +2515,6 @@ function analyze(data, cfg) {
    ===================================================================== */
 let STATE = { data: null, res: null };
 const charts = {};
-const tbl = { tab: 'flights', page: 0, size: 48, sortKey: null, sortDir: -1 };
 
 function cfgFromUI() {
   const bn = $('busyN').value;
@@ -2749,11 +2544,10 @@ let regionName = cc => cc;
 try { const dn = new Intl.DisplayNames(['ko'], { type: 'region' }); regionName = cc => { try { return dn.of(cc) || cc; } catch (e) { return cc; } }; } catch (e) {}
 /** 지금 고른 필터로 운항을 거른다. ctx: 공항(국내/국제 판단)·UTC(시간대 판단) */
 function applyFilters(mv, ctx = STATE.data) {
-  const cat = $('catFilter').value, dir = $('fDir').value, route = $('fRoute').value, size = $('fSize').value;
+  const dir = $('fDir').value, route = $('fRoute').value, size = $('fSize').value;
   const h0 = +$('fH0').value, h1 = +$('fH1').value, allDay = h0 === 0 && h1 === 24;
   const home = countryOf(ctx.airport), al = FILTER.airlines, off = (ctx.offsetH || 0) * HOUR;
   return mv.filter(m => {
-    if (cat !== 'all' && m.cat !== cat) return false;
     if (dir !== 'all' && m.type !== dir) return false;
     if (route !== 'all') {
       const c = countryOf(m.other);
@@ -2768,7 +2562,6 @@ function applyFilters(mv, ctx = STATE.data) {
     return true;
   });
 }
-const catFilter = mv => applyFilters(mv);   // 예전 이름 (공항별 비교 등)
 /** 데이터를 불러오면 노선(나라)·항공사 목록을 그 데이터로 채움 */
 function buildFilterOptions() {
   const mv = STATE.data.movements, home = countryOf(STATE.data.airport);
@@ -2799,7 +2592,6 @@ function syncFilterUI() {
   $('fAlBtn').firstChild.textContent = al.length ? (al.length <= 3 ? al.join(', ') : `${al.slice(0, 2).join(', ')} 외 ${al.length - 2}곳`) : '전체 항공사';
   const chips = [];
   const txt = id => $(id).selectedOptions[0].text.replace(/ \([\d,]+\)$/, '');
-  if ($('catFilter').value !== 'all') chips.push(['catFilter', txt('catFilter')]);
   if ($('fDir').value !== 'all') chips.push(['fDir', txt('fDir')]);
   if ($('fRoute').value !== 'all') chips.push(['fRoute', txt('fRoute')]);
   if (al.length) chips.push(['fAl', '항공사 ' + $('fAlBtn').firstChild.textContent]);
@@ -2868,10 +2660,6 @@ function renderAll() {
   renderStats(res);
   setTimeout(() => renderOverviewExtras(res));
   renderAirlinesRoutes();
-  renderCats(res, sel);
-  renderAirportCompare();
-  tbl.page = 0;
-  renderDetail();
 }
 
 function renderSplit(res) {
@@ -3324,50 +3112,6 @@ function renderDaily(res, sel) {
 }
 
 /* ---------- 상세 테이블 ---------- */
-function hourlyRows(res) {
-  const rows = [];
-  for (let i = 0; i < res.s.tot.length; i++) {
-    const ls = res.startLocal + i * HOUR;
-    rows.push({ i, date: fmtDate(ls), wd: WD[wdOf(ls)], hour: `${fmtTime(ls)}–${fmtTime(ls + HOUR)}`, arr: res.s.arr[i], dep: res.s.dep[i], tot: res.s.tot[i], avg2: res.c.tot[i] ?? null, rank: res.rankOf[i] || null });
-  }
-  return rows;
-}
-function flightRows() {
-  const off = STATE.data.offsetH * HOUR;
-  return STATE.view.movements.map(m => ({ time: fmtDT(m.t + off), t: m.t, type: m.type === 'A' ? '도착' : '출발', callsign: m.callsign || '–', icao24: m.icao24, other: m.other || '–', typecode: m.typecode || '–', operator: m.operator || '–', cat: m.cat || '–' })).sort((a, b) => a.t - b.t);
-}
-function renderDetail() {
-  const res = STATE.res, q = $('tblSearch').value.trim().toLowerCase(), f = $('tblFilter').value;
-  const sel = res.methods.find(m => m.id === cfgFromUI().method);
-  let cols, rows;
-  if (tbl.tab === 'hourly') {
-    cols = [['date', '일자'], ['wd', '요일'], ['hour', '시간'], ['arr', '도착', 1], ['dep', '출발', 1], ['tot', '합계', 1], ['avg2', '2시간 평균(합계)', 1], ['rank', '2h 평균 순위', 1]];
-    rows = hourlyRows(res);
-    if (f === 'nonzero') rows = rows.filter(r => r.tot > 0);
-    if (f === 'top') rows = rows.filter(r => r.rank && r.rank <= res.N).sort((a, b) => a.rank - b.rank);
-    if (q) rows = rows.filter(r => r.date.includes(q) || r.hour.includes(q));
-  } else {
-    cols = [['time', '현지 시각'], ['type', '구분'], ['callsign', '편명'], ['icao24', 'ICAO24'], ['typecode', '기종'], ['operator', '운항사'], ['cat', '여객/화물'], ['other', '출발지/목적지']];
-    rows = flightRows();
-    if (q) rows = rows.filter(r => (r.callsign + r.icao24 + r.other + r.time + r.typecode + r.operator + r.cat).toLowerCase().includes(q));
-  }
-  if (tbl.sortKey && cols.some(c => c[0] === tbl.sortKey)) {
-    const k = tbl.sortKey;
-    rows = [...rows].sort((a, b) => ((a[k] ?? -Infinity) > (b[k] ?? -Infinity) ? 1 : (a[k] ?? -Infinity) < (b[k] ?? -Infinity) ? -1 : 0) * tbl.sortDir);
-  }
-  const pages = Math.max(1, Math.ceil(rows.length / tbl.size));
-  tbl.page = Math.min(tbl.page, pages - 1);
-  const slice = rows.slice(tbl.page * tbl.size, (tbl.page + 1) * tbl.size);
-  const inSel = r => sel && sel.start != null && r.i != null && (res.startLocal + r.i * HOUR) >= sel.start && (res.startLocal + r.i * HOUR) < sel.start + sel.len;
-  $('detailTable').innerHTML = `<thead><tr>${cols.map(([k, t, n]) => `<th class="${n ? 'num' : ''}" data-k="${k}">${t}${tbl.sortKey === k ? (tbl.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>` +
-    (slice.map(r => `<tr class="${inSel(r) ? 'hl' : ''}">${cols.map(([k, , n]) => `<td class="${n ? 'num' : ''}">${n ? fmtN(r[k]) : esc(r[k])}</td>`).join('')}</tr>`).join('') ||
-      `<tr><td colspan="${cols.length}" class="muted">데이터가 없습니다.</td></tr>`) + '</tbody>';
-  $('pageInfo').textContent = `${rows.length.toLocaleString()}행 · ${tbl.page + 1}/${pages} 페이지`;
-  $('prevPg').disabled = tbl.page === 0; $('nextPg').disabled = tbl.page >= pages - 1;
-  $('detailTable').querySelectorAll('th').forEach(th => th.onclick = () => {
-    const k = th.dataset.k; tbl.sortDir = tbl.sortKey === k ? -tbl.sortDir : -1; tbl.sortKey = k; renderDetail();
-  });
-}
 
 /* ---------- 처리능력 비교 · 미래 첨두 예측 ----------
    · 이용률 = 설계 첨두시간 수요 ÷ 시간당 처리능력. 100% 이상이면 ICAO 정의상 포화(Saturation).
@@ -3438,77 +3182,6 @@ function renderRatios(res, sel) {
       <td class="num">${c.key ? '<b>' + pct(c.annual, 4) + '</b>' : pct(c.annual, c.annual < 0.01 ? 4 : 2)}</td>
       <td class="num">${c.prev == null ? '–' : (c.prev < 1 ? pct(c.prev) : '×' + c.prev.toFixed(2))}<div class="text-xs muted">${esc(c.prevLbl)}</div></td>
       <td class="secondary text-xs">${esc(c.note)}</td></tr>`).join('') + '</tbody>';
-  renderRankList();
-}
-
-/* ---------- 순위표 (운항 많은 순) — 30번째는 표시만 ---------- */
-const rk = { tab: 'hour', limit: 100 };
-const MARK_N = 30;
-function renderRankList() {
-  const res = STATE.res, R = STATE.ratios, cfg = cfgFromUI();
-  const sel = res.methods.find(m => m.id === cfg.method) || res.methods[0];
-  const pct = (v, d = 2) => v == null || !isFinite(v) ? '–' : (v * 100).toFixed(d) + '%';
-  const mark = (rank, what) => rank === MARK_N ? ` <span class="badge">${MARK_N}번째${what}</span>` : '';
-  const bar = (v, max) => `<div style="height:8px;border-radius:4px;background:var(--accent);width:${max && v ? (v / max * 100).toFixed(1) : 0}%"></div>`;
-  $('rankHourOpts').style.display = rk.tab === 'hour' ? '' : 'none';
-  let head, rows, total, note;
-  if (rk.tab === 'hour' && $('rankHourView').value === 'all') {
-    const list = ranked(res.s.tot);
-    total = list.length;
-    const selI = sel.start != null && sel.len === HOUR ? (sel.start - res.startLocal) / HOUR : null;
-    const max = list[0]?.v;
-    head = '<th class="num">순위</th><th>일시</th><th class="num">도착</th><th class="num">출발</th><th class="num">합계</th><th style="width:20%"></th><th class="num">연속 2시간 평균</th>';
-    rows = list.slice(0, rk.limit).map((e, k) => {
-      const ls = res.startLocal + e.i * HOUR, r = k + 1;
-      return `<tr class="${r === MARK_N ? 'hl' : ''}"><td class="num">${r}</td><td>${fmtDate(ls)} (${WD[wdOf(ls)]}) ${fmtTime(ls)}–${fmtTime(ls + HOUR)}${mark(r, ' (SBR)')}${e.i === selI ? ' <span class="badge">설계</span>' : ''}</td>
-        <td class="num">${res.s.arr[e.i]}</td><td class="num">${res.s.dep[e.i]}</td><td class="num"><b>${e.v}</b></td><td>${bar(e.v, max)}</td><td class="num">${res.c.tot[e.i] != null ? fmtN(res.c.tot[e.i]) : '–'}</td></tr>`;
-    });
-    note = `분석 기간의 모든 정시 1시간을 운항 많은 순으로 나열합니다. ${MARK_N}번째 = SBR(표시만). 같은 운항 수는 이른 시각이 앞.`;
-  } else if (rk.tab === 'hour') {
-    const list = [...R.hours].sort((a, b) => b.avg - a.avg || a.h - b.h);
-    total = list.length;
-    const max = list[0]?.avg, hasDesign = sel.day != null;
-    head = `<th class="num">순위</th><th>시간대</th><th class="num">기간 평균 운항</th><th style="width:20%"></th><th class="num">일 운항 대비</th><th class="num">기간 최대</th>${hasDesign ? '<th class="num">설계일 운항</th>' : ''}`;
-    rows = list.map((h, k) => `<tr><td class="num">${k + 1}</td><td>${pad(h.h)}:00–${pad(h.h + 1)}:00</td><td class="num"><b>${fmtN(h.avg)}</b></td><td>${bar(h.avg, max)}</td>
-      <td class="num">${pct(h.share)}</td><td class="num">${h.max}</td>${hasDesign ? `<td class="num">${h.design}</td>` : ''}</tr>`);
-    note = '하루 24개 시간대를 기간 평균 운항이 많은 순으로 나열합니다.';
-  } else if (rk.tab === 'day') {
-    const list = R.days;
-    total = list.length;
-    const max = list[0]?.tot;
-    head = '<th class="num">순위</th><th>일자</th><th class="num">도착</th><th class="num">출발</th><th class="num">합계</th><th style="width:20%"></th><th class="num">÷ 일평균</th><th class="num">연간 대비</th>';
-    rows = list.slice(0, rk.limit).map(d => {
-      const x = res.daily[d.d];
-      return `<tr class="${d.rank === MARK_N ? 'hl' : ''}"><td class="num">${d.rank}</td><td>${d.date} (${d.wd})${mark(d.rank, '')}${d.d === sel.day ? ' <span class="badge">설계일</span>' : ''}</td>
-        <td class="num">${x.arr}</td><td class="num">${x.dep}</td><td class="num"><b>${d.tot.toLocaleString()}</b></td><td>${bar(d.tot, max)}</td>
-        <td class="num">${d.avgIndex != null ? d.avgIndex.toFixed(2) : '–'}</td><td class="num">${pct(d.annualShare, 3)}</td></tr>`;
-    });
-    note = `분석 기간의 모든 날을 운항 많은 순으로 나열합니다. ${MARK_N}번째 날은 표시만 합니다.`;
-  } else if (rk.tab === 'wd') {
-    const list = R.weekdays.filter(x => x.n).sort((a, b) => b.avg - a.avg);
-    total = list.length;
-    const max = list[0]?.avg, selWd = sel.day != null ? wdOf(res.daily[sel.day].ls) : null;
-    head = `<th class="num">순위</th><th>요일</th><th class="num">일수</th><th class="num">평균 운항</th><th style="width:20%"></th><th class="num">주간 비중</th><th class="num">÷ 기간 일평균</th><th class="num">최대</th><th class="num">피크 월 평균 (${R.pm ? R.pm.k : '–'})</th>`;
-    rows = list.map((x, k) => `<tr><td class="num">${k + 1}</td><td>${x.name}${x.w === selWd ? ' <span class="badge">설계일</span>' : ''}</td><td class="num">${x.n}</td>
-      <td class="num"><b>${fmtN(x.avg)}</b></td><td>${bar(x.avg, max)}</td><td class="num">${pct(x.weekShare)}</td><td class="num">${x.index != null ? x.index.toFixed(2) : '–'}</td>
-      <td class="num">${x.max ?? '–'}</td><td class="num">${fmtN(x.pmAvg)}</td></tr>`);
-    note = '요일별 하루 평균 운항이 많은 순입니다. 주간 비중 = 요일 평균 ÷ 7개 요일 평균의 합.';
-  } else {
-    const list = [...R.months].sort((a, b) => b.avg - a.avg);
-    total = list.length;
-    const max = list[0]?.avg;
-    head = '<th class="num">순위</th><th>월</th><th class="num">일수</th><th class="num">운항</th><th class="num">일평균</th><th style="width:20%"></th><th class="num">연간 대비</th><th class="num">÷ 기간 일평균</th>';
-    rows = list.map((m, k) => `<tr><td class="num">${k + 1}</td><td>${m.k}${m.peak ? ' <span class="badge">피크 월</span>' : ''}</td><td class="num">${m.partial ? `${m.days}/${m.full}` : m.days}</td>
-      <td class="num">${m.total.toLocaleString()}</td><td class="num"><b>${fmtN(m.avg)}</b></td><td>${bar(m.avg, max)}</td>
-      <td class="num">${pct(m.annualShare)}${m.partial ? '*' : ''}</td><td class="num">${m.index != null ? m.index.toFixed(2) : '–'}</td></tr>`);
-    note = '월별 하루 평균 운항이 많은 순입니다 (날짜가 일부만 있는 달도 공정하게 비교하려고 일평균 기준).' + (R.months.some(m => m.partial) ? ' * 일부 날짜만 있는 달: 연간 대비는 일평균 × 달력 일수로 환산.' : '');
-  }
-  if (['hour', 'day'].includes(rk.tab) && !(rk.tab === 'hour' && $('rankHourView').value === 'hod') && total < MARK_N) note += ` (전체가 ${total}개라 ${MARK_N}번째가 없습니다)`;
-  $('rankListNote').textContent = note;
-  $('rankListTable').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody>`;
-  const more = total > rows.length;
-  $('rankMore').style.display = more ? '' : 'none';
-  $('rankCount').textContent = more ? `${rows.length.toLocaleString()} / ${total.toLocaleString()}개 표시 (전체는 엑셀)` : '';
 }
 
 function renderCapacity(res, sel) {
@@ -3593,7 +3266,6 @@ async function saveFile(filename, blob) {
   a.download = filename;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-const fileBase = () => `${STATE.data.airport}_${fmtDate(STATE.data.startLocal)}_${STATE.data.days}d` + ({ 여객: '_passenger', 화물: '_cargo' }[$('catFilter').value] || '');
 
 /* ---------- UK CAA 기준표 (Ashford et al. 2013, Table 2.1, Source: UK CAA) ----------
    [연간 운항, 첨두일/평균일 비, 첨두일 운항, 첨두시간/첨두일 비, 첨두시간 운항, SBR/첨두시간 비, SBR 운항] */
@@ -3905,160 +3577,10 @@ function renderRouteMap(S) {
 }
 
 /* ---------- 여객·화물 구분 ---------- */
-function renderCats(res, sel) {
-  const all = STATE.data.movements, off = STATE.data.offsetH * HOUR, cfg = cfgFromUI();
-  const inWin = m => sel.start != null && m.t + off >= sel.start && m.t + off < sel.start + sel.len;
-  const rows = CATS.map(cat => {
-    const mv = all.filter(m => m.cat === cat);
-    if (!mv.length) return null;
-    const r = { cat, n: mv.length, share: mv.length / all.length, arr: mv.filter(m => m.type === 'A').length, dep: mv.filter(m => m.type === 'D').length,
-                inPeak: sel.start != null ? mv.filter(inWin).length : null };
-    if (cat === '여객' || cat === '화물') {                  // 해당 구분만으로 따로 산정
-      const a = analyze({ ...STATE.data, movements: mv }, cfg);
-      const s = a.methods.find(x => x.id === cfg.method) || a.methods[0];
-      Object.assign(r, { peak: a.methods.find(x => x.id === 'icao_peak')?.v, sel: s.v, selWhen: s.when });
-    }
-    return r;
-  }).filter(Boolean);
-  const basis = new Map();
-  for (const m of all) { const k = m.cat + '|' + m.catBasis; basis.set(k, (basis.get(k) || 0) + 1); }
-  STATE.catRows = rows;
-  STATE.catBasisRows = [...basis.entries()].map(([k, n]) => { const [cat, b] = k.split('|'); return { cat, basis: b, n, share: n / all.length }; })
-    .sort((a, b) => CATS.indexOf(a.cat) - CATS.indexOf(b.cat) || b.n - a.n);
-  const hasModel = all.some(m => m.model);
-  $('catNote').textContent = (hasModel ? '' : '이 데이터에는 항공기 모델 정보가 없어 화물 전용 항공사 편명으로만 화물을 찾습니다 (나머지는 미상). 최신 fetch_flights.py 로 받으면 모델이 붙습니다. ') +
-    ($('catFilter').value !== 'all' ? `지금 "${$('catFilter').selectedOptions[0].text}"만 보는 중` : '');
-  $('catTable').innerHTML = `<thead><tr><th>구분</th><th class="num">운항</th><th class="num">비율</th><th class="num">도착</th><th class="num">출발</th></tr></thead><tbody>` +
-    rows.map(r => `<tr><td><b>${r.cat}</b></td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td>
-      <td class="num">${r.arr.toLocaleString()}</td><td class="num">${r.dep.toLocaleString()}</td></tr>`).join('') + '</tbody>';
-  $('catBasisTable').innerHTML = '<thead><tr><th>구분</th><th>판정 근거</th><th class="num">운항</th><th class="num">비율</th></tr></thead><tbody>' +
-    STATE.catBasisRows.map(r => `<tr><td>${r.cat}</td><td class="secondary">${esc(r.basis)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td></tr>`).join('') + '</tbody>';
-}
 
-function exportCSV() {
-  const rows = hourlyRows(STATE.res);
-  const head = ['date', 'weekday', 'hour', 'arrivals', 'departures', 'total', 'two_hour_avg_total', 'two_hour_avg_rank'];
-  const lines = [head.join(',')].concat(rows.map(r => [r.date, r.wd, r.hour, r.arr, r.dep, r.tot, r.avg2 ?? '', r.rank ?? ''].join(',')));
-  saveFile(`${fileBase()}_hourly.csv`, new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
-}
 
 /** 엑셀 통합문서: 운항 원자료 · 시간대별 · 일별 · 산정 기준 비교 · 분석 정보 */
-async function exportXLSX() {
-  if (!window.XLSX) return showMsg('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하거나 CSV 내보내기를 사용하세요.', 'err');
-  const btn = $('xlsxBtn'), label = btn.textContent;
-  btn.disabled = true; btn.textContent = '엑셀 만드는 중…';
-  setStatus(`엑셀 파일을 만드는 중입니다 (운항 ${STATE.view.movements.length.toLocaleString()}건). 데이터가 많으면 수십 초 걸릴 수 있습니다.`);
-  await sleep(50);                                   // 안내 문구가 먼저 화면에 그려지도록
-  try {
-    const blob = buildWorkbook();
-    setStatus(`엑셀 파일 준비 완료 (${(blob.size / 1e6).toFixed(1)}MB)`);
-    await saveFile(`${fileBase()}_peak_hour.xlsx`, blob);
-  } catch (e) {
-    console.error(e);
-    showMsg(esc(`엑셀 파일을 만들지 못했습니다: ${e?.message || e}. 기간을 줄이거나 CSV 내보내기를 사용하세요.`), 'err');
-  } finally {
-    btn.disabled = false; btn.textContent = label;
-  }
-}
 
-function buildWorkbook() {
-  const res = STATE.res, data = STATE.view, off = data.offsetH * HOUR;
-  const cfg = cfgFromUI(), sel = res.methods.find(m => m.id === cfg.method) || res.methods[0];
-  const iso = t => new Date(t * 1000).toISOString().replace('T', ' ').slice(0, 19);
-  // 객체 배열 → 머리글 + 값 배열(aoa)로 만들어 dense 시트 생성 (json_to_sheet 보다 훨씬 빠름)
-  const sheet = (rows, widths) => {
-    const head = rows.length ? Object.keys(rows[0]) : [];
-    const ws = XLSX.utils.aoa_to_sheet([head, ...rows.map(r => head.map(h => r[h]))], { dense: true });
-    ws['!cols'] = widths.map(w => ({ wch: w }));
-    return ws;
-  };
-  const wb = XLSX.utils.book_new();
-
-  const raw = [...data.movements].sort((a, b) => a.t - b.t).map(m => ({
-    '구분': m.type === 'A' ? '도착' : '출발',
-    '현지 일시': fmtDT(m.t + off) + ':' + pad(new Date((m.t + off) * 1000).getUTCSeconds()),
-    'UTC 일시': iso(m.t),
-    'Unix 시각': m.t,
-    '편명(callsign)': m.callsign || '',
-    'ICAO24': m.icao24 || '',
-    [`출발지/목적지`]: m.other || '',
-    '등록번호': m.registration || '', '기종 코드': m.typecode || '', '모델': m.model || '',
-    '제조사': m.manufacturer || '', '운항사': m.operator || '', 'ICAO 항공기 유형': m.icaoaircrafttype || '',
-    '여객/화물 (추정)': m.cat || '', '판정 근거': m.catBasis || ''
-  }));
-  XLSX.utils.book_append_sheet(wb, sheet(raw, [6, 20, 20, 12, 14, 10, 14, 10, 9, 22, 16, 22, 12, 14, 30]), '운항 원자료');
-  if (STATE.compareRows?.length) {
-    XLSX.utils.book_append_sheet(wb, sheet(STATE.compareRows.map(r => ({
-      '공항': r.ap, '기간(일)': r.days, '총운항': r.total, '일평균': +r.avg.toFixed(1), 'Peak (2h 평균)': r.peak ?? '',
-      [`Busy hour (${res.N}번째)`]: r.busy ?? '', 'SBR (30번째)': r.sbr ?? '', '5% BHR': r.bhr ?? '',
-      '설계 첨두 (선택 기준)': +r.sel.toFixed(2), '설계 첨두 시간대': r.selWhen, '첨두 집중률(%)': r.conc != null ? +(r.conc * 100).toFixed(2) : ''
-    })), [8, 8, 10, 10, 14, 18, 12, 10, 18, 30, 14]), '공항별 비교');
-  }
-  if (STATE.alrt) {
-    XLSX.utils.book_append_sheet(wb, sheet(STATE.alrt.airlines.map((a, i) => ({ '순위': i + 1, '항공사 코드': a.code, '운항사': a.name, '운항': a.n, '비율(%)': +(a.n / STATE.alrt.total * 100).toFixed(2), '도착': a.arr, '출발': a.dep })), [6, 10, 28, 8, 8, 8, 8]), '항공사');
-    XLSX.utils.book_append_sheet(wb, sheet(STATE.alrt.routes.map((r, i) => ({ '순위': i + 1, '공항': r.ap, '운항': r.n, '비율(%)': +(r.n / STATE.alrt.total * 100).toFixed(2), '이 공항에서 도착': r.from, '이 공항으로 출발': r.to })), [6, 8, 8, 8, 16, 16]), '노선');
-  }
-  const types = typeSummary(res, sel);
-  if (types.rows.length) {
-    XLSX.utils.book_append_sheet(wb, sheet(types.rows.map(r => ({ '기종 코드': r.code, '모델': r.model, '운항': r.n, '비율(%)': +(r.share * 100).toFixed(2), '설계 첨두시간대 운항': r.inPeak ?? '' })), [10, 28, 8, 8, 18]), '기종별');
-  }
-
-  const cats = STATE.catRows;
-  if (cats?.length) {
-    XLSX.utils.book_append_sheet(wb, sheet(cats.map(r => ({ '구분 (추정)': r.cat, '운항': r.n, '비율(%)': +(r.share * 100).toFixed(2), '도착': r.arr, '출발': r.dep,
-      '설계 첨두시간대 운항': r.inPeak ?? '', 'Peak (2h 평균, 해당 구분만)': r.peak != null ? +r.peak.toFixed(2) : '',
-      '설계 첨두 (선택 기준, 해당 구분만)': r.sel != null ? +r.sel.toFixed(2) : '', '해당 구분 첨두 시간대': r.selWhen || '' })),
-      [10, 8, 8, 8, 8, 18, 24, 28, 30]), '여객·화물');
-    XLSX.utils.book_append_sheet(wb, sheet(STATE.catBasisRows.map(r => ({ '구분 (추정)': r.cat, '판정 근거': r.basis, '운항': r.n, '비율(%)': +(r.share * 100).toFixed(2) })),
-      [10, 36, 8, 8]), '여객·화물 판정 근거');
-  }
-
-  const hourly = hourlyRows(res).map(r => ({ '일자': r.date, '요일': r.wd, '시간': r.hour, '도착': r.arr, '출발': r.dep, '합계': r.tot, '연속 2시간 평균(합계)': r.avg2 ?? '', '2시간 평균 순위': r.rank ?? '' }));
-  XLSX.utils.book_append_sheet(wb, sheet(hourly, [12, 6, 13, 8, 8, 8, 20, 16]), '시간대별');
-
-  const R = STATE.ratios, dayRank = new Map(R.days.map(d => [d.d, d]));
-  const daily = res.daily.map(d => { const x = dayRank.get(d.d); return { '일자': fmtDate(d.ls), '요일': WD[wdOf(d.ls)], '도착': d.arr, '출발': d.dep, '합계': d.tot,
-    '순위': x.rank, '연간 대비(%)': +(x.annualShare * 100).toFixed(4), '÷ 일평균': +x.avgIndex.toFixed(3), '÷ 피크 월 평균일': x.pmIndex != null ? +x.pmIndex.toFixed(3) : '' }; });
-  XLSX.utils.book_append_sheet(wb, sheet(daily, [12, 6, 8, 8, 8, 6, 12, 10, 16]), '일별');
-
-  const hourRank = ranked(res.s.tot).map((e, k) => { const ls = res.startLocal + e.i * HOUR; return {
-    '순위': k + 1, '일자': fmtDate(ls), '요일': WD[wdOf(ls)], '시간': `${fmtTime(ls)}–${fmtTime(ls + HOUR)}`, '도착': res.s.arr[e.i], '출발': res.s.dep[e.i], '합계': e.v,
-    '연속 2시간 평균': res.c.tot[e.i] ?? '', '비고': k + 1 === 30 ? '30번째 (SBR)' : '' }; });
-  XLSX.utils.book_append_sheet(wb, sheet(hourRank, [6, 12, 6, 13, 8, 8, 8, 14, 14]), '시간 순위');
-  XLSX.utils.book_append_sheet(wb, sheet(R.days.map(d => ({ '순위': d.rank, '일자': d.date, '요일': d.wd, '도착': res.daily[d.d].arr, '출발': res.daily[d.d].dep, '합계': d.tot,
-    '÷ 일평균': +d.avgIndex.toFixed(3), '연간 대비(%)': +(d.annualShare * 100).toFixed(4), '비고': d.rank === 30 ? '30번째' : '' })), [6, 12, 6, 8, 8, 8, 10, 12, 10]), '일 순위');
-  const ratioAoa = [['첨두 비율 체인 (§3.8.4, 단계 구성은 이 도구가 정함)'], ['단계', '운항', '연간 대비(%)', '앞 단계 대비', '앞 단계', '설명'],
-    ...R.chain.map(c => [c.step, +c.v.toFixed(2), +(c.annual * 100).toFixed(4), c.prev != null ? +c.prev.toFixed(4) : '', c.prevLbl, c.note]),
-    [], ['월별'], ['월', '데이터 일수', '달력 일수', '운항', '일평균', '월 운항(환산)', '연간 대비(%)', '지수 (월 일평균 ÷ 기간 일평균)', '피크 월'],
-    ...[...R.months].sort((a, b) => b.avg - a.avg).map(m => [m.k, m.days, m.full, m.total, +m.avg.toFixed(2), +m.est.toFixed(1), m.annualShare != null ? +(m.annualShare * 100).toFixed(3) : '', m.index != null ? +m.index.toFixed(3) : '', m.peak ? '✓' : '']),
-    [], ['요일별'], ['요일', '일수', '평균 운항', '주간 비중(%)', '÷ 기간 일평균', '최대', '피크 월 평균'],
-    ...R.weekdays.filter(x => x.n).sort((a, b) => b.avg - a.avg).map(x => [x.name, x.n, x.avg != null ? +x.avg.toFixed(2) : '', x.weekShare != null ? +(x.weekShare * 100).toFixed(2) : '', x.index != null ? +x.index.toFixed(3) : '', x.max ?? '', x.pmAvg != null ? +x.pmAvg.toFixed(2) : '']),
-    [], ['시간별 (하루 중 시간대)'], ['시간', '기간 평균 운항', '일 운항 대비(%)', '기간 최대', '설계일 운항', '설계일 대비(%)'],
-    ...[...R.hours].sort((a, b) => b.avg - a.avg || a.h - b.h).map(h => [`${pad(h.h)}:00–${pad(h.h + 1)}:00`, +h.avg.toFixed(2), h.share != null ? +(h.share * 100).toFixed(2) : '', h.max, h.design ?? '', h.designShare != null ? +(h.designShare * 100).toFixed(2) : ''])];
-  const wsR = XLSX.utils.aoa_to_sheet(ratioAoa); wsR['!cols'] = [30, 14, 14, 14, 22, 50, 14, 26, 8].map(w => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, wsR, '첨두 비율');
-
-  const methods = [...res.methods].sort((x, y) => METHOD_ORDER.indexOf(x.id) - METHOD_ORDER.indexOf(y.id)).map(m => ({
-    '산정 기준': m.name, '선택': m.id === sel.id ? '✓' : '', '근거': m.basis, '첨두 시간대': m.when,
-    '합계': +m.v.toFixed(2), '도착': +m.arr.toFixed(2), '출발': +m.dep.toFixed(2),
-    '설계일 총운항': m.dayTotal != null ? +m.dayTotal.toFixed(1) : '', '첨두 집중률(%)': m.conc != null ? +(m.conc * 100).toFixed(2) : '',
-    '연간 운항 대비(%)': m.annualRatio != null ? +(m.annualRatio * 100).toFixed(4) : ''
-  }));
-  XLSX.utils.book_append_sheet(wb, sheet(methods, [36, 5, 48, 30, 8, 8, 8, 12, 14, 16]), '산정 기준 비교');
-
-  const info = [
-    ['공항 (ICAO)', data.airport], ['분석 기간 (현지)', `${fmtDate(data.startLocal)} ~ ${fmtDate(data.startLocal + (data.days - 1) * DAY)} (${data.days}일)`],
-    ['UTC 오프셋', data.offsetH], ['데이터 소스', { demo: '데모 데이터 (합성)', csv: 'CSV 파일 (OpenSky Trino)', trino: 'OpenSky Trino (내 PC)' }[data.source]],
-    ['총 운항', data.movements.length], ['운항 구분 (추정)', $('catFilter').selectedOptions[0].text], ['설계 첨두시간 산정 기준', sel.name], ['설계 첨두시간 수요 (편/시간)', +sel.v.toFixed(2)],
-    ['Busy hour 순위 N', `${res.N}번째 (분석 기간 ${res.days}일 안에서)`], ['시간 창', cfg.window === 'rolling' ? '이동 60분 (15분 간격)' : '정시 기준'],
-    ['기준 문서', 'ICAO Doc 9184 Airport Planning Manual, Part I (3rd ed., 2023)'], ['생성 시각', new Date().toLocaleString('ko-KR')]
-  ];
-  const wsInfo = XLSX.utils.aoa_to_sheet([['항목', '값'], ...info]); wsInfo['!cols'] = [{ wch: 28 }, { wch: 60 }];
-  XLSX.utils.book_append_sheet(wb, wsInfo, '분석 정보');
-
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true });   // 압축: 파일이 작고 대용량에서 더 빠름
-  return new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-}
 
 /* =====================================================================
    5. 실행 흐름 & 이벤트
@@ -4093,13 +3615,12 @@ async function run() {
       movements = flightsToMovements(csvFlights, airport, beginUtc, endUtc); setProgress(1);
     }
     if (!movements.length) throw new Error('해당 기간에 운항이 없습니다. 공항 코드·기간·CSV 파일을 확인하세요.');
-    tagCategories(movements);
     STATE.data = { airport, offsetH, startLocal, days, movements, source };
     buildFilterOptions();
     STATE.keepProfile = false;
     renderAll();
     STATE.keepProfile = true;
-    $('recalcBtn').disabled = $('csvBtn').disabled = $('xlsxBtn').disabled = false;
+    $('recalcBtn').disabled = false;
     setStatus(`${airport} · ${days}일 · 운항 ${movements.length.toLocaleString()}편 분석 완료${source === 'demo' ? ' (데모)' : ''}`);
     saveLast({ files: source === 'csv' ? CSV_NAMES : [] });
     $('lastNote').hidden = true;
@@ -4170,8 +3691,6 @@ $('method').addEventListener('change', updateMethodOptions);
 updateMethodOptions();
 $('runBtn').onclick = run;
 $('recalcBtn').onclick = () => STATE.data && renderAll();
-$('csvBtn').onclick = exportCSV;
-$('xlsxBtn').onclick = exportXLSX;
 $('busyN').onchange = () => { updateMethodOptions(); STATE.data && renderAll(); };
 ['method', 'window', 'customN', 'adpmDays', 'adpmSpan', 'pct'].forEach(id => $(id).addEventListener('change', () => STATE.data && renderAll()));
 $('source').onchange = () => {
@@ -4186,26 +3705,6 @@ $('source').onchange = () => {
   $('dvOpts').hidden = src !== 'collect';
   buildYearButtons();
 };
-// 수집 도구(zip) 받기 — 페이지와 함께 올린 kit/*.txt 세 파일을 브라우저에서 zip 으로 묶어 내려준다
-const KIT_FILES = { 'run_fetch.bat': 'kit/run_fetch.bat.txt', 'fetch_flights.py': 'kit/fetch_flights.py.txt', 'README_KR.txt': 'kit/README_KR.txt' };
-async function downloadKit() {
-  const btns = [$('kitBtn')];
-  try {
-    if (!window.JSZip) throw new Error('JSZip');
-    btns.forEach(b => (b.disabled = true));
-    const zip = new JSZip(), dir = zip.folder('OpenSky_CSV_Kit');
-    for (const [name, url] of Object.entries(KIT_FILES)) {
-      const r = await fetch(url, { cache: 'no-store' });
-      if (!r.ok) throw new Error(`${url} ${r.status}`);
-      dir.file(name, await r.arrayBuffer());               // 바이트 그대로 (bat 은 UTF-8 · CRLF)
-    }
-    await saveFile('OpenSky_CSV_Kit.zip', await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }));
-  } catch (e) {
-    console.error(e);
-    showMsg('수집 도구를 받지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요. 내 PC에서 HTML 파일을 직접 연 경우에는 저장소의 trino 폴더(run_fetch.bat, fetch_flights.py, README_KR.txt)를 쓰세요.', 'err');
-  } finally { btns.forEach(b => (b.disabled = false)); }
-}
-if ($('kitBtn')) $('kitBtn').onclick = downloadKit;   // 명령창 버전 zip 은 수집기 다운로드 페이지(GitHub 릴리스)로 옮김
 // 데모로 둘러보기: 지난해 1년치 합성 데이터
 $('demoBtn').onclick = () => {
   const y = new Date().getFullYear() - 1;
@@ -4216,8 +3715,8 @@ $('demoBtn').onclick = () => {
 };
 // 필터 이벤트
 $('fH1').value = '24';
-['catFilter', 'fDir', 'fRoute', 'fSize', 'fH0', 'fH1'].forEach(id => $(id).addEventListener('change', filtersChanged));
-$('fReset').onclick = () => { ['catFilter', 'fDir', 'fRoute', 'fSize', 'fAl', 'fH'].forEach(clearFilter); filtersChanged(); };
+['fDir', 'fRoute', 'fSize', 'fH0', 'fH1'].forEach(id => $(id).addEventListener('change', filtersChanged));
+$('fReset').onclick = () => { ['fDir', 'fRoute', 'fSize', 'fAl', 'fH'].forEach(clearFilter); filtersChanged(); };
 $('fChips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { clearFilter(b.dataset.f); filtersChanged(); } };
 const closeAl = () => { if ($('fAlPop').hidden) return; $('fAlPop').hidden = true; $('fAlBtn').setAttribute('aria-expanded', 'false'); filtersChanged(); };
 $('fAlBtn').onclick = () => {
@@ -4618,7 +4117,7 @@ function resetHome() {
   csvFlights = null; csvSets = new Map(); CSV_FILES = []; CSV_NAMES = [];
   $('csvFile').value = ''; $('csvAirportWrap').style.display = 'none';
   $('csvInfo').textContent = 'CSV 선택 시 공항·기간이 자동 입력됩니다.';
-  ['catFilter', 'fDir', 'fRoute', 'fSize', 'fAl', 'fH'].forEach(id => { try { clearFilter(id); } catch (e) {} });
+  ['fDir', 'fRoute', 'fSize', 'fAl', 'fH'].forEach(id => { try { clearFilter(id); } catch (e) {} });
   syncFilterUI();
   $('results').classList.add('hidden'); $('hrun').hidden = true; $('fChips').hidden = true;
   document.body.classList.remove('has-data');
@@ -4632,9 +4131,8 @@ function resetHome() {
   showMsg(null); setStatus(''); setProgress(null);
   syncSideNav(); setPane('home');
 }
-// 홈 아이콘·로고: 홈 화면으로 (보던 데이터는 그대로 — 비우기는 홈의 [데이터 닫기])
+// 로고: 홈 화면으로 (보던 데이터는 그대로 — 비우기는 홈의 [데이터 초기화])
 const goHome = () => setPane('home');
-$('homeBtn').onclick = goHome;
 // 데이터 출처는 ⚙ 설정 안 (사용자 요청)
 
 /* ---------- 제목줄 없는 프로그램 창: 헤더 오른쪽 창 버튼 + 헤더 끌어서 옮기기 ---------- */
@@ -4748,7 +4246,6 @@ function setPane(name, scroll = true) {
   if (name === 'lib') { renderLib(); renderDisk(); }
   if (name === 'home') renderHome();
   if (name === 'overview' && STATE.res) renderOverviewExtras(STATE.res);
-  document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
   if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
     if (name === 'profile') renderProfileTab();
     if (name === 'mix') { renderAirlinesRoutes(); renderTypes(STATE.res, STATE.res.methods.find(m => m.id === cfgFromUI().method) || STATE.res.methods[0]); }
@@ -4784,12 +4281,6 @@ function setMixView(v) {
 }
 $('sMixTabs').onclick = e => { const b = e.target.closest('[data-mpick]'); if (b) setMixView(b.dataset.mpick); };
 document.querySelectorAll('[data-goto-pane]').forEach(b => { b.onclick = () => setPane(b.dataset.gotoPane); });
-document.querySelector('.ovgo').onclick = e => { const b = e.target.closest('[data-goto]'); if (b) setPane(b.dataset.goto); };
-// 상단 바 바로가기도 같은 동작 (사이드바 내용까지 바꿈)
-$('sideToc').addEventListener('click', e => {
-  const a = e.target.closest('[data-pane]'); if (!a) return;
-  e.preventDefault(); setPane(a.dataset.pane);
-});
 
 // 첨두시간 산정 스위치: 기준 선택 칸을 사이드바로 옮겨 두고, 켜면 "첨두시간 산정" 장과 목차 항목을 보임
 $('peakOpts').appendChild(document.querySelector('.peak-ctl'));
@@ -4802,7 +4293,6 @@ function setPeak(on) {
       TARGET.profile.modes.design !== TARGET.profile.modes.peak) $('profileSel').value = 'avg';
   $('peakOpts').hidden = !on;
   $('ch-peak').hidden = !on;
-  $('tocPeak').hidden = !on;
 }
 $('peakOn').onchange = () => {
   setPeak($('peakOn').checked);
@@ -5030,15 +4520,6 @@ $('caaAnnual').addEventListener('input', () => STATE.res && renderCAA(STATE.res)
   if (!STATE.res) return;
   renderCapacity(STATE.res, STATE.res.methods.find(m => m.id === cfgFromUI().method) || STATE.res.methods[0]);
 }));
-$('tblFilter').onchange = () => { tbl.page = 0; renderDetail(); };
-$('tblSearch').oninput = () => { tbl.page = 0; renderDetail(); };
-$('prevPg').onclick = () => { tbl.page--; renderDetail(); };
-$('nextPg').onclick = () => { tbl.page++; renderDetail(); };
-document.querySelectorAll('[data-rtab]').forEach(b => b.onclick = () => {
-  rk.tab = b.dataset.rtab; rk.limit = 100;
-  document.querySelectorAll('[data-rtab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-  renderRankList();
-});
 let ptab = 'hour';
 function renderProfileTab() {
   document.querySelectorAll('[data-ppane]').forEach(el => { el.style.display = el.dataset.ppane === ptab ? '' : 'none'; });
@@ -5055,14 +4536,6 @@ document.querySelectorAll('[data-ptab]').forEach(b => b.onclick = () => {
 $('wdSel').onchange = () => STATE.res && renderWeekdayProfile();
 $('monSel').onchange = () => STATE.res && renderMonthProfile();
 $('yearSel').onchange = () => STATE.res && renderYearProfile();
-$('rankHourView').onchange = () => { rk.limit = 100; renderRankList(); };
-$('rankMore').onclick = () => { rk.limit += 100; renderRankList(); };
-document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
-  tbl.tab = b.dataset.tab; tbl.page = 0; tbl.sortKey = null;
-  document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
-  $('tblFilter').disabled = tbl.tab !== 'hourly';
-  renderDetail();
-});
 
 // 테마 전환 (차트 색상은 CSS 변수에서 다시 읽어 재렌더)
 // 테마 아이콘: 라이트 모드에서는 달(다크로 전환), 다크 모드에서는 해(라이트로 전환)
