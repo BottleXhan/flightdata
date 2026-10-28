@@ -46,6 +46,49 @@ class Api:
         res = self.window.create_file_dialog(kind, directory=start)
         return (res[0] if isinstance(res, (list, tuple)) else res) if res else None
 
+    def set_theme(self, dark, caption="", text=""):
+        """창 맨 위 제목 표시줄을 화면의 밝게/어둡게에 맞춘다 (Windows 10 1809+ 어두운 제목줄, Windows 11 은 색까지)."""
+        if not sys.platform.startswith("win") or self.window is None:
+            return False
+        try:
+            import ctypes
+            from ctypes import wintypes
+            try:
+                hwnd = wintypes.HWND(int(str(self.window.native.Handle.ToInt64())))
+            except Exception:  # noqa: BLE001 — 창 제목으로 찾기
+                hwnd = ctypes.windll.user32.FindWindowW(None, self.window.title)
+            dwm = ctypes.windll.dwmapi
+
+            def setattr_(attr, value):
+                v = ctypes.c_int(value)
+                return dwm.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(v), ctypes.sizeof(v))
+            flag = 1 if dark else 0
+            if setattr_(20, flag) != 0:                       # DWMWA_USE_IMMERSIVE_DARK_MODE (옛 빌드는 19)
+                setattr_(19, flag)
+            for attr, css in ((35, caption), (36, text)):     # DWMWA_CAPTION_COLOR / TEXT_COLOR (Windows 11)
+                rgb = _css_rgb(css)
+                if rgb:
+                    setattr_(attr, rgb[0] | (rgb[1] << 8) | (rgb[2] << 16))
+            # 제목줄을 다시 그리게 (Windows 10 은 이게 있어야 바로 바뀜)
+            ctypes.windll.user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0020)
+            return True
+        except Exception:  # noqa: BLE001 — 제목줄 색은 꾸밈이라 실패해도 무시
+            return False
+
+
+def _css_rgb(css):
+    """'rgb(21, 26, 33)' / '#151a21' → (r, g, b)."""
+    import re
+    css = (css or "").strip()
+    m = re.match(r"rgba?\((\d+),\s*(\d+),\s*(\d+)", css)
+    if m:
+        return tuple(int(x) for x in m.groups())
+    m = re.match(r"#([0-9a-fA-F]{6})$", css)
+    if m:
+        h = m.group(1)
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return None
+
 
 def main():
     srv = local_web.AnalyzerServer()

@@ -129,7 +129,38 @@
   #results[data-view="peak"] [data-sec]:not([data-sec="peak"]) { display: none !important; }
   /* 데이터 탭: 지도 / 그 밖의 탭: 결과 */
   main[data-pane="data"] #results, main[data-pane="lib"] #results, main:not([data-pane="data"]) #dataView, main:not([data-pane="data"]) #welcome,
-  main:not([data-pane="lib"]) #libView { display: none !important; }
+  main:not([data-pane="lib"]) #libView, main[data-pane="home"] #results, main:not([data-pane="home"]) #homeView { display: none !important; }
+  /* 홈 */
+  .home { display: flex; flex-direction: column; gap: 16px; }
+  .home-hero { display: flex; align-items: center; gap: 20px; }
+  .hh-logo { width: 72px; height: 72px; border-radius: 20px; display: grid; place-items: center; color: #15233a; flex: none;
+             background: linear-gradient(180deg, #f8d24a, #e9ad16); box-shadow: 0 6px 18px rgba(233,173,22,.28); }
+  .hh-text { flex: 1; min-width: 0; }
+  .hh-text h2 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+  .hh-ver { font-size: .85rem; font-weight: 600; color: var(--text-muted); margin-left: 6px; }
+  .hh-text p { margin: 0; }
+  .hh-status { font-size: .82rem; color: var(--text-secondary); text-align: right; line-height: 1.5; }
+  .hh-status b { color: var(--text-primary); }
+  .home-acts { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 12px; }
+  .home-acts button { text-align: left; background: var(--surface); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 4px; min-height: 130px; transition: transform .12s, box-shadow .12s; }
+  .home-acts button:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,.09); }
+  .home-acts i { font-style: normal; font-size: 1.4rem; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+  .home-acts b { font-size: 1rem; color: var(--text-primary); }
+  .home-acts span { font-size: .8rem; color: var(--text-secondary); }
+  .home-acts .ha-main { background: var(--accent); }
+  .home-acts .ha-main b, .home-acts .ha-main span { color: #fff; }
+  .home-acts .ha-main span { opacity: .85; }
+  .home-acts .ha-main i { background: rgba(255,255,255,.18); color: #fff; }
+  .home-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+  .home-recent { display: flex; flex-direction: column; gap: 6px; }
+  .home-recent button { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px; text-align: left; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+  .home-recent button:hover { background: var(--accent-soft); }
+  .home-recent .aps { font-family: var(--font-data); font-weight: 700; }
+  .home-recent em { font-style: normal; font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+  .home-recent small { display: block; color: var(--text-muted); font-size: .72rem; }
+  .home-empty { color: var(--text-muted); font-size: .85rem; padding: 12px 0; }
+  .home-steps { margin: 0; padding-left: 1.1rem; display: grid; gap: 8px; font-size: .8rem; color: var(--text-secondary); list-style: decimal; }
+  .home-steps b { color: var(--text-primary); margin-right: 4px; }
   /* 보관함 */
   .lib { display: flex; flex-direction: column; gap: 16px; }
   .lib-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
@@ -492,7 +523,7 @@
       </span>
       <div>
         <div class="brand-name">FlightData <span id="brandVer" class="brand-ver" hidden></span></div>
-        <div class="brand-sub">OpenSky 데이터 · ICAO Doc 9184 첨두시간</div>
+        <div class="brand-sub">OpenSky 데이터</div>
       </div>
     </div>
     <!-- 헤더 가운데: 지금 보고 있는 공항·기간 (예전 상단 목차 자리) -->
@@ -538,7 +569,7 @@
           <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
         </div>
       </div>
-      <button id="homeBtn" class="link-btn" type="button" title="불러온 데이터·결과를 비우고 처음 화면(데이터 탭)으로">⟲ 처음으로</button>
+      <button id="homeBtn" class="icon-btn" type="button" title="홈" aria-label="홈"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
       <a href="icao-source.html" class="link-btn">ICAO 원문</a>
       <button id="themeBtn" class="icon-btn" type="button"></button>
     </div>
@@ -550,14 +581,26 @@
   <!-- ───────────── 분석 설정 (왼쪽) ───────────── -->
   <aside class="side" id="sidePanel" aria-label="분석 설정">
     <nav class="snav" id="sideNav" aria-label="목차">
-      <button type="button" data-pane="data" aria-current="true" title="받기 · CSV · 공항 · 기간"><span>데이터</span><small>공항 · 기간</small></button>
+      <button type="button" data-pane="home" aria-current="true" title="처음 화면"><span>홈</span><small>시작</small></button>
+      <button type="button" data-pane="data" title="받기 · CSV · 공항 · 기간"><span>데이터</span><small>공항 · 기간</small></button>
       <button type="button" data-pane="lib" title="저장한 데이터 보관 · 관리"><span>보관함</span><small>저장한 데이터</small></button>
       <button type="button" data-pane="overview" disabled title="공항 정보 · 첨두 스위치"><span>개요</span><small>공항 정보</small></button>
       <button type="button" data-pane="profile" disabled title="시간대별 · 일별 · 요일별 · 월별 운항"><span>운항량</span><small>보기 · 필터</small></button>
       <button type="button" data-pane="mix" disabled title="노선 · 항공사 · 기종"><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
       <button type="button" data-pane="peak" hidden title="ICAO 기준 선택"><span>첨두시간</span><small>ICAO 기준 선택</small></button>
     </nav>
-    <div class="spane" data-spane="data">
+    <div class="spane" data-spane="home">
+      <div class="step">
+        <div class="step-head">시작하기</div>
+        <ol class="home-steps">
+          <li><b>로그인</b> 오른쪽 위에서 OpenSky 계정으로 (계정이 없으면 [회원가입] 안내)</li>
+          <li><b>데이터 받기</b> 공항·기간을 고르고 받기 — 또는 CSV·보관함에서 열기</li>
+          <li><b>보기</b> 개요 · 운항량 · 운항 구성</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="spane" data-spane="data" hidden>
     <div class="step">
       <div class="step-head"><span class="step-num">1</span>데이터</div>
       <select id="source" class="field" aria-label="데이터 소스">
@@ -723,7 +766,35 @@
   </aside>
 
   <!-- ───────────── 결과 (오른쪽) ───────────── -->
-  <main class="main" id="mainView" data-pane="data">
+  <main class="main" id="mainView" data-pane="home">
+
+    <!-- 홈 -->
+    <section id="homeView" class="home">
+      <div class="panel home-hero">
+        <div class="hh-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path style="transform:rotate(45deg);transform-origin:12px 12px" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></div>
+        <div class="hh-text">
+          <h2>FlightData <span id="homeVer" class="hh-ver"></span></h2>
+          <p class="secondary">OpenSky 운항 기록으로 공항의 운항량과 노선 · 항공사 · 기종 구성을 봅니다.</p>
+        </div>
+        <div class="hh-status" id="homeStatus"></div>
+      </div>
+      <div class="home-acts">
+        <button type="button" data-home="collect" class="ha-main"><i aria-hidden="true">⤓</i><b id="haCollectT">데이터 받기</b><span id="haCollectD">OpenSky 에서 공항 · 기간을 골라 받고 바로 분석</span></button>
+        <button type="button" data-home="lib"><i aria-hidden="true">▤</i><b>보관함</b><span id="haLibD">받아 둔 데이터를 다시 열기</span></button>
+        <button type="button" data-home="csv"><i aria-hidden="true">⇪</i><b>CSV 파일 불러오기</b><span>PC 에 있는 운항 CSV 로 보기</span></button>
+        <button type="button" data-home="demo"><i aria-hidden="true">▶</i><b>데모로 둘러보기</b><span>합성 데이터 1년치로 화면 구경</span></button>
+      </div>
+      <div class="home-grid">
+        <div class="panel">
+          <div class="panel-head"><h3 class="panel-title">최근 데이터</h3><button type="button" class="link-btn" data-home="lib">보관함 전체 →</button></div>
+          <div id="homeRecent" class="home-recent"></div>
+        </div>
+        <div class="panel" id="homeNow">
+          <div class="panel-head"><h3 class="panel-title">지금 보고 있는 데이터</h3></div>
+          <div id="homeNowBody"></div>
+        </div>
+      </div>
+    </section>
 
     <!-- 데이터 탭: 공항 지도 (휠 확대 · 끌기 · 클릭으로 공항 고르기) -->
     <section id="dataView" class="dview">
@@ -905,7 +976,7 @@
         <ol class="kit-steps">
           <li><b>처음 한 번</b> OpenSky 계정과 Trino 사용 승인을 받아 둡니다</li>
           <li><b>실행</b> 최신 릴리스의 <code>FlightData_1.0.xx.zip</code> 을 받아 압축을 풀고, 폴더 안의 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
-          <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [OpenSky에서 받고 보기]</li>
+          <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [데이터 받기]</li>
           <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
         <p class="text-xs muted">수집기 소스·명령창 버전: <a href="https://github.com/BottleXhan/flightdata" target="_blank" rel="noopener" style="color:var(--accent)">github.com/BottleXhan/flightdata</a></p>
@@ -1804,6 +1875,7 @@ async function renderSaved() {
   $('savedList').innerHTML = list.map(r => `<div class="srow"><button type="button" class="sopen" data-open="${esc(r.id)}" aria-current="${r.id === cur}" title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.name || r.label)}<small>파일 ${r.n}개 · ${mb(r.bytes)} · ${when(r.savedAt)} 저장</small></button><button type="button" class="sdel" data-del="${esc(r.id)}" title="이 데이터 지우기" aria-label="지우기">✕</button></div>`).join('');
   $('savedWrap').hidden = !list.length;
   renderLib(list);
+  renderHome(list);
 }
 async function openSaved(id, restoreDates, autoRun = true) {
   const files = await loadDataset(id);
@@ -1905,6 +1977,7 @@ function showLogin(user, msg = '', err = false) {
   $('hLoginForm').hidden = !!user; $('hLoginOn').hidden = !user;
   $('hLoginUser').textContent = user || '';
   $('hLoginMsg').textContent = msg; $('hLoginMsg').hidden = !msg; $('hLoginMsg').classList.toggle('err', err);
+  if (PANE === 'home') renderHome();
 }
 async function doLogin(auto = false) {
   const user = $('cUser').value.trim();
@@ -2001,7 +2074,7 @@ async function collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH) {
   const files = st.results.length;
   if (st.state === 'stopped') {
     dvProg({ state: '중지됨', text: '중지했습니다 — 다시 받으면 이미 받은 날짜는 건너뜁니다' });
-    const e = new Error('중지했습니다. 다시 [OpenSky에서 받고 보기]를 누르면 이미 받은 날짜는 건너뛰고 이어서 받습니다.'); e.stopped = true;
+    const e = new Error('중지했습니다. 다시 [데이터 받기]를 누르면 이미 받은 날짜는 건너뛰고 이어서 받습니다.'); e.stopped = true;
     if (!files) throw e;
   } else dvProg(st.state === 'error' ? { state: files ? '일부만 받음' : '오류', text: st.error || '' } : { state: '완료', text: `CSV ${files}개 저장 · 분석 화면으로 넘어갑니다`, p: 1 });
   if (st.state === 'error' && !files) throw new Error(st.error || '받기 중 오류');
@@ -3737,7 +3810,7 @@ async function run() {
     saveLast({ files: source === 'csv' ? CSV_NAMES : [] });
     $('lastNote').hidden = true;
     document.body.classList.add('has-data');
-    if (PANE === 'data') setPane('overview');
+    if (PANE === 'data' || PANE === 'home') setPane('overview');
     if (warnings.length) showMsg(warnings.map(esc).join('<br>'));
     if (innerWidth < 1024) { setSide(false, false); $('ch-overview').scrollIntoView({ block: 'start' }); }   // 좁은 화면: 설정 아래 결과로 이동
   } catch (e) {
@@ -3812,7 +3885,7 @@ $('source').onchange = () => {
   $('trinoOpts').style.display = $('source').value === 'trino' ? '' : 'none';
   $('collectOpts').style.display = $('source').value === 'collect' ? '' : 'none';
   const src = $('source').value;
-  $('runBtn').textContent = src === 'collect' ? 'OpenSky에서 받고 보기' : '데이터 보기';
+  $('runBtn').textContent = src === 'collect' ? '데이터 받기' : '데이터 보기';
   $('dvTitle').textContent = { collect: 'OpenSky에서 데이터 받기', csv: 'CSV 데이터 보기', demo: '데모 데이터로 둘러보기', trino: 'OpenSky Trino (내 PC)' }[src] || '데이터 보기';
   $('dvGoName').textContent = src === 'collect' ? '받기' : '보기';
   $('dvSub').textContent = { collect: '공항·기간을 고르고 받으면 CSV 로 저장하고 바로 분석합니다', csv: '왼쪽에서 CSV 를 고르면 공항·기간이 채워집니다', demo: '합성한 운항 스케줄 — 아무 공항·기간이나 됩니다' }[src] || '';
@@ -4232,7 +4305,7 @@ $('libDiskOpen').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').va
 
 /* ---------- ⟲ 처음으로: 불러온 데이터·결과·필터를 비우고 첫 화면(데이터 탭)으로 (사용자 요청) ---------- */
 function resetHome() {
-  if ($('runBtn').disabled) { showMsg('받는 중에는 처음으로 돌아갈 수 없습니다. 먼저 [중지]를 누르세요.', 'warn'); return; }
+  if ($('runBtn').disabled) { showMsg('받는 중에는 홈으로 돌아갈 수 없습니다. 먼저 [중지]를 누르세요.', 'warn'); return; }
   STATE.data = STATE.res = STATE.view = null;
   csvFlights = null; csvSets = new Map(); CSV_FILES = []; CSV_NAMES = [];
   $('csvFile').value = ''; $('csvAirportWrap').style.display = 'none';
@@ -4249,20 +4322,56 @@ function resetHome() {
   $('source').onchange();
   amapOpen(false);
   showMsg(null); setStatus(''); setProgress(null);
-  syncSideNav(); setPane('data');
+  syncSideNav(); setPane('home');
 }
-$('homeBtn').onclick = resetHome;
+// 홈 아이콘·로고: 홈 화면으로 (보던 데이터는 그대로 — 비우기는 홈의 [데이터 닫기])
+const goHome = () => setPane('home');
+$('homeBtn').onclick = goHome;
+
+/* ---------- 홈: 큰 바로가기 + 최근 데이터 + 지금 데이터 ---------- */
+async function renderHome(list) {
+  if (!list) { try { list = await dsTx('readonly', st => req(st.getAll())); } catch (e) { list = []; } }
+  list = [...list].sort((a, b) => b.savedAt - a.savedAt);
+  $('haLibD').textContent = list.length ? `받아 둔 데이터 ${list.length}개 다시 열기` : '받거나 불러온 데이터가 여기에 쌓입니다';
+  $('homeRecent').innerHTML = list.length ? list.slice(0, 6).map(r => {
+    const [a, b] = libPeriod(r);
+    return `<button type="button" data-hopen="${esc(r.id)}"><span class="aps">${esc(libAps(r).join(', '))}</span><span>${esc(r.name || (a ? `${a} ~ ${b}` : r.label))}<small>${r.flights ? r.flights.toLocaleString() + '편 · ' : ''}${esc(r.note || r.files.map(f => f.name).join(', '))}</small></span><em>${libWhen(r.savedAt)}</em></button>`;
+  }).join('') : '<p class="home-empty">아직 데이터가 없습니다. [데이터 받기]나 [CSV 파일 불러오기]로 시작하세요.</p>';
+  const D = STATE.data;
+  $('homeNowBody').innerHTML = D
+    ? `<p style="margin:0 0 10px"><span class="apcode" style="font-size:1rem;padding:.05rem .45rem;border-radius:6px">${esc(D.airport)}</span>
+        <b style="margin-left:8px">${fmtDate(D.startLocal)} ~ ${fmtDate(D.startLocal + (D.days - 1) * DAY)}</b> · ${D.days}일 · 운항 ${D.movements.length.toLocaleString()}편</p>
+       <div class="flex flex-wrap gap-2"><button class="btn btn-primary" type="button" data-hgo="overview">개요</button><button class="btn" type="button" data-hgo="profile">운항량</button><button class="btn" type="button" data-hgo="mix">운항 구성</button><button class="btn" type="button" data-hreset title="불러온 데이터·결과·필터를 비우고 처음 상태로">데이터 닫기</button></div>`
+    : '<p class="home-empty">분석 중인 데이터가 없습니다.</p>';
+  const v = $('brandVer').textContent; $('homeVer').textContent = v || '';
+  $('homeStatus').innerHTML = COLLECTOR
+    ? (LOGIN_USER ? `<span style="color:#2fa66a">●</span> <b>${esc(LOGIN_USER)}</b> 로그인됨` : 'OpenSky 로그인 전<br><span class="text-xs muted">오른쪽 위에서 로그인</span>')
+    : '웹 버전 · CSV 로 분석<br><span class="text-xs muted">받기는 FlightData 프로그램에서</span>';
+  if (!COLLECTOR) { $('haCollectT').textContent = 'CSV 데이터 보기'; $('haCollectD').textContent = '공항 · 기간을 고르고 CSV 로 분석'; }
+}
+$('homeView').addEventListener('click', e => {
+  const b = e.target.closest('[data-home],[data-hopen],[data-hgo],[data-hreset]'); if (!b) return;
+  if (b.dataset.hopen) return libOpen([b.dataset.hopen]);
+  if (b.dataset.hgo) return setPane(b.dataset.hgo);
+  if ('hreset' in b.dataset) return resetHome();
+  const a = b.dataset.home;
+  if (a === 'collect') { if (COLLECTOR && document.querySelector('#source option[value="collect"]')) { $('source').value = 'collect'; $('source').onchange(); } setPane('data'); }
+  if (a === 'lib') setPane('lib');
+  if (a === 'csv') { $('source').value = 'csv'; $('source').onchange(); $('csvFile').click(); }
+  if (a === 'demo') $('demoBtn').click();
+});
+$('csvFile').addEventListener('change', () => { if (PANE === 'home' && $('csvFile').files.length) setPane('data'); });
 document.querySelector('.brand').style.cursor = 'pointer';
-document.querySelector('.brand').title = '처음으로';
-document.querySelector('.brand').onclick = resetHome;
+document.querySelector('.brand').title = '홈';
+document.querySelector('.brand').onclick = goHome;
 
 /* ---------- 사이드바 목차: 누르면 그 장으로 이동하고, 사이드바 내용도 그 장에 맞게 바꿈 ----------
    공항 개요 = 데이터·공항·기간·첨두 스위치 / 운항 프로파일 = 보기 탭 + 필터 / 운항 구성 = 바로 가기 + 필터 / 첨두시간 산정 = 기준 */
-const PANE_TARGET = { data: 'dataView', lib: 'libView', overview: 'ch-overview', profile: 'sec-profile', mix: 'ch-mix', peak: 'ch-peak' };
-let PANE = 'data';
+const PANE_TARGET = { home: 'homeView', data: 'dataView', lib: 'libView', overview: 'ch-overview', profile: 'sec-profile', mix: 'ch-mix', peak: 'ch-peak' };
+let PANE = 'home';
 function setPane(name, scroll = true) {
   const btn = document.querySelector(`#sideNav [data-pane="${name}"]`);
-  if (!btn || btn.disabled || btn.hidden) name = 'data';
+  if (!btn || btn.disabled || btn.hidden) name = 'home';
   PANE = name;
   document.querySelectorAll('#sideNav [data-pane]').forEach(b => b.setAttribute('aria-current', String(b.dataset.pane === name)));
   document.querySelectorAll('[data-spane]').forEach(el => { el.hidden = el.dataset.spane !== name; });
@@ -4274,6 +4383,7 @@ function setPane(name, scroll = true) {
   $('mainView').dataset.pane = name;
   if (name === 'data') amapDraw();
   if (name === 'lib') { renderLib(); renderDisk(); }
+  if (name === 'home') renderHome();
   document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
   if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
     if (name === 'profile') renderProfileTab();
@@ -4594,10 +4704,18 @@ function isDark() {
   const r = document.documentElement;
   return r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
 }
+/** 프로그램 창(exe)의 맨 위 제목 표시줄도 밝게/어둡게에 맞춤 — Windows DWM (pywebview js_api) */
+function syncTitleBar() {
+  const api = window.pywebview?.api; if (!api?.set_theme) return;
+  const cs = getComputedStyle(document.querySelector('.topbar'));
+  api.set_theme(isDark(), cs.backgroundColor, getComputedStyle(document.body).color).catch?.(() => {});
+}
+window.addEventListener('pywebviewready', () => setTimeout(syncTitleBar, 50));
 function syncThemeIcon() {
   const b = document.getElementById('themeBtn'), dark = isDark();
   b.innerHTML = dark ? ICON_SUN : ICON_MOON;
   b.title = b.ariaLabel = dark ? '라이트 모드로 전환' : '다크 모드로 전환';
+  setTimeout(syncTitleBar, 30);
 }
 $('themeBtn').onclick = () => {
   document.documentElement.dataset.theme = isDark() ? 'light' : 'dark';
