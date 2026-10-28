@@ -159,6 +159,15 @@
   .home-recent em { font-style: normal; font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
   .home-recent small { display: block; color: var(--text-muted); font-size: .72rem; }
   .home-empty { color: var(--text-muted); font-size: .85rem; padding: 12px 0; }
+  .srcbox { max-width: 110ch; }
+  .srcbox summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; font-size: .78rem; font-weight: 600; color: var(--text-secondary);
+                    background: var(--surface); padding: .35rem .8rem; border-radius: 999px; }
+  .srcbox summary::-webkit-details-marker { display: none; }
+  .srcbox summary::before { content: "ⓘ"; }
+  .srcbox[open] summary { color: var(--accent); }
+  .srcbox p { margin: 8px 0 0; }
+  #homeNow .panel-head { margin-bottom: 14px; }
+  #homeNowBody > p { line-height: 2; }
   .home-steps { margin: 0; padding-left: 1.1rem; display: grid; gap: 8px; font-size: .8rem; color: var(--text-secondary); list-style: decimal; }
   .home-steps b { color: var(--text-primary); margin-right: 4px; }
   /* 보관함 */
@@ -604,8 +613,8 @@
     <div class="step">
       <div class="step-head"><span class="step-num">1</span>데이터</div>
       <select id="source" class="field" aria-label="데이터 소스">
-        <option value="csv" selected>CSV 파일 불러오기 (Trino 수집 결과)</option>
-        <option value="demo">데모 데이터 (합성 운항 스케줄)</option>
+        <option value="csv" selected>CSV 파일 불러오기</option>
+        <option value="demo">데모 데이터</option>
       </select>
 
       <div id="csvOpts" class="sub-panel">
@@ -1510,11 +1519,12 @@
     </div>
 
     <!-- ───────────── 데이터 출처 · 인용 ───────────── -->
-    <footer class="text-xs muted leading-relaxed" style="max-width:110ch">
+    <details class="srcbox text-xs muted leading-relaxed">
+      <summary>출처</summary>
       <p><b class="secondary">데이터 출처:</b> The OpenSky Network, <a href="https://opensky-network.org">https://opensky-network.org</a></p>
       <p class="mt-1"><b class="secondary">인용 (OpenSky 요청):</b> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
       <p class="mt-1">OpenSky 데이터는 ADS-B로 추정한 값이며 공항 운항 스케줄·지연 정보가 아닙니다. 계획 목적으로는 공항 공식 통계와 대조하세요.</p>
-    </footer>
+    </details>
   </main>
 </div>
 <div id="srcOverlay" hidden style="position:fixed;inset:0;z-index:200;background:var(--bg)">
@@ -1996,7 +2006,7 @@ async function doLogin(auto = false) {
 }
 function setupCollectUI(info) {
   const opt = document.createElement('option');
-  opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기 (이 프로그램에서 바로)';
+  opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기';
   $('source').prepend(opt);
   const st = info.settings || {};
   $('hLogin').hidden = false;
@@ -3522,7 +3532,7 @@ function renderAirportCard(S) {
     f('시간대', `${off == null ? '–' : 'UTC' + (off >= 0 ? '+' : '') + off} <small>${esc(tz || '')}</small>`) +
     f('항공사', `${airlines.toLocaleString()}곳 <small>(편명 기준)</small>`) +
     f('연결 공항', `${known.length.toLocaleString()}곳 <small>· ${nations.size}개 나라</small>`) +
-    f('국제선 비율', knownN ? `${fmtPct(intlN / knownN)} <small>(공항을 아는 운항 중)</small>` : '–') +
+    f('국제선 비율', knownN ? `${fmtPct(intlN / knownN)}` : '–') +
     f('가장 많은 노선', tA ? `${esc(top.ap)} <small>${esc(tA[9] || tA[1] || tA[0])} · ${top.n.toLocaleString()}편</small>` : '–');
   // 작은 지구본 (공항 위치에 노란 점)
   const el = $('apGlobe'); el.innerHTML = '';
@@ -4339,7 +4349,7 @@ async function renderHome(list) {
   }).join('') : '<p class="home-empty">아직 데이터가 없습니다. [데이터 받기]나 [CSV 파일 불러오기]로 시작하세요.</p>';
   const D = STATE.data;
   $('homeNowBody').innerHTML = D
-    ? `<p style="margin:0 0 10px"><span class="apcode" style="font-size:1rem;padding:.05rem .45rem;border-radius:6px">${esc(D.airport)}</span>
+    ? `<p style="margin:0 0 16px"><span class="apcode" style="font-size:1rem;padding:.05rem .45rem;border-radius:6px">${esc(D.airport)}</span>
         <b style="margin-left:8px">${fmtDate(D.startLocal)} ~ ${fmtDate(D.startLocal + (D.days - 1) * DAY)}</b> · ${D.days}일 · 운항 ${D.movements.length.toLocaleString()}편</p>
        <div class="flex flex-wrap gap-2"><button class="btn btn-primary" type="button" data-hgo="overview">개요</button><button class="btn" type="button" data-hgo="profile">운항량</button><button class="btn" type="button" data-hgo="mix">운항 구성</button><button class="btn" type="button" data-hreset title="불러온 데이터·결과·필터를 비우고 처음 상태로">데이터 닫기</button></div>`
     : '<p class="home-empty">분석 중인 데이터가 없습니다.</p>';
