@@ -251,7 +251,7 @@ class AnalyzerServer:
                     user = st.get("user", "")
                     saved = False
                     try:
-                        saved = bool(user and st.get("remember_pw", True) and oa.load_password(user))
+                        saved = bool(user and st.get("remember_pw", False) and oa.load_password(user))
                     except Exception:  # noqa: BLE001
                         pass
                     return self._json({"files": [os.path.basename(p) for p in srv.csvs], "app": True,
@@ -259,7 +259,7 @@ class AnalyzerServer:
                                        "loggedIn": srv.session[0] if srv.session else None,
                                        "version": app_version(),
                                        "inTemp": in_temp_dir(),
-                                       "settings": {"user": user, "remember": st.get("remember_pw", True), "split": st.get("split", True),
+                                       "settings": {"user": user, "remember": st.get("remember_pw", False), "split": st.get("split", True),
                                                     "aircraft": st.get("aircraft", True), "outDir": out_dir_setting()}})
                 if path == "/api/pwsaved":
                     import opensky_auth as oa
@@ -314,7 +314,7 @@ class AnalyzerServer:
                 if path == "/api/login":
                     import opensky_auth as oa
                     user = (body.get("user") or "").strip().lower()
-                    pw, remember = body.get("password") or "", bool(body.get("remember", True))
+                    pw, remember = body.get("password") or "", bool(body.get("remember", False))
                     if not user:
                         return self._json({"error": "OpenSky 사용자명을 넣으세요."}, 400)
                     if not pw:

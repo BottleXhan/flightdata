@@ -516,7 +516,7 @@
         <form id="hLoginForm" class="hl-form" autocomplete="on">
           <input id="cUser" class="field" autocomplete="username" placeholder="OpenSky 사용자명" aria-label="OpenSky 사용자명">
           <input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호">
-          <label class="hl-rem" title="Windows 자격 증명 관리자에 저장"><input type="checkbox" id="cRemember" checked> 기억</label>
+          <label class="hl-rem" title="켜면 비밀번호를 이 PC 의 Windows 자격 증명 관리자에 저장하고, 다음에 열 때 저절로 로그인합니다"><input type="checkbox" id="cRemember"> 자동 로그인</label>
           <button id="hLoginBtn" class="btn btn-primary" type="submit">로그인</button>
           <button id="hSignup" class="link-btn" type="button" aria-expanded="false" aria-controls="hSignupPop">회원가입</button>
         </form>
@@ -1912,7 +1912,7 @@ async function doLogin(auto = false) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
     $('cPw').value = '';
-    showLogin(j.user, j.saved ? '비밀번호를 이 PC에 기억했습니다' : '');
+    showLogin(j.user, j.saved ? '자동 로그인을 켰습니다 — 다음에 열 때 저절로 로그인합니다' : '');
     setTimeout(() => { if (LOGIN_USER) $('hLoginMsg').hidden = true; }, 3500);
   } catch (e) {
     showLogin(null, auto ? '' : e.message + ' — 비밀번호 로그인이 안 되는 계정이면 비워 두고 받으면 브라우저 로그인 창이 열립니다.', !auto);
@@ -1927,7 +1927,7 @@ function setupCollectUI(info) {
   if (info.inTemp) showMsg('<b>압축 파일 안에서 실행 중입니다.</b> 이대로 쓰면 받은 CSV·설정·보관함이 임시 폴더에 저장돼 사라집니다. 창을 닫고 zip 의 <b>압축을 푼 뒤</b> 폴더 안의 FlightData.exe 를 실행하세요.', 'err');
   if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
   if (st.user) $('cUser').value = st.user;
-  $('cRemember').checked = st.remember !== false; $('cRemember').disabled = !info.canRemember;
+  $('cRemember').checked = st.remember === true; $('cRemember').disabled = !info.canRemember;   // 자동 로그인: 처음엔 꺼짐 (사용자 요청)
   $('cSplit').checked = st.split !== false; $('cAircraft').checked = st.aircraft !== false;
   $('cDir').value = st.outDir || '';
   $('hLoginForm').onsubmit = e => { e.preventDefault(); doLogin(); };
@@ -1936,7 +1936,7 @@ function setupCollectUI(info) {
     showLogin(null, '로그아웃했습니다 (기억한 비밀번호도 지움)');
   };
   if (info.loggedIn) showLogin(info.loggedIn);
-  else if (info.pwSaved && st.user) doLogin(true);        // 기억한 비밀번호가 있으면 바로 로그인
+  else if (st.remember === true && info.pwSaved && st.user) doLogin(true);   // 자동 로그인을 켜 둔 경우에만 열 때 로그인
   else showLogin(null);
   $('cOpenDir').onclick = $('cOpenDir2').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
   // 저장 폴더 바꾸기: 프로그램 창의 폴더 고르기 창 (pywebview js_api). 직접 고쳐 넣어도 저장됨
