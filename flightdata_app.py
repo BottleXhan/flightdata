@@ -274,4 +274,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--finish-update" in sys.argv:                     # 업데이트 마무리 도우미 (창 없이)
+        import updater
+        sys.exit(updater.finish_update(sys.argv))
     sys.exit(selftest() if "--selftest" in sys.argv else main())

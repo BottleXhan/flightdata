@@ -4,8 +4,8 @@
   1) 최신 릴리스의 FlightData_<버전>.zip 을 받아 (GitHub 가 알려 주는 sha256 이 있으면 대조)
   2) 그 안의 FlightData.exe 를 지금 exe 옆에 FlightData.new.exe 로 풀고
   3) 지금 exe → FlightData.old.exe, 새 exe → 원래 이름으로 바꾼 뒤
-  4) 지금 창을 닫으면 작은 cmd 스크립트가 끝나기를 기다렸다가 FlightData.old.exe 를 지우고,
-     폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾼 뒤 새 exe 를 --after-update 로 띄운다.
+  4) 새 exe 를 임시 폴더에 복사해 --finish-update 도우미로 띄우고 창을 닫으면, 도우미가 끝나기를 기다렸다가
+     FlightData.old.exe 를 지우고, 폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾼 뒤 새 exe 를 --after-update 로 띄운다.
 설정·항공기 DB·보관함(app_data)·OpenSky_CSV 는 exe 옆에 그대로 남는다.
 """
 import hashlib
@@ -34,7 +34,11 @@ def exe_path():
 
 
 def cleanup_old():
-    """지난 업데이트에서 남은 FlightData.old.exe 를 지운다 (시작할 때)."""
+    """지난 업데이트에서 남은 FlightData.old.exe·도우미를 지운다 (시작할 때)."""
+    try:
+        cleanup_helpers()
+    except Exception:  # noqa: BLE001
+        pass
     p = exe_path()
     if not p:
         return
@@ -137,41 +141,88 @@ class Updater:
             self._set(state="error", error=str(e), text="")
 
     def restart(self, close_window):
-        """새 exe 로 다시 시작. 지금 프로세스가 끝나기를 기다렸다가 (1) 이전 exe(FlightData.old.exe) 삭제,
-        (2) 폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾸고 (사용자 요청), (3) 새 exe 실행 — 작은 cmd 스크립트가 함."""
+        """새 exe 로 다시 시작. 새 exe 를 임시 폴더에 복사해 '마무리 도우미'(--finish-update)로 띄움 — 창 없는 exe 라 검은 명령창이 안 뜸.
+        도우미가 지금 프로세스가 끝나길 기다렸다가 (1) 이전 exe(FlightData.old.exe) 삭제, (2) 폴더 이름이 FlightData_<버전> 이면
+        새 버전 이름으로 바꾸고 (사용자 요청), (3) 새 exe 를 --after-update 로 실행.
+        (1.1.5·1.1.6 은 cmd 스크립트를 썼는데 Windows Terminal 창이 뜨고 find 에서 멈춤 — 사용자 보고)"""
         cur = exe_path()
         if self.state != "ready" or not cur:
             raise RuntimeError("업데이트가 아직 끝나지 않았습니다.")
         d = os.path.dirname(cur)
         parent, base = os.path.dirname(d), os.path.basename(d)
         latest = (self.cache[1] or {}).get("latest", "")
-        new_dir = d
-        if re.fullmatch(r"FlightData_\d+\.\d+\.\d+", base, re.I) and latest and parse_ver(latest):
-            cand = os.path.join(parent, f"FlightData_{latest}")
-            if not os.path.exists(cand):
-                new_dir = cand
-        if not sys.platform.startswith("win"):
-            subprocess.Popen([cur, "--after-update"], cwd=d, close_fds=True)
-            threading.Timer(0.3, close_window).start()
-            return
+        to = ""
+        if re.fullmatch(r"FlightData_\d+\.\d+\.\d+", base, re.I) and latest and parse_ver(latest) \
+                and not os.path.exists(os.path.join(parent, f"FlightData_{latest}")):
+            to = f"FlightData_{latest}"
+        import shutil
         import tempfile
+        tmp = tempfile.gettempdir()
+        helper = os.path.join(tmp, f"FlightData_update_{os.getpid()}.exe")
+        shutil.copy2(cur, helper)                         # 폴더 밖에서 돌아야 폴더 이름을 바꿀 수 있음
         pids = [os.getpid()] + ([os.getppid()] if getattr(sys, "frozen", False) else [])   # onefile 은 부모(부트로더)가 exe 를 잡고 있음
-        lines = ["@echo off", "chcp 65001 >nul", ":wait"]
-        for pid in pids:
-            lines.append(f'tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul && (timeout /t 1 /nobreak >nul & goto wait)')
-        old = os.path.join(d, "FlightData.old.exe")
-        lines += [f'del /f /q "{old}" >nul 2>&1']
-        if new_dir != d:
-            lines += [f'ren "{d}" "{os.path.basename(new_dir)}" >nul 2>&1']
-        lines += [f'if exist "{os.path.join(new_dir, "FlightData.exe")}" (start "" "{os.path.join(new_dir, "FlightData.exe")}" --after-update) '
-                  f'else (start "" "{cur}" --after-update)',
-                  '(goto) 2>nul & del "%~f0"']
-        script = os.path.join(tempfile.gettempdir(), f"flightdata_update_{os.getpid()}.cmd")
-        with open(script, "w", encoding="utf-8") as f:
-            f.write("\r\n".join(lines) + "\r\n")
-        flags = 0x00000008 | 0x00000200 | 0x08000000           # DETACHED · NEW_PROCESS_GROUP · CREATE_NO_WINDOW
-        subprocess.Popen(["cmd", "/c", script], cwd=tempfile.gettempdir(), creationflags=flags, close_fds=True)
+        args = [helper, "--finish-update", "--pids", ",".join(map(str, pids)), "--dir", d, "--to", to]
+        flags = 0x08000000 if sys.platform.startswith("win") else 0   # CREATE_NO_WINDOW
+        subprocess.Popen(args, cwd=tmp, creationflags=flags, close_fds=True)
         threading.Timer(0.3, close_window).start()
+        threading.Timer(4.0, lambda: os._exit(0)).start()   # 창을 닫아도 프로세스가 남으면 강제로 끝냄 (도우미가 기다리지 않게)
+
+
+def _arg(argv, name, default=""):
+    return argv[argv.index(name) + 1] if name in argv and argv.index(name) + 1 < len(argv) else default
+
+
+def finish_update(argv):
+    """--finish-update 로 실행된 도우미 (임시 폴더의 새 exe 복사본). 창·서버 없이 일만 하고 끝남."""
+    pids = [int(x) for x in _arg(argv, "--pids").split(",") if x.strip().isdigit()]
+    d, to = _arg(argv, "--dir"), _arg(argv, "--to")
+    if sys.platform.startswith("win"):
+        import ctypes
+        k = ctypes.windll.kernel32
+        for pid in pids:                                  # 예전 프로세스가 끝날 때까지 (최대 30초씩)
+            h = k.OpenProcess(0x00100000, False, pid)     # SYNCHRONIZE
+            if h:
+                k.WaitForSingleObject(h, 30000)
+                k.CloseHandle(h)
+    time.sleep(0.5)
+    old = os.path.join(d, "FlightData.old.exe")
+    for _ in range(20):
+        try:
+            if os.path.exists(old):
+                os.remove(old)
+            break
+        except OSError:
+            time.sleep(0.5)
+    target = d
+    if to and not os.path.exists(os.path.join(os.path.dirname(d), to)):
+        for _ in range(10):                               # 백신 검사 등으로 잠깐 잠겨 있을 수 있음
+            try:
+                os.rename(d, os.path.join(os.path.dirname(d), to))
+                target = os.path.join(os.path.dirname(d), to)
+                break
+            except OSError:
+                time.sleep(1)
+    exe = os.path.join(target, "FlightData.exe")
+    subprocess.Popen([exe, "--after-update"], cwd=target, close_fds=True)
+    return 0
+
+
+def cleanup_helpers():
+    """지난 업데이트 도우미(임시 폴더의 FlightData_update_*.exe)와 1.1.5·1.1.6 의 cmd 스크립트를 지움."""
+    import glob
+    import tempfile
+    for _ in range(10):
+        left = glob.glob(os.path.join(tempfile.gettempdir(), "FlightData_update_*.exe")) + \
+            glob.glob(os.path.join(tempfile.gettempdir(), "flightdata_update_*.cmd"))
+        for f in list(left):
+            try:
+                os.remove(f)
+                left.remove(f)
+            except OSError:
+                pass
+        if not left:
+            return
+        time.sleep(2)
 
 
 def notes_text(md):
