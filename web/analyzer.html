@@ -168,6 +168,7 @@
   .winctl button { width: 46px; display: grid; place-items: center; color: var(--text-secondary); border-radius: 0; }
   .winctl button:hover { background: var(--surface-2); color: var(--text-primary); }
   .winctl .wc-close:hover { background: #e81123; color: #fff; }
+  .winctl button:focus { outline: none; box-shadow: none; }
   body.frameless .topbar { user-select: none; }
   body.frameless .topbar { padding-right: 0; }
   /* 제목줄 없는 창: 테두리 끌어 크기 바꾸기 */
@@ -4649,7 +4650,7 @@ window.addEventListener('pywebviewready', async () => {
   const syncMax = async () => { try { setMaxIco(await api.win_state()); } catch (e) {} };
   syncMax(); setTimeout(syncMax, 800); setTimeout(syncMax, 2000);   // 처음 최대화가 끝난 뒤 아이콘 맞춤
   $('winCtl').onclick = async e => {
-    const b = e.target.closest('[data-win]'); if (!b) return;
+    const b = e.target.closest('[data-win]'); if (!b) return; b.blur();
     if (b.dataset.win === 'min') api.win_min();
     if (b.dataset.win === 'max') setMaxIco(await api.win_max());
     if (b.dataset.win === 'close') api.win_close();

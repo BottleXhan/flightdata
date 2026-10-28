@@ -89,6 +89,18 @@ class Api:
         import ctypes
         ctypes.windll.user32.SetWindowPos(hwnd, None, int(x), int(y), int(w), int(h), 0x0004 | 0x0010 | 0x4000)  # NOZORDER·NOACTIVATE·ASYNC
 
+    def _frame(self, hwnd, maxed):
+        """Windows 11 이 창 둘레에 그리는 1px 테두리·둥근 모서리: 최대화면 없앰 (위·오른쪽에 틈처럼 보이던 것), 이전 크기면 기본."""
+        import ctypes
+        try:
+            dwm = ctypes.windll.dwmapi
+            for attr, val in ((34, 0xFFFFFFFE if maxed else 0xFFFFFFFF),   # DWMWA_BORDER_COLOR: COLOR_NONE / DEFAULT
+                              (33, 1 if maxed else 0)):                    # DWMWA_WINDOW_CORNER_PREFERENCE: DONOTROUND / DEFAULT
+                v = ctypes.c_uint(val)
+                dwm.DwmSetWindowAttribute(hwnd, attr, ctypes.byref(v), ctypes.sizeof(v))
+        except Exception:  # noqa: BLE001 — Windows 10 등은 이 속성이 없음
+            pass
+
     def _default_rect(self, hwnd):
         """이전 크기: 1480×920(화면 배율 반영)을 작업 영역 가운데, 작업 영역보다 크면 맞춤."""
         l, t, r, b = self._work(hwnd)
@@ -105,6 +117,7 @@ class Api:
         if not self._maxed:
             self._normal = self._rect(hwnd)
         l, t, r, b = self._work(hwnd)
+        self._frame(hwnd, True)
         self._place(hwnd, l, t, r - l, b - t)
         self._maxed = True
 
@@ -118,6 +131,7 @@ class Api:
         l, t, r, b = self._work(hwnd)
         if not n or n[2] >= r - l - 10:                       # 처음부터 최대화였으면 기본 크기로
             n = self._default_rect(hwnd)
+        self._frame(hwnd, False)
         self._place(hwnd, *n)
         self._maxed = False
 
