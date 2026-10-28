@@ -117,7 +117,8 @@
   .fallist label em { font-style: normal; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .falfoot { display: flex; justify-content: space-between; }
   .fhours { display: flex; align-items: center; gap: 6px; }
-  .fhours .field { padding-left: .5rem; padding-right: .3rem; }
+  .fhours .field { flex: 1; min-width: 0; padding-left: .7rem; padding-right: 2rem; }
+  .fstack { display: flex; flex-direction: column; gap: 10px; }
   .fchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .fchips button { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
   .fchips button:hover { filter: brightness(.95); }
@@ -486,7 +487,24 @@
   .runmeta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .runmeta b { font-size: 1rem; }
   .chip { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; font-weight: 600; padding: .15rem .55rem; border-radius: 999px; background: var(--surface-2); color: var(--text-secondary); }
-  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .ovmini, .ovtop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .ovmini > button, .ovtop > button { text-align: left; display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; transition: box-shadow .12s; }
+  .ovmini > button:hover, .ovtop > button:hover { box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+  .ovh { display: flex; align-items: baseline; gap: 8px; font-weight: 700; font-size: .92rem; color: var(--text-primary); }
+  .ovh small { font-weight: 400; font-size: .72rem; color: var(--text-muted); }
+  .ovh i { margin-left: auto; font-style: normal; color: var(--accent); }
+  .ovc { position: relative; height: 150px; width: 100%; }
+  .ovtop ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+  .ovtop li { display: grid; grid-template-columns: 18px minmax(0, 1fr) 70px auto; align-items: center; gap: 8px; font-size: .8rem; }
+  .ovtop li .rk { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .ovtop li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+  .ovtop li .nm b { font-family: var(--font-data); color: var(--text-primary); margin-right: 6px; }
+  .ovtop li .br { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+  .ovtop li .br > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+  .ovtop li .vl { font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
+  .ovtop li .vl small { color: var(--text-muted); margin-left: 4px; }
+  .ovtop .empty { font-size: .8rem; color: var(--text-muted); }
   .kpi { background: var(--surface); border-radius: 16px; padding: 16px 18px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .kpi-label { font-size: .75rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .kpi.lead { background: var(--accent); color: var(--accent-ink); }
@@ -746,7 +764,7 @@
           <div class="falfoot"><button type="button" id="fAlNone" class="qbtn">모두 해제</button><button type="button" id="fAlDone" class="qbtn" aria-pressed="true">완료</button></div>
         </div>
       </div>
-      <div class="row2">
+      <div class="fstack">
         <div>
           <label class="lbl" for="fSize">기종 크기</label>
           <select id="fSize" class="field">
@@ -942,6 +960,8 @@
       <div class="panel">
         <div class="lib-bar">
           <input id="libQ" class="field" placeholder="찾기 — 공항·이름·메모" autocomplete="off" aria-label="보관함 찾기">
+          <select id="libAp" class="field" aria-label="공항으로 거르기"><option value="">모든 공항</option></select>
+          <select id="libCc" class="field" aria-label="나라로 거르기"><option value="">모든 나라</option></select>
           <select id="libSort" class="field" aria-label="정렬">
             <option value="saved">최근 저장 순</option><option value="ap">공항 순</option><option value="period">기간 순</option><option value="size">큰 것부터</option>
           </select>
@@ -1025,7 +1045,7 @@
           </div>
         </div>
 
-        <div class="kpis" hidden>
+        <div class="kpis" data-sec="overview">
           <div class="kpi lead">
             <div class="kpi-label">총 운항</div>
             <div class="kpi-value" id="stTotal">–</div>
@@ -1046,9 +1066,27 @@
             <div class="kpi-value" id="stPeakHour">–</div>
             <div class="text-xs muted" id="stPeakHourSub"></div>
           </div>
+          <div class="kpi">
+            <div class="kpi-label">도착 : 출발</div>
+            <div class="kpi-value" id="stRatio">–</div>
+            <div class="text-xs muted" id="stRatioSub"></div>
+          </div>
         </div>
 
-        <div class="ovgo" data-sec="overview">
+        <!-- 개요: 작은 그래프 3개 (누르면 운항량 탭) -->
+        <div class="ovmini" data-sec="overview">
+          <button type="button" class="panel" data-ovp="hour"><span class="ovh">하루 24시간 <small>시간당 평균</small><i>→</i></span><div class="ovc"><canvas id="ovHour"></canvas></div></button>
+          <button type="button" class="panel" data-ovp="wd"><span class="ovh">요일별 <small>하루 평균</small><i>→</i></span><div class="ovc"><canvas id="ovWd"></canvas></div></button>
+          <button type="button" class="panel" data-ovp="day"><span class="ovh">일별 추이 <small>하루 합계</small><i>→</i></span><div class="ovc"><canvas id="ovDay"></canvas></div></button>
+        </div>
+        <!-- 개요: Top 5 (누르면 운항 구성 탭) -->
+        <div class="ovtop" data-sec="overview">
+          <button type="button" class="panel" data-ovm="route"><span class="ovh">노선 Top 5 <small>출발지·목적지 공항</small><i>→</i></span><ol id="ovTopRoute"></ol></button>
+          <button type="button" class="panel" data-ovm="airline"><span class="ovh">항공사 Top 5 <small>편명 앞 3자리</small><i>→</i></span><ol id="ovTopAirline"></ol></button>
+          <button type="button" class="panel" data-ovm="type"><span class="ovh">기종 Top 5 <small>기종 코드</small><i>→</i></span><ol id="ovTopType"></ol></button>
+        </div>
+
+        <div class="ovgo" data-sec="overview" hidden>
           <button type="button" data-goto="profile"><b>운항량</b><span>시간대별 · 일별 · 요일별 · 월별 운항</span><i aria-hidden="true">→</i></button>
           <button type="button" data-goto="mix"><b>운항 구성</b><span>노선 지도 · 항공사 · 기종</span><i aria-hidden="true">→</i></button>
           <button type="button" data-goto="peak" class="design-only"><b>첨두시간 산정</b><span>ICAO Doc 9184 기준</span><i aria-hidden="true">→</i></button>
@@ -1247,7 +1285,7 @@
             <div class="rtmap-wrap">
               <div id="rtMap" class="rtmap" role="img" aria-label="노선 지도"></div>
               <div id="rtTip" class="rttip" hidden></div>
-              <div class="rtmap-foot"><span id="rtMapNote"></span><span>끌어서 이동 · 휠로 확대 · 지도: Natural Earth</span></div>
+              <div class="rtmap-foot"><span id="rtMapNote"></span></div>
             </div>
             <div><p class="ctitle" id="rtChartTitle"></p><div class="hbar-box"><canvas id="rtChart" aria-label="노선별 운항 막대 차트"></canvas></div></div>
           </div>
@@ -2639,6 +2677,7 @@ function renderAll() {
   renderCAA(res);
   renderTypes(res, sel);
   renderStats(res);
+  setTimeout(() => renderOverviewExtras(res));
   renderAirlinesRoutes();
   renderCats(res, sel);
   renderAirportCompare();
@@ -3456,7 +3495,64 @@ function renderStats(res) {
   const hl = res.startLocal + hi * HOUR;
   $('stPeakHour').innerHTML = `${res.s.tot[hi]} <span class="text-sm font-medium muted">편</span>`;
   $('stPeakHourSub').textContent = `${fmtDate(hl)} (${WD[wdOf(hl)]}) ${fmtTime(hl)}–${fmtTime(hl + HOUR)} · 도착 ${res.s.arr[hi]} / 출발 ${res.s.dep[hi]}`;
+  const nD = mv.length - nA;
+  $('stRatio').innerHTML = mv.length ? `${Math.round(nA / mv.length * 100)} : ${100 - Math.round(nA / mv.length * 100)}` : '–';
+  $('stRatioSub').textContent = `도착 ${nA.toLocaleString()} · 출발 ${nD.toLocaleString()} (%)`;
 }
+
+/* ---------- 개요: 작은 그래프 3개 + Top 5 (사용자 요청) ---------- */
+function renderOverviewExtras(res) {
+  if (!res || !STATE.view || !$('ovHour').offsetWidth) return;      // 개요가 안 보이면 나중에 (setPane 이 다시 부름)
+  const tc = themeColors(), sign = cssVar('--sign');
+  const mini = (id, labels, datasets, extra = {}) => mkChart(id, { type: extra.type || 'bar', data: { labels, datasets },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, events: [],
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { stacked: true, grid: { display: false }, ticks: { color: tc.muted, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: extra.xt || 8 } },
+                y: { stacked: true, beginAtZero: true, grid: { color: tc.grid }, border: { display: false }, ticks: { color: tc.muted, font: { size: 10 }, maxTicksLimit: 4 } } } } });
+  const pkColor = (arr, base) => { const mx = Math.max(...arr); return arr.map(v => v === mx ? sign : base); };
+  // 하루 24시간 (기간 평균)
+  const ha = new Array(24).fill(0), hd = new Array(24).fill(0);
+  for (let i = 0; i < res.s.arr.length; i++) { ha[i % 24] += res.s.arr[i]; hd[i % 24] += res.s.dep[i]; }
+  const hA = ha.map(v => v / res.days), hD = hd.map(v => v / res.days), hT = hA.map((v, i) => v + hD[i]);
+  const hMax = Math.max(...hT);
+  mini('ovHour', hA.map((_, h) => String(h)), [
+    { data: hA, backgroundColor: hT.map(v => v === hMax ? sign : tc.arr), borderRadius: 2 },
+    { data: hD, backgroundColor: hT.map(v => v === hMax ? sign : tc.dep), borderRadius: 2 }], { xt: 7 });
+  // 요일별 하루 평균 (월~일)
+  const order = [1, 2, 3, 4, 5, 6, 0], wa = {}, wd = {}, wn = {};
+  for (const d of res.daily) { const w = wdOf(d.ls); wa[w] = (wa[w] || 0) + d.arr; wd[w] = (wd[w] || 0) + d.dep; wn[w] = (wn[w] || 0) + 1; }
+  const WA = order.map(w => wn[w] ? wa[w] / wn[w] : 0), WDp = order.map(w => wn[w] ? wd[w] / wn[w] : 0), WT = WA.map((v, i) => v + WDp[i]);
+  const wMax = Math.max(...WT);
+  mini('ovWd', order.map(w => WD[w]), [
+    { data: WA, backgroundColor: WT.map(v => v === wMax ? sign : tc.arr), borderRadius: 3 },
+    { data: WDp, backgroundColor: WT.map(v => v === wMax ? sign : tc.dep), borderRadius: 3 }]);
+  // 일별 추이 (선)
+  const dl = res.daily.map(d => fmtDate(d.ls).slice(5)), dt = res.daily.map(d => d.tot), dMax = Math.max(...dt);
+  mini('ovDay', dl, [{ data: dt, borderColor: tc.arr, backgroundColor: 'transparent', borderWidth: 2, tension: .25, fill: false,
+    pointRadius: dt.map(v => v === dMax ? 4 : (dt.length <= 31 ? 2 : 0)), pointBackgroundColor: dt.map(v => v === dMax ? sign : tc.arr), pointBorderWidth: 0 }],
+    { type: 'line', xt: 6 });
+  charts.ovDay.options.scales.y.beginAtZero = false; charts.ovDay.update();
+  // Top 5
+  const S = STATE.alrt || airlineRouteSummary(), tot = STATE.view.movements.length;
+  const list = (id, rows) => {
+    const mx = rows[0]?.n || 1;
+    $(id).innerHTML = rows.length ? rows.map((r, i) => `<li><span class="rk">${i + 1}</span><span class="nm"><b>${esc(r.code)}</b>${esc(r.name || '')}</span>
+      <span class="br"><span style="width:${(r.n / mx * 100).toFixed(1)}%"></span></span><span class="vl">${r.n.toLocaleString()}<small>${fmtPct(r.n / tot)}</small></span></li>`).join('')
+      : '<li class="empty">정보 없음</li>';
+  };
+  const apNm = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[1] || a[0]) : ''; };
+  list('ovTopRoute', S.routes.filter(r => r.ap !== '미상').slice(0, 5).map(r => ({ code: r.ap, name: apNm(r.ap), n: r.n })));
+  list('ovTopAirline', S.airlines.filter(a => a.code !== '기타').slice(0, 5).map(a => ({ code: a.code, name: a.name, n: a.n })));
+  const ty = new Map(); for (const m of STATE.view.movements) if (m.typecode) ty.set(m.typecode, (ty.get(m.typecode) || 0) + 1);
+  list('ovTopType', [...ty.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, name: '', n })));
+}
+document.querySelector('.ovmini').addEventListener('click', e => {
+  const b = e.target.closest('[data-ovp]'); if (!b) return;
+  setPane('profile'); document.querySelector(`[data-ppick="${b.dataset.ovp}"]`)?.click();
+});
+document.querySelector('.ovtop').addEventListener('click', e => {
+  const b = e.target.closest('[data-ovm]'); if (b) setMixView(b.dataset.ovm);
+});
 function airlineRouteSummary() {
   const mv = STATE.view.movements, al = new Map(), rt = new Map();
   for (const m of mv) {
@@ -3474,7 +3570,7 @@ function airlineRouteSummary() {
   return {
     total: mv.length,
     airlines: [...al.values()].sort((a, b) => b.n - a.n).map(a => ({ ...a, name: name(a) })),
-    routes: [...rt.values()].sort((a, b) => b.n - a.n)
+    routes: [...rt.values()].filter(r => r.ap !== '미상').sort((a, b) => b.n - a.n)   // 상대 공항을 모르는 운항(미상)은 노선에서 뺌 (사용자 요청)
   };
 }
 function renderAirlinesRoutes() {
@@ -3486,7 +3582,7 @@ function renderAirlinesRoutes() {
     S.airlines.slice(0, TOP).map((a, i) => `<tr><td class="num">${i + 1}</td><td><b style="font-family:var(--font-data)">${esc(a.code)}</b></td><td class="secondary">${esc(a.name)}</td>
       <td class="num"><b>${a.n.toLocaleString()}</b></td><td>${bar(a.n, amax)}</td><td class="num">${fmtPct(a.n / S.total)}</td><td class="num">${a.arr.toLocaleString()}</td><td class="num">${a.dep.toLocaleString()}</td></tr>`).join('') +
     (S.airlines.length > TOP ? `<tr><td colspan="8" class="muted">외 ${S.airlines.length - TOP}개 (엑셀 "항공사" 시트에 전체)</td></tr>` : '') + '</tbody>';
-  $('rtNote').textContent = `${S.routes.length.toLocaleString()}개 공항 · OpenSky 추정 공항이라 비어 있으면 "미상" · 지도의 선 굵기 = 운항 수`;
+  $('rtNote').textContent = `${S.routes.length.toLocaleString()}개 공항 · 지도의 선 굵기 = 운항 수`;
   const apName = c => { const a = MAPDATA?.airports?.[c]; return a ? `${a[0]}${a[1] ? ' · ' + a[1] : ''}` : ''; };
   $('rtTable').innerHTML = '<thead><tr><th class="num">순위</th><th>공항</th><th class="num">운항</th><th style="width:18%"></th><th class="num">비율</th><th class="num">에서 도착</th><th class="num">으로 출발</th></tr></thead><tbody>' +
     S.routes.slice(0, TOP).map((r, i) => `<tr data-rt="${esc(r.ap)}"><td class="num">${i + 1}</td><td><b>${esc(r.ap)}</b> <span class="text-xs muted">${esc(apName(r.ap))}</span></td>
@@ -3562,7 +3658,7 @@ function renderRouteMap(S) {
   $('sumApName').textContent = origin ? `${origin[0]} · ${[origin[1], origin[2]].filter(Boolean).join(', ')}` : '';
   const routes = S.routes.filter(r => A[r.ap]).map(r => ({ ...r, a: A[r.ap] }));
   const missing = S.routes.filter(r => !A[r.ap]).reduce((s, r) => s + r.n, 0);
-  $('rtMapNote').textContent = `공항 ${routes.length}곳 표시` + (missing ? ` · 위치 모름 ${missing.toLocaleString()}편 (미상 포함)` : '');
+  $('rtMapNote').textContent = '';
   el.innerHTML = '';
   if (!origin) { $('rtMapNote').textContent = `${STATE.data.airport} 의 위치를 몰라 지도를 그리지 못했습니다.`; return; }
   const O = [origin[4], origin[3]], pts = routes.map(r => [r.a[4], r.a[3]]);
@@ -4166,6 +4262,8 @@ const LIB = { list: [], sel: new Set(), edit: null };
 const libMB = b => b >= 1e9 ? (b / 1e9).toFixed(2) + 'GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1e3)) + 'KB';
 const libWhen = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const libAps = r => r.aps || [(r.label || '').split(' · ')[0]];
+const libApName = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[0]) : ''; };
+const libApCc = c => MAPDATA?.airports?.[c]?.[2] || '';
 const libPeriod = r => {
   if (r.lo || r.hi) return [r.lo, r.hi];
   const m = (r.label || '').match(/(\d{4}-\d\d-\d\d) ~ (\d{4}-\d\d-\d\d)/); return m ? [m[1], m[2]] : [null, null];
@@ -4175,8 +4273,17 @@ async function renderLib(list) {
   LIB.list = list;
   for (const id of [...LIB.sel]) if (!list.some(r => r.id === id)) LIB.sel.delete(id);
   let cur = null; try { cur = localStorage.getItem(DS_LAST); } catch (e) {}
-  const q = $('libQ').value.trim().toLowerCase(), sort = $('libSort').value;
-  const rows = list.filter(r => !q || [r.name, r.label, r.note, ...libAps(r), ...r.files.map(f => f.name)].join(' ').toLowerCase().includes(q));
+  if (!MAPDATA) { await loadMapData(); }
+  // 공항·나라 필터 목록 (보관한 데이터에 있는 것만)
+  const allAps = [...new Set(list.flatMap(libAps))].sort(), allCc = [...new Set(allAps.map(libApCc).filter(Boolean))];
+  const fill = (id, items, label) => { const cur = $(id).value;
+    $(id).innerHTML = `<option value="">${label}</option>` + items.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('');
+    if (items.some(([v]) => v === cur)) $(id).value = cur; };
+  fill('libAp', allAps.map(c => [c, `${c} ${libApName(c)}`.trim()]), '모든 공항');
+  fill('libCc', allCc.map(c => [c, regionName(c)]).sort((a, b) => a[1].localeCompare(b[1], 'ko')), '모든 나라');
+  const q = $('libQ').value.trim().toLowerCase(), sort = $('libSort').value, fAp = $('libAp').value, fCc = $('libCc').value;
+  const rows = list.filter(r => (!q || [r.name, r.label, r.note, ...libAps(r), ...libAps(r).map(libApName), ...libAps(r).map(c => regionName(libApCc(c))), ...r.files.map(f => f.name)].join(' ').toLowerCase().includes(q))
+    && (!fAp || libAps(r).includes(fAp)) && (!fCc || libAps(r).some(c => libApCc(c) === fCc)));
   const key = { saved: r => -r.savedAt, ap: r => libAps(r).join(','), period: r => libPeriod(r)[0] || '', size: r => -r.bytes }[sort];
   rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; });
   const apset = new Set(list.flatMap(libAps)), fl = list.reduce((t, r) => t + (r.flights || 0), 0), by = list.reduce((t, r) => t + r.bytes, 0);
@@ -4189,13 +4296,15 @@ async function renderLib(list) {
   $('libTbl').innerHTML = !list.length
     ? '<tr><td class="lib-empty">아직 보관한 데이터가 없습니다. 데이터 탭에서 받거나 CSV 를 불러오면 여기에 자동으로 보관됩니다.</td></tr>'
     : !rows.length ? '<tr><td class="lib-empty">찾는 데이터가 없습니다</td></tr>'
-    : `<thead><tr><th style="width:28px"><input type="checkbox" id="libAll" aria-label="모두 선택"></th><th>이름</th><th>공항</th><th>기간</th><th class="num">일수</th><th class="num">운항</th><th class="num">파일</th><th class="num">크기</th><th>저장</th><th>메모</th><th></th></tr></thead><tbody>` +
+    : `<thead><tr><th style="width:28px"><input type="checkbox" id="libAll" aria-label="모두 선택"></th><th>이름</th><th>공항</th><th>공항 이름</th><th>나라</th><th>기간</th><th class="num">일수</th><th class="num">운항</th><th class="num">파일</th><th class="num">크기</th><th>저장</th><th>메모</th><th></th></tr></thead><tbody>` +
       rows.map(r => {
         const [a, b] = libPeriod(r), ed = LIB.edit === r.id;
         return `<tr class="${r.id === cur ? 'cur' : ''}" data-id="${esc(r.id)}">
           <td><input type="checkbox" data-sel aria-label="선택" ${LIB.sel.has(r.id) ? 'checked' : ''}></td>
           <td class="lname">${ed ? `<input class="field" data-ename value="${esc(r.name || r.label)}" aria-label="이름">` : esc(r.name || r.label)}<small title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.files.map(f => f.name).join(', '))}</small></td>
           <td class="aps">${esc(libAps(r).join(', '))}</td>
+          <td class="secondary">${libAps(r).map(c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] ? `${esc(a[9])} <small class="muted">${esc(a[0])}</small>` : esc(a[0])) : ''; }).filter(Boolean).join('<br>') || '–'}</td>
+          <td class="secondary" style="white-space:nowrap">${esc([...new Set(libAps(r).map(c => regionName(libApCc(c))).filter(Boolean))].join(', ') || '–')}</td>
           <td style="white-space:nowrap">${a ? `${esc(a)} ~ ${esc(b)}` : '–'}</td>
           <td class="num">${days(r) ?? '–'}</td>
           <td class="num">${r.flights ? r.flights.toLocaleString() : '–'}</td>
@@ -4274,6 +4383,7 @@ $('libTbl').addEventListener('change', e => {
 });
 $('libQ').addEventListener('input', () => renderLib(LIB.list));
 $('libSort').onchange = () => renderLib(LIB.list);
+$('libAp').onchange = $('libCc').onchange = () => renderLib(LIB.list);
 $('libSelNone').onclick = () => { LIB.sel.clear(); renderLib(LIB.list); };
 $('libOpenSel').onclick = () => libOpen([...LIB.sel]);
 $('libDlSel').onclick = () => libDownload([...LIB.sel]);
@@ -4398,6 +4508,7 @@ function setPane(name, scroll = true) {
   if (name === 'data') amapDraw();
   if (name === 'lib') { renderLib(); renderDisk(); }
   if (name === 'home') renderHome();
+  if (name === 'overview' && STATE.res) renderOverviewExtras(STATE.res);
   document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
   if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
     if (name === 'profile') renderProfileTab();
