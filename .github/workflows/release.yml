@@ -1,5 +1,5 @@
 # main 에 올라오면 Windows exe 를 빌드해 GitHub Release 로 올린다.
-# 배포: FlightData_<VERSION>.zip (폴더 FlightData_<VERSION>\ 안에 FlightData.exe · README_KR.txt · OpenSky_CSV\) — 사용자 요청 2026-10-28.
+# 배포: FlightData_<VERSION>.zip (폴더 FlightData_<VERSION>\ 안에 FlightData.exe · README_KR.txt · 빈 OpenSky_CSV\) — 사용자 요청 2026-10-28.
 # 버전: VERSION 파일 (VERSION 파일, 예 1.0.32 — 패치할 때마다 마지막 숫자를 올림, 사용자 요청 2026-10-28)
 # 최신 릴리스 페이지: https://github.com/<owner>/<repo>/releases/latest
 name: Build & release
@@ -42,8 +42,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$d\OpenSky_CSV" | Out-Null
           Copy-Item dist\FlightData.exe $d
           Copy-Item README_KR.txt $d
-          Set-Content -Path "$d\OpenSky_CSV\여기에_CSV가_저장됩니다.txt" -Value "FlightData 가 OpenSky 에서 받은 CSV 와 조회 캐시(trino_cache)를 이 폴더에 저장합니다.`r`n미리 받아 둔 CSV 를 여기에 넣으면 보관함의 '저장 폴더의 CSV' 목록에 나옵니다." -Encoding utf8
-          Compress-Archive -Path $d -DestinationPath "dist\FlightData_${{ env.VER }}.zip" -Force
+          # 빈 OpenSky_CSV 폴더도 넣으려고 .NET ZipFile 사용 (Compress-Archive 는 빈 폴더를 뺌)
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path "pkg").Path, "$PWD\dist\FlightData_${{ env.VER }}.zip")
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VER }}
