@@ -45,16 +45,27 @@ jobs:
           # 빈 OpenSky_CSV 폴더도 넣으려고 .NET ZipFile 사용 (Compress-Archive 는 빈 폴더를 뺌)
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path "pkg").Path, "$PWD\dist\FlightData_${{ env.VER }}.zip")
+      - name: Release notes (CHANGELOG.md 의 이 버전 부분)
+        shell: pwsh
+        run: |
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $out = @(); $on = $false
+          foreach ($l in $lines) {
+            if ($l -match '^## ') { if ($on) { break }; if ($l.Trim() -eq "## ${{ env.VER }}") { $on = $true; continue } }
+            if ($on) { $out += $l }
+          }
+          $head = @(
+            "FlightData_${{ env.VER }}.zip 을 받아 **압축을 푼 뒤** 폴더 안의 FlightData.exe 를 더블클릭하세요 (설치 필요 없음).",
+            "처음 실행할 때 `"Windows의 PC 보호`" 경고가 뜨면 [추가 정보] → [실행].",
+            "",
+            "### 이번 버전에서 바뀐 것")
+          $tail = @("", "전체 패치 노트: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md")
+          ($head + $out + $tail) | Set-Content -Path notes.md -Encoding utf8
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VER }}
           name: FlightData_${{ env.VER }}
           make_latest: true
-          body: |
-            Windows 용 FlightData_${{ env.VER }} 입니다. FlightData_${{ env.VER }}.zip 을 받아 **압축을 푼 뒤** 폴더 안의 FlightData.exe 를 더블클릭하세요 (설치 필요 없음).
-            폴더 안에 설정·항공기 DB·보관함(app_data)·받은 CSV(OpenSky_CSV)가 함께 쌓이므로, 이 폴더를 통째로 옮기면 다른 PC 에서도 그대로 씁니다.
-            처음 실행할 때 "Windows의 PC 보호" 경고가 뜨면 [추가 정보] → [실행].
-            한 창에서 OpenSky 운항 CSV 를 받고(1 데이터 → "OpenSky에서 받기") 바로 분석합니다.
-            사용법: https://github.com/${{ github.repository }}#readme
+          body_path: notes.md
           files: |
             dist/FlightData_${{ env.VER }}.zip
