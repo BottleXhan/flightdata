@@ -4,7 +4,7 @@ FlightData 분석기에 넣을 CSV 를 [OpenSky Network](https://opensky-network
 
 **받기:** [최신 FlightData_Collector.exe](../../releases/latest/download/FlightData_Collector.exe) — 설치 없이 더블클릭
 
-- OpenSky 계정과 Trino 사용 승인이 필요합니다. 비밀번호는 프로그램에 입력하지 않고 브라우저 로그인 창에서 입력합니다.
+- OpenSky 계정과 Trino 사용 승인이 필요합니다. 비밀번호를 넣으면 브라우저 없이 바로 로그인합니다([pyopensky](https://github.com/open-aviation/pyopensky) 와 같은 방식). "이 PC에 비밀번호 기억" 은 Windows 자격 증명 관리자에 저장하며, 파일이나 저장소에는 남기지 않습니다. 비밀번호를 비우면 브라우저 로그인 창이 열립니다.
 - 공항 이름·도시·IATA·한글로 검색하거나 지도에서 고르면 ICAO 코드와 UTC 오프셋이 자동으로 채워집니다.
 - OpenSky 조회 규칙(하루 단위 day 파티션 필터, 한 번에 하나씩, 받은 날은 캐시)을 지킵니다.
 - 서명되지 않은 프로그램이라 처음 실행할 때 SmartScreen 경고가 뜹니다: [추가 정보] → [실행].

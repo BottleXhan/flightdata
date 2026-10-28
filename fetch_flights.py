@@ -67,21 +67,33 @@ def overlapping_gaps(begin_utc, end_utc):
     return [(a, b) for a, b in KNOWN_GAPS if utc_ts(a) < end_utc and utc_ts(b) > begin_utc]
 
 
-def connect(user, on_auth_url=None):
+def connect(user, on_auth_url=None, password=None, log=print):
     import trino
     from trino.auth import (OAuth2Authentication, CompositeRedirectHandler,
                             ConsoleRedirectHandler, WebBrowserRedirectHandler)
-    # 로그인 주소는 브라우저로 열고 콘솔에도 출력, 필요하면 화면(app.py)에도 전달
-    handlers = [WebBrowserRedirectHandler(), ConsoleRedirectHandler()]
-    if on_auth_url:
-        handlers.append(on_auth_url)
-    # 가이드의 CLI 와 같은 설정: 외부(브라우저) 인증, catalog=minio, schema=osky. 사용자명은 소문자.
+    auth = None
+    if password:                                            # 비밀번호 로그인 (브라우저 없이, pyopensky 와 같은 방식)
+        from opensky_auth import PasswordToken, LoginError, trino_auth
+        tok = PasswordToken(user, password)
+        try:
+            tok.token()
+            auth = trino_auth(tok)
+            log("  OpenSky 로그인 성공 (비밀번호)")
+        except LoginError as e:
+            log(f"  {e} → 브라우저 로그인으로 진행합니다")
+    if auth is None:
+        # 로그인 주소는 브라우저로 열고 콘솔에도 출력, 필요하면 화면(app.py)에도 전달
+        handlers = [WebBrowserRedirectHandler(), ConsoleRedirectHandler()]
+        if on_auth_url:
+            handlers.append(on_auth_url)
+        auth = OAuth2Authentication(redirect_auth_url_handler=CompositeRedirectHandler(handlers))
+    # 가이드의 CLI 와 같은 설정: catalog=minio, schema=osky. 사용자명은 소문자.
     return trino.dbapi.connect(
         host="trino.opensky-network.org",
         port=443,
         http_scheme="https",
         user=user.lower(),
-        auth=OAuth2Authentication(redirect_auth_url_handler=CompositeRedirectHandler(handlers)),
+        auth=auth,
         catalog="minio",
         schema="osky",
     )
@@ -268,18 +280,18 @@ def parse_airports(text):
 
 def collect(user, airport, start, end_date, tz, cache_root="trino_cache", out=None, pause=1.0,
             dry_run=False, log=print, on_auth_url=None, on_progress=None, should_stop=None,
-            aircraft_info=True):
+            aircraft_info=True, password=None):
     """공항 하나 수집 (app.py 호환). 반환: (CSV 경로, 운항 행 목록, 도착 수, 출발 수)."""
     airport = airport.strip().upper()
     res = collect_many(user, [airport], start, end_date, tz, cache_root=cache_root, outs={airport: out} if out else None,
                        pause=pause, dry_run=dry_run, log=log, on_auth_url=on_auth_url, on_progress=on_progress,
-                       should_stop=should_stop, aircraft_info=aircraft_info)
+                       should_stop=should_stop, aircraft_info=aircraft_info, password=password)
     return res[airport]
 
 
 def collect_many(user, airports, start, end_date, tz, cache_root="trino_cache", outs=None, pause=1.0,
                  dry_run=False, log=print, on_auth_url=None, on_progress=None, should_stop=None,
-                 aircraft_info=True):
+                 aircraft_info=True, password=None):
     """여러 공항을 하루씩 함께 조회해 공항별 CSV 를 만든다.
     날짜마다 쿼리는 한 번(아직 캐시 없는 공항만 IN 조건으로), 결과는 공항별 캐시·CSV 로 나눈다.
     반환: {공항: (CSV 경로, 운항 행 목록, 도착 수, 출발 수)}"""
@@ -322,7 +334,7 @@ def collect_many(user, airports, start, end_date, tz, cache_root="trino_cache", 
         need = [ap for ap in airports if ap not in got]
         if need:
             if conn is None:
-                conn = connect(user, on_auth_url)
+                conn = connect(user, on_auth_url, password=password, log=log)
             t0 = time.time()
             for attempt in range(3):
                 try:

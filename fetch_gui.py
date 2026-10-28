@@ -22,6 +22,7 @@ from tkinter import ttk, filedialog, messagebox
 import customtkinter as ctk
 
 import fetch_flights as ff
+import opensky_auth as oa              # 비밀번호 로그인 · Windows 자격 증명 관리자에 기억
 from airport_db import AirportDB
 
 try:                                    # 달력 (없으면 날짜를 직접 입력)
@@ -156,6 +157,29 @@ class App(ctk.CTk):
         return ctk.CTkButton(parent, text=text, command=cmd, fg_color=FIELD, hover_color=("#d8dee6", "#283039"),
                              text_color=TEXT, **kw)
 
+    # ---------- 비밀번호 기억 ----------
+    def _fill_saved_password(self):
+        """기억해 둔 비밀번호가 있으면 채움 (사용자명이 바뀌면 그 사용자 것으로)."""
+        user = self.e_user.get().strip()
+        if not (user and self.v_remember.get()) or self.e_pw.get():
+            return
+        try:
+            pw = oa.load_password(user)
+        except Exception:  # noqa: BLE001
+            pw = None
+        if pw:
+            self.e_pw.insert(0, pw)
+
+    def _remember_changed(self):
+        if not self.v_remember.get():                       # 끄면 저장해 둔 비밀번호도 지움
+            user = self.e_user.get().strip()
+            if user:
+                try:
+                    oa.forget_password(user)
+                except Exception:  # noqa: BLE001
+                    pass
+        save_settings({"remember_pw": self.v_remember.get()})
+
     # ---------- 밝게 / 어둡게 ----------
     def _sync_theme_btn(self):
         dark = ctk.get_appearance_mode() == "Dark"          # 분석기와 같게: 어두우면 해(밝게로), 밝으면 달(어둡게로)
@@ -208,7 +232,15 @@ class App(ctk.CTk):
         self.e_user = add(self._entry(left, None, placeholder_text="OpenSky 사용자명"))
         if self.saved.get("user"):
             self.e_user.insert(0, self.saved["user"])
-        add(self._hint(left, text="비밀번호는 [CSV 받기] 후 열리는 로그인 창에서 입력합니다"), pady=(4, 0))
+        self.e_pw = add(self._entry(left, None, placeholder_text="비밀번호 (비우면 브라우저 로그인)", show="•"), pady=(6, 0))
+        self.v_remember = tk.BooleanVar(value=bool(self.saved.get("remember_pw", True)) and oa.CAN_REMEMBER)
+        add(ctk.CTkCheckBox(left, text="이 PC에 비밀번호 기억 (Windows 자격 증명 관리자)", variable=self.v_remember,
+                            command=self._remember_changed, state="normal" if oa.CAN_REMEMBER else "disabled",
+                            font=self.f["small"], text_color=TEXT2, fg_color=ACCENT, hover_color=ACCENT_HOVER,
+                            checkbox_width=18, checkbox_height=18, corner_radius=5), pady=(8, 0), sticky="w")
+        add(self._hint(left, text="비밀번호를 비우면 브라우저 로그인 창이 열립니다 (Google·GitHub 로 가입한 계정)"), pady=(4, 0))
+        self._fill_saved_password()
+        self.e_user.bind("<FocusOut>", lambda e: self._fill_saved_password())
 
         add(self._step(left, 2, "공항"), pady=(16, 6), sticky="w")
         aprow = ctk.CTkFrame(left, fg_color="transparent")
@@ -612,6 +644,18 @@ class App(ctk.CTk):
             raise ValueError("종료일이 시작일보다 빠릅니다.")
         return user, airports, tz, s.isoformat(), e.isoformat()
 
+    def _password(self, user):
+        """입력한 비밀번호 (기억 켜짐이면 저장, 꺼짐이면 저장된 것 지움). 비어 있으면 None → 브라우저 로그인."""
+        pw = self.e_pw.get()
+        try:
+            if pw and self.v_remember.get():
+                oa.save_password(user, pw)
+            elif not self.v_remember.get():
+                oa.forget_password(user)
+        except Exception:  # noqa: BLE001 — 저장 실패해도 이번 수집은 진행
+            pass
+        return pw or None
+
     def _start(self):
         try:
             user, airports, tz, start, end = self._validate()
@@ -620,17 +664,19 @@ class App(ctk.CTk):
             return
         out_dir = self.v_dir.get().strip() or DEFAULT_DIR
         os.makedirs(out_dir, exist_ok=True)
-        save_settings({"user": user, "airport": ",".join(airports), "tz": tz, "out_dir": out_dir, "aircraft": self.v_aircraft.get()})
+        save_settings({"user": user, "airport": ",".join(airports), "tz": tz, "out_dir": out_dir, "aircraft": self.v_aircraft.get(),
+                       "remember_pw": self.v_remember.get()})
+        password = self._password(user)
         self.stop_flag = False
         self.pb.set(0)
         self._clear_log()
         self._busy(True)
         self.v_status.set("수집을 시작합니다…")
         segs = self._segments(dt.date.fromisoformat(start), dt.date.fromisoformat(end))
-        self.worker = threading.Thread(target=self._run, args=(user, airports, segs, tz, out_dir, self.v_aircraft.get()), daemon=True)
+        self.worker = threading.Thread(target=self._run, args=(user, airports, segs, tz, out_dir, self.v_aircraft.get(), password), daemon=True)
         self.worker.start()
 
-    def _run(self, user, airports, segs, tz, out_dir, aircraft):
+    def _run(self, user, airports, segs, tz, out_dir, aircraft, password=None):
         """구간(연도)마다 차례로 받는다. 캐시를 같이 쓰므로 겹치는 날은 다시 조회하지 않는다."""
         put = self.q.put
         total = sum((e - s).days + 1 for s, e in segs)
@@ -649,7 +695,7 @@ class App(ctk.CTk):
                     on_progress=lambda i, n, base=done_days, sd=seg_days, tag=tag:
                         put(("progress", (base + i * sd / n, total, f"{tag}{i} / {n}일"))),
                     should_stop=lambda: self.stop_flag,
-                    aircraft_info=aircraft)
+                    aircraft_info=aircraft, password=password)
                 done_days += seg_days
                 results += [(ap, v[0], len(v[1])) for ap, v in res.items()]
             put(("done", results))
@@ -730,6 +776,10 @@ if __name__ == "__main__":
         import zoneinfo
         assert AirportDB().get("RKSI").utc_offset() == 9
         assert Calendar is not None
+        assert oa.CAN_REMEMBER                              # Windows 자격 증명 관리자 (ctypes): 저장 → 읽기 → 삭제
+        assert oa.save_password("flightdata-selftest", "pw-테스트")
+        assert oa.load_password("flightdata-selftest") == "pw-테스트"
+        assert oa.forget_password("flightdata-selftest") and oa.load_password("flightdata-selftest") is None
         import map_canvas
         assert os.path.exists(map_canvas._data_path("land.json"))
         zoneinfo.ZoneInfo("America/New_York")
