@@ -3,6 +3,9 @@
 FlightData 분석기에 넣을 CSV 를 [OpenSky Network](https://opensky-network.org) Trino(과거 데이터)에서 받는 Windows 프로그램입니다.
 
 **받기:** [최신 FlightData_Collector.exe](../../releases/latest/download/FlightData_Collector.exe) — 설치 없이 더블클릭
+· 명령창 버전(Python 필요): [FlightData_CLI.zip](../../releases/latest/download/FlightData_CLI.zip)
+
+수집기 안에 FlightData 분석기(`web/analyzer.html`)가 들어 있어 [분석기 열기] 를 누르면 이 PC 에서만 열리는 주소(127.0.0.1)로 분석기가 뜨고, 방금 받은 CSV 가 바로 불러와집니다. 웹 버전: https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5
 
 - OpenSky 계정과 Trino 사용 승인이 필요합니다. 비밀번호를 넣으면 브라우저 없이 바로 로그인합니다([pyopensky](https://github.com/open-aviation/pyopensky) 와 같은 방식). "이 PC에 비밀번호 기억" 은 Windows 자격 증명 관리자에 저장하며, 파일이나 저장소에는 남기지 않습니다. 비밀번호를 비우면 브라우저 로그인 창이 열립니다.
 - 공항 이름·도시·IATA·한글로 검색하거나 지도에서 고르면 ICAO 코드와 UTC 오프셋이 자동으로 채워집니다.

@@ -23,6 +23,7 @@ import customtkinter as ctk
 
 import fetch_flights as ff
 import opensky_auth as oa              # 비밀번호 로그인 · Windows 자격 증명 관리자에 기억
+import local_web                       # exe 안에 넣은 분석기를 이 PC 에서 여는 작은 웹 서버
 from airport_db import AirportDB
 
 try:                                    # 달력 (없으면 날짜를 직접 입력)
@@ -102,6 +103,7 @@ class App(ctk.CTk):
         self.stop_flag = False
         self.auth_url = None
         self.db = AirportDB()
+        self.web = local_web.AnalyzerServer()
         self.results = []
         self.hints = []
 
@@ -157,6 +159,14 @@ class App(ctk.CTk):
         return ctk.CTkButton(parent, text=text, command=cmd, fg_color=FIELD, hover_color=("#d8dee6", "#283039"),
                              text_color=TEXT, **kw)
 
+    # ---------- 분석기 ----------
+    def _open_analyzer(self):
+        """exe 안의 분석기를 브라우저로 연다 (방금 받은 CSV 가 있으면 자동으로 불러옴). 없으면 웹 링크."""
+        if os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html")):
+            webbrowser.open(self.web.url())
+        else:
+            webbrowser.open(ANALYZER_URL)
+
     # ---------- 비밀번호 기억 ----------
     def _fill_saved_password(self):
         """기억해 둔 비밀번호가 있으면 채움 (사용자명이 바뀌면 그 사용자 것으로)."""
@@ -204,7 +214,7 @@ class App(ctk.CTk):
         tbox = ctk.CTkFrame(head, fg_color="transparent")
         tbox.pack(side="left", padx=(12, 0))
         ctk.CTkLabel(tbox, text="FlightData 수집기", font=self.f["title"], text_color=TEXT, anchor="w").pack(anchor="w")
-        self._btn(head, "분석기 열기 ↗", lambda: webbrowser.open(ANALYZER_URL), width=130).pack(side="right")
+        self._btn(head, "분석기 열기 ↗", self._open_analyzer, width=130).pack(side="right")
         self.b_theme = self._btn(head, "", self._toggle_theme, width=44, font=ctk.CTkFont(size=18))
         self.b_theme.pack(side="right", padx=(0, 8))
         self._sync_theme_btn()
@@ -735,9 +745,10 @@ class App(ctk.CTk):
                     self.pb.set(1)
                     lines = [f"{ap}: {os.path.basename(p)} ({n:,}건)" for ap, p, n in val]
                     self.v_status.set("완료 — " + " · ".join(lines))
-                    self._append("\n완료. 저장 폴더의 CSV 를 분석기 \"운항 CSV 파일\" 에서 고르세요.")
-                    if messagebox.askyesno("완료", "CSV 를 저장했습니다.\n\n" + "\n".join(lines) + "\n\n저장 폴더를 열까요?"):
-                        self._open_dir()
+                    self.web.set_csvs([p for _, p, _ in val])
+                    self._append("\n완료. [분석기 열기] 를 누르면 받은 CSV 가 바로 열립니다.")
+                    if messagebox.askyesno("완료", "CSV 를 저장했습니다.\n\n" + "\n".join(lines) + "\n\n분석기에서 바로 볼까요?"):
+                        self._open_analyzer()
                 elif kind == "error":
                     self._busy(False)
                     self.v_status.set("오류로 멈췄습니다. 아래 기록을 확인하세요.")
@@ -776,6 +787,8 @@ if __name__ == "__main__":
         import zoneinfo
         assert AirportDB().get("RKSI").utc_offset() == 9
         assert Calendar is not None
+        assert os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html"))   # exe 안의 분석기
+        assert os.path.isfile(os.path.join(local_web.web_dir(), "mapdata", "airports_min.json"))
         assert oa.CAN_REMEMBER                              # Windows 자격 증명 관리자 (ctypes): 저장 → 읽기 → 삭제
         assert oa.save_password("flightdata-selftest", "pw-테스트")
         assert oa.load_password("flightdata-selftest") == "pw-테스트"
