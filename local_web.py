@@ -205,6 +205,9 @@ class AnalyzerServer:
     def __init__(self):
         self.csvs = []                                       # 분석기에 넘길 CSV 경로 (마지막 수집 결과)
         self.disk = []                                       # 보관함 화면에 보여 준 저장 폴더 CSV 경로 (번호로 연다)
+        self.close_window = None                             # 업데이트 뒤 다시 시작할 때 창을 닫는 함수 (flightdata_app 이 넣음)
+        self.port_wait = 0                                   # 업데이트 직후: 예전 창이 포트를 놓을 때까지 기다릴 초
+        self._updater = None
         self.session = None                                  # (사용자명, 비밀번호) — 머리에서 로그인한 동안 메모리에만
         self.httpd = None
         self.collector = Collector(self)
@@ -215,6 +218,13 @@ class AnalyzerServer:
 
     def set_csvs(self, paths):
         self.csvs = [p for p in paths if p and os.path.isfile(p)]
+
+    @property
+    def updater(self):
+        if self._updater is None:
+            import updater
+            self._updater = updater.Updater(app_version())
+        return self._updater
 
     def start(self):
         if self.httpd:
@@ -291,6 +301,16 @@ class AnalyzerServer:
                             return self._send(200, f.read(), "text/csv; charset=utf-8")
                     except (ValueError, IndexError, OSError):
                         return self._send(404, b"not found")
+                if path == "/api/update/check":              # 새 버전 확인 (GitHub 최신 릴리스)
+                    import updater
+                    try:
+                        info = dict(srv.updater.check(force=bool(q.get("force"))))
+                        info["changes"] = updater.notes_text(info.get("notes"))
+                        return self._json(info)
+                    except Exception as e:  # noqa: BLE001
+                        return self._json({"error": f"새 버전을 확인하지 못했습니다: {e}"}, 502)
+                if path == "/api/update/status":
+                    return self._json(srv.updater.status())
                 if path == "/api/collect/status":
                     return self._json(srv.collector.status(int((q.get("since") or ["0"])[0] or 0)))
                 if path.startswith("/csv/"):
@@ -395,6 +415,20 @@ class AnalyzerServer:
                     import webbrowser
                     webbrowser.open(u)
                     return self._json({"ok": True})
+                if path == "/api/update/apply":
+                    if srv.collector.state == "running":
+                        return self._json({"error": "데이터를 받는 중에는 업데이트할 수 없습니다. 먼저 중지하세요."}, 409)
+                    try:
+                        srv.updater.apply()
+                    except RuntimeError as e:
+                        return self._json({"error": str(e)}, 409)
+                    return self._json({"ok": True})
+                if path == "/api/update/restart":
+                    try:
+                        srv.updater.restart(srv.close_window or (lambda: os._exit(0)))
+                    except RuntimeError as e:
+                        return self._json({"error": str(e)}, 409)
+                    return self._json({"ok": True})
                 if path == "/api/collect/stop":           # 바로 멈춤: 다음 날짜 전에 멈추고, 실행 중인 쿼리도 취소
                     import fetch_flights as ff
                     srv.collector.stop = True
@@ -414,12 +448,22 @@ class AnalyzerServer:
                 return self._send(404, b"not found")
 
         # 포트를 고정해 두어야 분석기 창의 저장 데이터(IndexedDB, 주소별로 따로 저장됨)가 다음 실행에도 남는다
-        for port in (*range(8790, 8800), 0):
+        deadline = time.time() + self.port_wait
+        while True:                                          # 업데이트 직후엔 8790 이 비기를 잠깐 기다림 (보관함이 주소별로 저장되므로)
             try:
-                self.httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+                self.httpd = ThreadingHTTPServer(("127.0.0.1", 8790), Handler)
                 break
             except OSError:
-                continue
+                if time.time() >= deadline:
+                    break
+                time.sleep(0.3)
+        if self.httpd is None:
+            for port in (*range(8791, 8800), 0):
+                try:
+                    self.httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+                    break
+                except OSError:
+                    continue
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         return self.port
 

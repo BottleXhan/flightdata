@@ -163,6 +163,20 @@
   .srcwrap { position: relative; }
   .boot { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
   .boot[hidden] { display: none; }
+  /* 오른쪽 아래 업데이트 알림 */
+  .upd-toast { position: fixed; right: 20px; bottom: 20px; z-index: 250; animation: updin .25s ease-out; }
+  .upd-toast[hidden] { display: none; }
+  @keyframes updin { from { transform: translateY(16px); opacity: 0; } }
+  .upd-card { background: var(--surface); border-radius: 16px; padding: 16px 18px; width: 360px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 14px 36px rgba(0,0,0,.22); }
+  .upd-top { display: flex; gap: 12px; align-items: flex-start; }
+  .upd-top b { font-size: .95rem; }
+  .upd-top p { margin: 2px 0 0; }
+  .upd-ico { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; color: #17130a; background: var(--sign); }
+  .upd-more summary { cursor: pointer; font-size: .78rem; color: var(--accent); list-style: none; }
+  .upd-more summary::-webkit-details-marker { display: none; }
+  .upd-more ul { margin: 6px 0 0; padding-left: 1.1rem; list-style: disc; display: grid; gap: 4px; font-size: .78rem; color: var(--text-secondary); max-height: 30vh; overflow: auto; }
+  .upd-card .btn { padding: .45rem .9rem; font-size: .8rem; }
+  #updMsg:empty { display: none; }
   .boot-card { background: var(--surface); border-radius: 16px; padding: 22px 28px; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 12px 32px rgba(0,0,0,.15); }
   .boot-card span:last-child { font-size: .8rem; color: var(--text-muted); }
   .boot-spin, .hl-spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--accent-soft); border-top-color: var(--accent); animation: bootspin .8s linear infinite; }
@@ -170,6 +184,18 @@
   @keyframes bootspin { to { transform: rotate(360deg); } }
   .hl-form.busy { opacity: .6; pointer-events: none; }
   .src-pop { width: 440px; }
+  .set-pop { width: 420px; gap: 0; padding: 14px 18px; }
+  .set-h { font-size: .95rem; color: var(--text-primary); margin-bottom: 6px; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--border, rgba(0,0,0,.07)); }
+  .set-row[hidden] { display: none; }
+  .set-row > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .set-k { font-size: .72rem; font-weight: 600; color: var(--text-muted); }
+  .set-row b { color: var(--text-primary); font-size: .9rem; }
+  .set-path { font-size: .78rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; }
+  .set-row .btn { padding: .35rem .7rem; font-size: .75rem; white-space: nowrap; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { padding: .3rem .7rem; font-size: .75rem; border-radius: 8px; color: var(--text-secondary); }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .src-pop p { margin: 0; }
   #homeNow .panel-head { margin-bottom: 14px; }
   #homeNowBody > p { line-height: 2; }
@@ -602,6 +628,28 @@
         </div>
       </div>
       <button id="homeBtn" class="icon-btn" type="button" title="홈" aria-label="홈"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
+      <div class="srcwrap" id="setWrap">
+        <button id="setBtn" class="icon-btn" type="button" title="설정" aria-label="설정" aria-expanded="false" aria-controls="setPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        <div id="setPop" class="hl-pop set-pop" role="dialog" aria-label="설정" hidden>
+          <b class="set-h">설정</b>
+          <div class="set-row app-only" hidden>
+            <div><span class="set-k">버전</span><b id="setVer">–</b><small id="setVerNote" class="muted"></small></div>
+            <div class="flex gap-2"><button id="setUpdCheck" class="btn" type="button">업데이트 확인</button><button id="setUpdGo" class="btn btn-primary" type="button" hidden>업데이트</button></div>
+          </div>
+          <div class="set-row app-only" hidden>
+            <div style="min-width:0"><span class="set-k">저장 폴더</span><span id="setDir" class="set-path"></span></div>
+            <div class="flex gap-2"><button id="setDirPick" class="btn" type="button">바꾸기…</button><button id="setDirOpen" class="btn" type="button">열기</button></div>
+          </div>
+          <div class="set-row app-only" hidden>
+            <div><span class="set-k">자동 로그인</span><small class="muted">켜면 다음 실행 때 저절로 로그인</small></div>
+            <label class="switch"><input type="checkbox" id="setAuto" role="switch"><span></span></label>
+          </div>
+          <div class="set-row">
+            <div><span class="set-k">화면</span><small class="muted">밝게 / 어둡게</small></div>
+            <div class="seg" id="setTheme"><button type="button" data-th="light">밝게</button><button type="button" data-th="dark">어둡게</button></div>
+          </div>
+        </div>
+      </div>
       <div class="srcwrap">
         <button id="srcInfoBtn" class="icon-btn" type="button" title="데이터 출처" aria-label="데이터 출처" aria-expanded="false" aria-controls="srcInfoPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></svg></button>
         <div id="srcInfoPop" class="hl-pop src-pop text-xs muted leading-relaxed" role="dialog" aria-label="데이터 출처" hidden>
@@ -1573,6 +1621,13 @@
     <!-- ───────────── 데이터 출처 · 인용 ───────────── -->
   </main>
 </div>
+<div id="updModal" class="upd-toast" role="status" aria-live="polite" hidden><div class="upd-card">
+  <div class="upd-top"><span class="upd-ico" aria-hidden="true">↑</span><div><b id="updTitle">새 버전이 있습니다</b><p id="updSub" class="text-xs muted"></p></div></div>
+  <details class="upd-more"><summary>바뀐 것 보기</summary><ul id="updList"></ul></details>
+  <div class="dvp-bar" id="updBarWrap" hidden><div id="updBar"></div></div>
+  <p id="updMsg" class="text-xs secondary"></p>
+  <div class="flex gap-2" style="justify-content:flex-end"><button id="updLater" class="btn" type="button">나중에</button><button id="updGo" class="btn btn-primary" type="button">업데이트</button></div>
+</div></div>
 <div id="bootOverlay" class="boot" role="status" aria-live="polite"><div class="boot-card"><span class="boot-spin" aria-hidden="true"></span><b>FlightData 준비 중…</b><span>잠시만 기다려 주세요</span></div></div>
 <div id="srcOverlay" hidden style="position:fixed;inset:0;z-index:200;background:var(--bg)">
   <iframe id="srcFrame" title="ICAO 원문" style="width:100%;height:100%;border:0;display:block"></iframe>
@@ -2062,6 +2117,74 @@ async function doLogin(auto = false) {
     $('hLoginBtn').disabled = false; $('hLoginForm').classList.remove('busy'); $('hLoginBtn').textContent = '로그인';
   }
 }
+/* ---------- 업데이트 (GitHub 최신 릴리스) — 프로그램 안에서만 ---------- */
+let UPD = null;
+async function checkUpdate(manual = false) {
+  try {
+    const r = await fetch('/api/update/check' + (manual ? '?force=1' : ''), { cache: 'no-store' }), j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    UPD = j;
+    $('setVer').textContent = `FlightData_${j.current || '?'}`;
+    $('setVerNote').textContent = j.newer ? `새 버전 ${j.latest} 이 있습니다` : '최신 버전입니다';
+    $('setUpdGo').hidden = !j.newer;
+    if (j.newer) openUpd();                              // 새 버전이 있으면 오른쪽 아래 알림
+    else if (manual) showMsg(`최신 버전(FlightData_${j.current})을 쓰고 있습니다.`);
+  } catch (e) { if (manual) showMsg('새 버전을 확인하지 못했습니다: ' + esc(e.message), 'warn'); }
+}
+function openUpd() {
+  if (!UPD) return;
+  $('updTitle').textContent = `업데이트할 수 있습니다 — FlightData_${UPD.latest}`;
+  $('updSub').textContent = `지금 ${UPD.current} · 설정·보관함·받은 CSV 는 그대로 남습니다`;
+  $('updList').innerHTML = (UPD.changes || []).map(c => `<li>${esc(c)}</li>`).join('') || '<li>바뀐 내용은 릴리스 페이지를 보세요</li>';
+  $('updMsg').textContent = UPD.canApply ? '' : '이 실행에서는 자동 업데이트를 할 수 없습니다 — 릴리스 페이지에서 zip 을 받아 FlightData.exe 를 덮어쓰세요.';
+  $('updGo').disabled = !UPD.canApply; $('updGo').textContent = '업데이트'; $('updLater').disabled = false;
+  $('updBarWrap').hidden = true; $('updModal').hidden = false;
+}
+async function applyUpd() {
+  $('updGo').disabled = $('updLater').disabled = true; $('updBarWrap').hidden = false; $('updMsg').textContent = '받는 중…';
+  try {
+    const r = await apiPost('/api/update/apply'); const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || r.status);
+    for (;;) {
+      await new Promise(ok => setTimeout(ok, 400));
+      const st = await (await fetch('/api/update/status', { cache: 'no-store' })).json();
+      if (st.total) $('updBar').style.width = Math.min(100, st.done / st.total * 100).toFixed(1) + '%';
+      $('updMsg').textContent = st.text + (st.total ? ` (${(st.done / 1e6).toFixed(1)} / ${(st.total / 1e6).toFixed(1)}MB)` : '');
+      if (st.state === 'error') throw new Error(st.error);
+      if (st.state === 'ready') break;
+    }
+    $('updBar').style.width = '100%'; $('updMsg').textContent = '새 버전으로 다시 시작합니다… 잠시만 기다려 주세요';
+    await apiPost('/api/update/restart');
+  } catch (e) {
+    $('updMsg').textContent = '업데이트 실패: ' + e.message; $('updGo').disabled = $('updLater').disabled = false; $('updGo').textContent = '다시 시도';
+  }
+}
+$('updLater').onclick = () => { $('updModal').hidden = true; };
+$('updGo').onclick = applyUpd;
+// ⚙ 설정 (머리 오른쪽): 버전·업데이트 · 저장 폴더 · 자동 로그인 · 화면
+const setPop = open => { $('setPop').hidden = !open; $('setBtn').setAttribute('aria-expanded', String(open)); if (open) syncSettings(); };
+function syncSettings() {
+  const d = $('cDir').value || '–'; $('setDir').textContent = d.length > 38 ? '…' + d.slice(-37) : d; $('setDir').title = d;
+  $('setAuto').checked = $('cRemember').checked; $('setAuto').disabled = $('cRemember').disabled;
+  document.querySelectorAll('#setTheme [data-th]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.th === 'dark') === isDark())));
+}
+$('setBtn').onclick = e => { e.stopPropagation(); setPop($('setPop').hidden); };
+document.addEventListener('click', e => { if (!e.target.closest('#setWrap')) setPop(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setPop(false); });
+$('setUpdCheck').onclick = async () => { $('setVerNote').textContent = '확인하는 중…'; await checkUpdate(true); };
+$('setUpdGo').onclick = () => { setPop(false); openUpd(); applyUpd(); };
+$('setDirPick').onclick = () => $('cPickDir').click();
+$('setDirOpen').onclick = () => $('cOpenDir').click();
+$('setAuto').onchange = () => {
+  if (LOGIN_USER) { $('cAuto2').checked = $('setAuto').checked; $('cAuto2').dispatchEvent(new Event('change')); }
+  else { $('cRemember').checked = $('setAuto').checked; $('cRemember').dispatchEvent(new Event('change')); showMsg($('setAuto').checked ? '자동 로그인: 다음 로그인 때부터 켜집니다.' : '자동 로그인을 껐습니다.'); }
+};
+$('setTheme').onclick = e => {
+  const b = e.target.closest('[data-th]'); if (!b) return;
+  if ((b.dataset.th === 'dark') !== isDark()) $('themeBtn').click();
+  syncSettings();
+};
+
 function setupCollectUI(info) {
   const opt = document.createElement('option');
   opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기';
@@ -2070,6 +2193,9 @@ function setupCollectUI(info) {
   $('hLogin').hidden = false;
   if (info.inTemp) showMsg('<b>압축 파일 안에서 실행 중입니다.</b> 이대로 쓰면 받은 CSV·설정·보관함이 임시 폴더에 저장돼 사라집니다. 창을 닫고 zip 의 <b>압축을 푼 뒤</b> 폴더 안의 FlightData.exe 를 실행하세요.', 'err');
   if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
+  document.querySelectorAll('.app-only').forEach(el => { el.hidden = false; });
+  $('setVer').textContent = `FlightData_${info.version || '?'}`;
+  setTimeout(() => checkUpdate(false), 2500);              // 시작하고 잠시 뒤 조용히 새 버전 확인
   if (st.user) $('cUser').value = st.user;
   $('cRemember').checked = st.remember === true; $('cRemember').disabled = !info.canRemember;   // 자동 로그인: 처음엔 꺼짐 (사용자 요청)
   $('cSplit').checked = st.split !== false; $('cAircraft').checked = st.aircraft !== false;
@@ -2097,7 +2223,7 @@ function setupCollectUI(info) {
     const r = await apiPost('/api/settings', { outDir: d }), j = await r.json().catch(() => ({}));
     $('cDirMsg').hidden = false; $('cDirMsg').classList.toggle('err', !r.ok);
     $('cDirMsg').textContent = r.ok ? `저장 폴더를 바꿨습니다 — 다음 받기부터 ${j.outDir} 에 저장합니다` : (j.error || '이 폴더를 쓸 수 없습니다');
-    if (r.ok) $('cDir').value = $('cDir').dataset.ok = j.outDir;
+    if (r.ok) { $('cDir').value = $('cDir').dataset.ok = j.outDir; syncSettings(); }
     else if ($('cDir').dataset.ok) $('cDir').value = $('cDir').dataset.ok;   // 못 쓰는 폴더면 원래대로
   };
   $('cDir').dataset.ok = $('cDir').value;

@@ -21,6 +21,8 @@ def selftest():
     import zoneinfo
     import webview  # noqa: F401                             # 프로그램 창
     import opensky_auth as oa
+    import updater
+    assert updater.parse_ver("FlightData_1.0.46") == (1, 0, 46) and updater.parse_ver("1.0.47") > updater.parse_ver("1.0.46")
     assert os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html"))
     assert os.path.isfile(os.path.join(local_web.web_dir(), "mapdata", "airports_min.json"))
     assert oa.CAN_REMEMBER                                  # Windows 자격 증명 관리자: 저장 → 읽기 → 삭제
@@ -100,8 +102,13 @@ def _warmup():
 
 
 def main():
+    import updater
     srv = local_web.AnalyzerServer()
+    if "--after-update" in sys.argv:                      # 업데이트로 다시 켜짐: 예전 창이 닫힐 때까지 포트를 기다리고 .old 를 지움
+        srv.port_wait = 15
     url = srv.url()
+    threading_cleanup = __import__("threading").Thread(target=updater.cleanup_old, daemon=True)
+    threading_cleanup.start()
     # 첫 로그인·받기가 느리지 않게 무거운 모듈을 미리 불러 둠 (뒤에서)
     import threading
     threading.Thread(target=_warmup, daemon=True).start()
@@ -113,6 +120,7 @@ def main():
             pass
         api = Api()
         api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api)
+        srv.close_window = lambda: api.window.destroy()
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
         return 0
