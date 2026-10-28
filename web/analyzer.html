@@ -149,6 +149,10 @@
   .snote { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
   .sfoot { display: flex; flex-direction: column; gap: 8px; }
   .sfoot:empty { display: none; }
+  /* 운항 구성: 사이드바 "보기"에서 고른 구역 하나만 (Time 과 같은 방식) */
+  #ch-mix[data-mv="route"] #sec-airline, #ch-mix[data-mv="route"] #sec-type,
+  #ch-mix[data-mv="airline"] #sec-route, #ch-mix[data-mv="airline"] #sec-type,
+  #ch-mix[data-mv="type"] #sec-route, #ch-mix[data-mv="type"] #sec-airline { display: none; }
   .hbar-box { position: relative; height: 420px; }
   .ctitle { font-size: .78rem; color: var(--text-secondary); margin: 0 0 6px; }
   .dtoggle { display: inline-flex; align-items: center; gap: 6px; }
@@ -313,7 +317,7 @@
   .peak-ctl { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px 16px; align-items: start; }
   .peak-ctl > p { grid-column: 1 / -1; margin: 0; }
   @media (max-width: 900px) { .peak-ctl { grid-template-columns: minmax(0, 1fr); } }
-  .route-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .route-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
   .rtmap-wrap { position: relative; min-width: 0; }
   .rtmap { height: 460px; border-radius: 12px; overflow: hidden; background: var(--map-water); }
   .rtmap svg { display: block; width: 100%; height: 100%; cursor: grab; }
@@ -515,11 +519,11 @@
 
     <div class="spane" data-spane="mix" hidden>
       <div class="step">
-        <div class="step-head">바로 가기</div>
-        <div class="slist">
-          <button type="button" data-jump="sec-route">노선<small>지도 · 출발지·목적지 공항</small></button>
-          <button type="button" data-jump="sec-airline">항공사<small>편명 앞 3자리별 운항</small></button>
-          <button type="button" data-jump="sec-type">기종<small>기종별 운항</small></button>
+        <div class="step-head">보기</div>
+        <div class="slist" id="sMixTabs">
+          <button type="button" data-mpick="route" aria-pressed="true">노선<small>지도 · 출발지·목적지 공항</small></button>
+          <button type="button" data-mpick="airline">항공사<small>편명 앞 3자리별 운항</small></button>
+          <button type="button" data-mpick="type">기종<small>기종별 운항</small></button>
         </div>
       </div>
       <div data-filterhost="mix"></div>
@@ -874,10 +878,9 @@
       </section>
 
       <!-- ═════════ 운항 구성 ═════════ -->
-      <section class="chapter" id="ch-mix" data-sec="mix">
-        <div class="chapter-head"><h2>운항 구성</h2><p>노선 · 항공사 · 기종</p></div>
+      <section class="chapter" id="ch-mix" data-sec="mix" data-mv="route">
         <div class="panel" id="sec-route">
-          <h3 class="panel-title">노선 (출발지 · 목적지 공항)</h3>
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 노선 (출발지 · 목적지 공항)</span></h3>
           <p class="panel-desc" id="rtNote"></p>
           <div class="route-grid mt-3">
             <div class="rtmap-wrap">
@@ -891,7 +894,7 @@
           <div id="rtDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="rtTable"></table></div></div>
         </div>
         <div class="panel" id="sec-airline">
-          <h3 class="panel-title">항공사 (편명 앞 3자리)</h3>
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 항공사 (편명 앞 3자리)</span></h3>
           <p class="panel-desc" id="alNote"></p>
           <p class="ctitle mt-3" id="alChartTitle"></p>
           <div class="hbar-box"><canvas id="alChart" aria-label="항공사별 운항 막대 차트"></canvas></div>
@@ -910,7 +913,7 @@
           </div>
         </div>
         <div class="panel" id="sec-type">
-          <h3 class="panel-title">기종별 운항</h3>
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 기종</span></h3>
           <p class="panel-desc" id="typeNote"></p>
           <div id="typeChartWrap"><p class="ctitle mt-3" id="typeChartTitle"></p>
           <div class="hbar-box"><canvas id="typeChart" aria-label="기종별 운항 막대 차트"></canvas></div>
@@ -3270,8 +3273,8 @@ async function run() {
 
   const warnings = [];
   if (days < 7) warnings.push('분석 기간이 7일 미만이면 IATA 평균 주(week) 구성이 불완전합니다.');
-  if (days > 366) warnings.push('여러 해 기간입니다. 첨두시간 순위(30번째 등)는 기간 전체에서 센 값이라 연간 기준과 다릅니다. 연도별 값은 "연도 선택"으로 한 해씩 보세요.');
-  if (days < 360) warnings.push(`ICAO Busy hour·N번째 바쁜 시간은 연간(1년) 기준입니다. 지금은 ${days}일 안에서의 순위라 1년치로 분석할 때보다 값이 낮게 나올 수 있습니다.`);
+  if (days > 366 && $('peakOn').checked) warnings.push('여러 해 기간입니다. 첨두시간 순위(30번째 등)는 기간 전체에서 센 값이라 연간 기준과 다릅니다. 연도별 값은 "연도 선택"으로 한 해씩 보세요.');
+  if (days < 360 && $('peakOn').checked) warnings.push(`ICAO Busy hour·N번째 바쁜 시간은 연간(1년) 기준입니다. 지금은 ${days}일 안에서의 순위라 1년치로 분석할 때보다 값이 낮게 나올 수 있습니다.`);
 
   $('runBtn').disabled = true; setProgress(0);
   try {
@@ -3458,7 +3461,15 @@ $('sProfTabs').onclick = e => {
   syncSideNav();
 };
 document.querySelectorAll('[data-ptab]').forEach(b => b.addEventListener('click', () => setTimeout(syncSideNav)));
-document.querySelector('[data-spane="mix"]').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) $(b.dataset.jump).scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+/** 운항 구성 보기 (노선 · 항공사 · 기종) — 고른 것만 보이고, 숨어 있던 그래프는 다시 그림 */
+function setMixView(v) {
+  $('ch-mix').dataset.mv = v;
+  document.querySelectorAll('[data-mpick]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mpick === v)));
+  if (PANE !== 'mix') setPane('mix');
+  else if (STATE.res) { renderAirlinesRoutes(); renderTypes(STATE.res, STATE.res.methods.find(m => m.id === cfgFromUI().method) || STATE.res.methods[0]); }
+  window.scrollTo({ top: 0 });
+}
+$('sMixTabs').onclick = e => { const b = e.target.closest('[data-mpick]'); if (b) setMixView(b.dataset.mpick); };
 document.querySelector('.ovgo').onclick = e => { const b = e.target.closest('[data-goto]'); if (b) setPane(b.dataset.goto); };
 // 상단 바 바로가기도 같은 동작 (사이드바 내용까지 바꿈)
 $('sideToc').addEventListener('click', e => {
