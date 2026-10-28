@@ -164,11 +164,21 @@
   .dv-mapbtn { align-self: flex-start; padding: .4rem .8rem; font-size: .8rem; }
   #dvOpts { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
   #dvOpts[hidden] { display: none; }
-  .amap-box { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .amap-box { display: flex; flex-direction: column; gap: 10px; }
+  .dv-card[data-mode="map"] .dv-grid { display: none; }
+  .dv-card .panel-head { flex-wrap: wrap; gap: 8px 16px; }
+  .dv-tabs { margin-right: auto; }
+  .amap-search { position: relative; width: 340px; }
+  .amap-search .apsearch { margin: 0; }
+  .amap-search .field { width: 100%; box-sizing: border-box; }
+  .amap-head { gap: 12px 20px !important; }
+  .amap-pick { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .amap-pick b { font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+  .amap-hint { margin-left: auto; }
   .amap-box[hidden] { display: none; }
   .amap-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
-  .amap-head .link-btn { margin-left: auto; }
-  .amap-box .amap { height: 440px; }
+  .amap-head { align-items: center; }
+  .amap-box .amap { height: max(360px, calc(100vh - var(--bar-h) - 215px)); }
   @media (max-width: 1200px) { .dv-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .dv-go { grid-column: 1 / -1; } }
   .dv-prog { display: flex; flex-direction: column; gap: 14px; }
   .dv-prog[hidden] { display: none; }
@@ -695,14 +705,18 @@
 
     <!-- 데이터 탭: 공항 지도 (휠 확대 · 끌기 · 클릭으로 공항 고르기) -->
     <section id="dataView" class="dview">
-      <div class="panel dv-card">
+      <div class="panel dv-card" id="dvCard" data-mode="form">
         <div class="panel-head">
           <h3 class="panel-title" id="dvTitle">데이터 보기</h3>
+          <div class="tabs dv-tabs" role="tablist" aria-label="데이터 화면">
+            <button class="tab" role="tab" type="button" aria-selected="true" data-dvmode="form">공항 · 기간 · 받기</button>
+            <button class="tab" role="tab" type="button" aria-selected="false" data-dvmode="map">지도에서 공항 찾기</button>
+          </div>
           <span class="text-xs muted" id="dvSub"></span>
         </div>
         <div class="dv-grid">
           <div class="dv-col">
-            <div class="dv-h"><span class="step-num">1</span>공항</div>
+            <div class="dv-h" id="apSlotHome"><span class="step-num">1</span>공항</div>
             <div class="apsearch">
               <input id="apSearch" class="field" placeholder="공항 찾기 — 이름·도시·한글 (예: 하네다, Frankfurt)" autocomplete="off" aria-label="공항 찾기">
               <div id="apResults" class="apres" hidden></div>
@@ -718,7 +732,7 @@
               </div>
             </div>
             <p id="apInfo" class="text-xs secondary" style="margin-top:-2px"></p>
-            <button id="amapToggle" class="btn dv-mapbtn" type="button" aria-expanded="false" aria-controls="amapBox">지도에서 찾기</button>
+            <button id="amapToggle" class="btn dv-mapbtn" type="button" aria-expanded="false" aria-controls="amapBox">🗺 지도에서 찾기</button>
           </div>
           <div class="dv-col">
             <div class="dv-h"><span class="step-num">2</span>기간</div>
@@ -766,9 +780,12 @@
           </div>
         </div>
         <div id="amapBox" class="amap-box" hidden>
-          <div class="amap-head"><b>지도에서 공항 찾기</b><span class="ptitle-sub" id="amapSel"></span>
-            <span class="text-xs muted">휠 확대 · 끌어서 이동 · 공항을 누르면 선택 · 위 "공항 찾기" 결과도 파란 점으로</span>
-            <button id="amapClose" class="link-btn" type="button">지도 닫기 ✕</button></div>
+          <div class="amap-head">
+            <div id="amapSearchSlot" class="amap-search"></div>
+            <div class="amap-pick"><span class="text-xs muted">선택한 공항</span><b id="amapSel"></b></div>
+            <span class="text-xs muted amap-hint">휠 확대 · 끌어서 이동 · 공항을 누르면 선택</span>
+            <button id="amapClose" class="btn btn-primary" type="button">이 공항으로 → 기간 · 받기</button>
+          </div>
       <div class="amap" id="amap">
         <canvas id="amapCv" aria-label="공항 지도"></canvas>
         <div class="amap-tip" id="amapTip" hidden></div>
@@ -1972,14 +1989,12 @@ $('apSearch').addEventListener('input', () => {
     $('apResults').innerHTML = res.map(([, , code, a]) => `<button type="button" data-ap="${esc(code)}"><b>${esc(code)}</b>${a[5] ? esc(a[5]) + ' · ' : ''}${esc(a[0])}<small> — ${esc([a[1], a[2]].filter(Boolean).join(', '))}${a[9] ? ` (${esc(a[9])})` : ''}</small></button>`).join('') ||
       ($('apSearch').value.trim() ? '<p class="text-xs muted" style="padding:.5rem">맞는 공항이 없습니다</p>' : '');
     $('apResults').hidden = !$('apResults').innerHTML;
-    if (res.length && $('amapBox').hidden) amapOpen(true, true);   // 공항을 찾을 때 지도도 열림
     amapMarks(res.map(r => r[2]));
   }, 120);
 });
 $('apResults').onclick = e => {
   const b = e.target.closest('[data-ap]'); if (!b) return;
   $('icao').value = b.dataset.ap; $('apSearch').value = ''; $('apResults').hidden = true; AMAP.marks = [];
-  if (AMAP.auto) amapOpen(false);                         // 검색 때문에 열린 지도는 고르면 닫음
   $('icao').dispatchEvent(new Event('input')); $('icao').dispatchEvent(new Event('change'));
 };
 document.addEventListener('click', e => { if (!e.target.closest('.apsearch')) $('apResults').hidden = true; });
@@ -3916,9 +3931,14 @@ function amapRender() {
 }
 /** 지도 열기·닫기 (auto = 검색 때문에 저절로 열림) */
 function amapOpen(open, auto = false) {
+  // 지도는 데이터 카드 안의 "지도에서 공항 찾기" 화면으로 — 공항·기간 칸 대신 지도가 카드 전체를 채움 (사용자 요청: 한 화면에)
+  $('dvCard').dataset.mode = open ? 'map' : 'form';
+  document.querySelectorAll('[data-dvmode]').forEach(b => b.setAttribute('aria-selected', String((b.dataset.dvmode === 'map') === open)));
   $('amapBox').hidden = !open; AMAP.auto = open && auto;
   $('amapToggle').setAttribute('aria-expanded', String(open));
-  $('amapToggle').textContent = open ? '지도 닫기' : '지도에서 찾기';
+  const srch = document.querySelector('.apsearch');            // 공항 찾기 칸을 지도 위로 옮겨 씀
+  if (open) $('amapSearchSlot').appendChild(srch); else $('apSlotHome').after(srch);
+  if (open) { window.scrollTo({ top: 0 }); $('apSearch').focus(); }
   if (open) { AMAP.W = $('amap').clientWidth; AMAP.H = $('amap').clientHeight; AMAP.fitted = false; amapSelect(apCode(), !auto); }
 }
 /** 화면 좌표에서 가장 가까운 공항 (r 픽셀 안) */
@@ -3943,7 +3963,7 @@ async function amapSelect(code, center = false) {
   if (!(await loadAmap())) return;
   const a = MAPDATA.airports[code];
   AMAP.sel = a ? code : null;
-  $('amapSel').textContent = a ? `· ${code}${a[5] ? ' / ' + a[5] : ''} ${a[9] || a[0]}` : '';
+  $('amapSel').textContent = a ? `${code}${a[5] ? ' / ' + a[5] : ''} · ${a[9] || a[0]}${a[1] ? ' · ' + a[1] : ''}` : '–';
   if (a) {
     const [x, y] = amapXY(a[4], a[3]);
     if (center || !AMAP.W || x < 40 || y < 40 || x > AMAP.W - 40 || y > AMAP.H - 40) { AMAP.lon = a[4]; AMAP.lat = a[3]; if (AMAP.H) AMAP.k = Math.max(AMAP.k, AMAP.H / 5.2); }
@@ -3998,7 +4018,8 @@ async function amapMarks(codes) {
   $('amapIn').onclick = () => amapZoom(1.6);
   $('amapOut').onclick = () => amapZoom(1 / 1.6);
   $('amapHome').onclick = () => amapSelect(apCode() || AMAP.sel, true);
-  $('amapToggle').onclick = () => amapOpen($('amapBox').hidden);
+  $('amapToggle').onclick = () => amapOpen(true);
+  document.querySelectorAll('[data-dvmode]').forEach(b => { b.onclick = () => amapOpen(b.dataset.dvmode === 'map'); });
   $('amapClose').onclick = () => amapOpen(false);
   new ResizeObserver(amapDraw).observe($('amap'));
   loadAmap().then(ok => ok && amapSelect(apCode(), true));
