@@ -129,6 +129,52 @@
   /* 데이터 탭: 지도 / 그 밖의 탭: 결과 */
   main[data-pane="data"] #results, main:not([data-pane="data"]) #dataView, main:not([data-pane="data"]) #welcome { display: none !important; }
   main[data-pane="data"] { gap: 16px; }
+  .dview { display: flex; flex-direction: column; gap: 16px; }
+  .dv-card .panel-head { margin-bottom: 14px; }
+  .dv-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(250px, .8fr); gap: 28px; }
+  .dv-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .dv-h { display: flex; align-items: center; gap: 8px; font-size: .8rem; font-weight: 700; color: var(--text-secondary); letter-spacing: .02em; }
+  .dv-go .dv-run { font-size: 1.05rem; padding: .95rem 1rem; }
+  .dv-mapbtn { align-self: flex-start; padding: .4rem .8rem; font-size: .8rem; }
+  #dvOpts { display: flex; flex-direction: column; gap: 8px; padding-top: 6px; }
+  #dvOpts[hidden] { display: none; }
+  .amap-box { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+  .amap-box[hidden] { display: none; }
+  .amap-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .amap-head .link-btn { margin-left: auto; }
+  .amap-box .amap { height: 440px; }
+  @media (max-width: 1200px) { .dv-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .dv-go { grid-column: 1 / -1; } }
+  .dv-prog { display: flex; flex-direction: column; gap: 14px; }
+  .dv-prog[hidden] { display: none; }
+  .dvp-top { display: flex; align-items: flex-end; gap: 16px; }
+  .dvp-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .dvp-txt b { font-size: 1.15rem; }
+  .dvp-txt span { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dvp-pct { font-size: 2.4rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .dvp-bar { height: 18px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+  .dvp-bar > div { height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .4s; }
+  .dv-prog[data-state="받는 중"] .dvp-bar > div { background-image: linear-gradient(45deg, rgba(255,255,255,.18) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.18) 50%, rgba(255,255,255,.18) 75%, transparent 75%); background-size: 28px 28px; animation: dvstripe 1s linear infinite; }
+  @keyframes dvstripe { to { background-position: 28px 0; } }
+  .dv-prog[data-state="오류"] .dvp-pct, .dv-prog[data-state="일부만 받음"] .dvp-pct { color: var(--danger, #c0392b); }
+  .dvp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .dvp-loghead { display: flex; align-items: center; gap: 10px; font-size: .85rem; }
+  .dvp-loghead .link-btn { margin-left: auto; }
+  .dvp-log { margin: 0; height: max(260px, calc(100vh - var(--bar-h) - 560px)); overflow: auto; white-space: pre-wrap; background: var(--surface-2); border-radius: 12px; padding: 14px 16px;
+             font: .8rem/1.6 ui-monospace, Consolas, "D2Coding", monospace; color: var(--text-secondary); }
+  #welcome.in-app { display: none !important; }
+  /* 머리 오른쪽: OpenSky 로그인 */
+  .hlogin { position: relative; display: flex; align-items: center; margin-right: 8px; }
+  .hlogin[hidden] { display: none; }
+  .hl-form { display: flex; align-items: center; gap: 6px; }
+  .hl-form[hidden], .hl-on[hidden] { display: none; }
+  .hl-form .field { width: 150px; padding: .4rem .6rem; font-size: .8rem; }
+  .hl-form .btn { padding: .42rem .9rem; font-size: .8rem; }
+  .hl-rem { display: flex; align-items: center; gap: 4px; font-size: .75rem; color: var(--text-secondary); white-space: nowrap; }
+  .hl-on { display: flex; align-items: center; gap: 8px; font-size: .85rem; }
+  .hl-dot { width: 8px; height: 8px; border-radius: 50%; background: #2fa66a; box-shadow: 0 0 0 3px rgba(47,166,106,.18); }
+  .hl-msg { position: absolute; right: 0; top: calc(100% + 8px); width: max-content; max-width: 420px; margin: 0; padding: 8px 12px; border-radius: 10px; font-size: .75rem;
+            background: var(--surface); color: var(--text-secondary); box-shadow: 0 8px 24px rgba(0,0,0,.16); z-index: 40; }
+  .hl-msg.err { color: var(--danger, #c0392b); }
   .amap { position: relative; height: max(380px, calc(100vh - var(--bar-h) - 330px)); border-radius: 12px; overflow: hidden; background: var(--map-water); touch-action: none; }
   body.has-data .amap { height: max(420px, calc(100vh - var(--bar-h) - 150px)); }
   .amap canvas { display: block; width: 100%; height: 100%; cursor: grab; }
@@ -421,6 +467,20 @@
       <a href="#ch-peak" data-pane="peak" id="tocPeak" hidden>첨두시간 산정</a>
     </nav>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+      <!-- OpenSky 로그인 (FlightData 프로그램 안에서만 보임) -->
+      <div class="hlogin" id="hLogin" hidden>
+        <form id="hLoginForm" class="hl-form" autocomplete="on">
+          <input id="cUser" class="field" autocomplete="username" placeholder="OpenSky 사용자명" aria-label="OpenSky 사용자명">
+          <input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호">
+          <label class="hl-rem" title="Windows 자격 증명 관리자에 저장"><input type="checkbox" id="cRemember" checked> 기억</label>
+          <button id="hLoginBtn" class="btn btn-primary" type="submit">로그인</button>
+        </form>
+        <div class="hl-on" id="hLoginOn" hidden>
+          <span class="hl-dot" aria-hidden="true"></span><b id="hLoginUser"></b><span class="text-xs muted">로그인됨</span>
+          <button id="hLogout" class="link-btn" type="button">로그아웃</button>
+        </div>
+        <p class="hl-msg" id="hLoginMsg" role="status" hidden></p>
+      </div>
       <a href="icao-source.html" class="link-btn">ICAO 원문</a>
       <button id="themeBtn" class="icon-btn" type="button"></button>
     </div>
@@ -475,75 +535,11 @@
 
       <!-- FlightData 프로그램(exe) 안에서만: OpenSky 에서 바로 받기 (공항·기간은 아래 2번 칸을 씀) -->
       <div id="collectOpts" class="sub-panel" style="display:none">
-        <div class="row2">
-          <div><label class="lbl" for="cUser">OpenSky 사용자명</label><input id="cUser" class="field" autocomplete="username" placeholder="사용자명"></div>
-          <div><label class="lbl" for="cPw">비밀번호</label><input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비우면 브라우저 로그인"></div>
-        </div>
-        <label class="ccheck"><input type="checkbox" id="cRemember" checked> 이 PC에 비밀번호 기억 (Windows 자격 증명 관리자)</label>
-        <label class="ccheck"><input type="checkbox" id="cSplit" checked> 여러 해면 연도별로 CSV 나누기</label>
-        <label class="ccheck"><input type="checkbox" id="cAircraft" checked> 기종·운항사 정보 붙이기 (처음 한 번 항공기 DB 내려받음)</label>
-        <div>
-          <label class="lbl" for="cDir">저장 폴더</label>
-          <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0"><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button id="cStop" class="btn" type="button" disabled style="padding:.35rem .7rem;font-size:.75rem">받기 중지</button>
-          <button id="cLogBtn" class="btn" type="button" style="padding:.35rem .7rem;font-size:.75rem" aria-expanded="false">기록 보기</button>
-        </div>
-        <pre id="cLog" class="text-xs muted overflow-auto" style="max-height:11rem;white-space:pre-wrap" hidden></pre>
-        <p class="text-xs muted">공항·기간은 아래 2번에서 고르고 [CSV 받고 보기]를 누르세요. 받은 날짜는 저장되어 다시 조회하지 않습니다.</p>
+        <p class="text-xs muted">OpenSky 로그인은 오른쪽 위, 공항·기간·받기는 가운데 화면에서 합니다. CSV 파일로 보려면 위에서 "CSV 파일 불러오기"를 고르세요.</p>
       </div>
     </div>
 
-    <div class="step">
-      <div class="step-head"><span class="step-num">2</span>공항 · 기간</div>
-      <div class="apsearch">
-        <input id="apSearch" class="field" placeholder="공항 찾기 — 이름·도시·한글 (예: 하네다, Frankfurt)" autocomplete="off" aria-label="공항 찾기">
-        <div id="apResults" class="apres" hidden></div>
-      </div>
-      <div class="row2">
-        <div>
-          <label class="lbl" for="icao">공항 (ICAO)</label>
-          <input id="icao" class="field uppercase" maxlength="4" placeholder="RKSI" autocomplete="off" style="font-family:var(--font-data);letter-spacing:.06em">
-        </div>
-        <div>
-          <label class="lbl" for="tz">UTC 오프셋 (시간)</label>
-          <input id="tz" class="field" type="number" step="0.5" placeholder="9">
-        </div>
-        <div>
-          <label class="lbl" for="startDate">시작일 (현지)</label>
-          <input id="startDate" class="field" type="date">
-        </div>
-        <div>
-          <label class="lbl" for="endDate">종료일 (현지)</label>
-          <input id="endDate" class="field" type="date">
-        </div>
-      </div>
-      <p id="apInfo" class="text-xs secondary" style="margin-top:-2px"></p>
-      <div>
-        <span class="lbl">빠른 선택</span>
-        <div class="qgrid" id="quickRange">
-          <span class="qname">최근</span>
-          <div class="qbtns"><button class="qbtn" type="button" data-q="7">7일</button><button class="qbtn" type="button" data-q="30">30일</button></div>
-          <span class="qname">연도</span>
-          <div class="ypick">
-            <button id="yearBtn" class="qbtn" type="button" aria-haspopup="dialog" aria-expanded="false">📅 연도 선택</button>
-            <div id="yearPop" class="ypop" role="dialog" aria-label="연도 선택" hidden>
-              <p id="yearMsg"></p>
-              <div class="ygrid" id="yearGrid"></div>
-            </div>
-          </div>
-        </div>
-        <p id="spanInfo" class="text-xs muted" style="margin-top:.4rem"></p>
-      </div>
-    </div>
 
-    <div class="step">
-      <button id="runBtn" class="btn btn-primary btn-lg" type="button">데이터 보기</button>
-      <button id="recalcBtn" class="btn" type="button" disabled hidden>기준 변경 재계산</button>
-      <p class="text-xs muted">데이터·공항·기간을 바꾼 뒤 "데이터 보기"를 누르세요. 필터·첨두 기준은 바꾸는 즉시 다시 계산됩니다.</p>
-      <p id="lastNote" class="text-xs secondary" hidden></p>
-    </div>
     </div>
 
     <div class="spane" data-spane="overview" hidden>
@@ -661,11 +657,81 @@
   <main class="main" id="mainView" data-pane="data">
 
     <!-- 데이터 탭: 공항 지도 (휠 확대 · 끌기 · 클릭으로 공항 고르기) -->
-    <section class="panel amap-panel" id="dataView">
-      <div class="panel-head">
-        <h3 class="panel-title">공항 찾기 <span class="ptitle-sub" id="amapSel"></span></h3>
-        <span class="text-xs muted">휠 확대 · 끌어서 이동 · 공항을 누르면 선택 · 왼쪽 "공항 찾기" 결과도 지도에 표시</span>
-      </div>
+    <section id="dataView" class="dview">
+      <div class="panel dv-card">
+        <div class="panel-head">
+          <h3 class="panel-title" id="dvTitle">데이터 보기</h3>
+          <span class="text-xs muted" id="dvSub"></span>
+        </div>
+        <div class="dv-grid">
+          <div class="dv-col">
+            <div class="dv-h"><span class="step-num">1</span>공항</div>
+            <div class="apsearch">
+              <input id="apSearch" class="field" placeholder="공항 찾기 — 이름·도시·한글 (예: 하네다, Frankfurt)" autocomplete="off" aria-label="공항 찾기">
+              <div id="apResults" class="apres" hidden></div>
+            </div>
+            <div class="row2">
+              <div>
+                <label class="lbl" for="icao">공항 (ICAO)</label>
+                <input id="icao" class="field uppercase" maxlength="4" placeholder="RKSI" autocomplete="off" style="font-family:var(--font-data);letter-spacing:.06em">
+              </div>
+              <div>
+                <label class="lbl" for="tz">UTC 오프셋 (시간)</label>
+                <input id="tz" class="field" type="number" step="0.5" placeholder="9">
+              </div>
+            </div>
+            <p id="apInfo" class="text-xs secondary" style="margin-top:-2px"></p>
+            <button id="amapToggle" class="btn dv-mapbtn" type="button" aria-expanded="false" aria-controls="amapBox">지도에서 찾기</button>
+          </div>
+          <div class="dv-col">
+            <div class="dv-h"><span class="step-num">2</span>기간</div>
+            <div class="row2">
+              <div>
+                <label class="lbl" for="startDate">시작일 (현지)</label>
+                <input id="startDate" class="field" type="date">
+              </div>
+              <div>
+                <label class="lbl" for="endDate">종료일 (현지)</label>
+                <input id="endDate" class="field" type="date">
+              </div>
+            </div>
+            <div>
+              <span class="lbl">빠른 선택</span>
+              <div class="qgrid" id="quickRange">
+                <span class="qname">최근</span>
+                <div class="qbtns"><button class="qbtn" type="button" data-q="7">7일</button><button class="qbtn" type="button" data-q="30">30일</button></div>
+                <span class="qname">연도</span>
+                <div class="ypick">
+                  <button id="yearBtn" class="qbtn" type="button" aria-haspopup="dialog" aria-expanded="false">📅 연도 선택</button>
+                  <div id="yearPop" class="ypop" role="dialog" aria-label="연도 선택" hidden>
+                    <p id="yearMsg"></p>
+                    <div class="ygrid" id="yearGrid"></div>
+                  </div>
+                </div>
+              </div>
+              <p id="spanInfo" class="text-xs muted" style="margin-top:.4rem"></p>
+            </div>
+          </div>
+          <div class="dv-col dv-go">
+            <div class="dv-h"><span class="step-num">3</span><span id="dvGoName">보기</span></div>
+            <button id="runBtn" class="btn btn-primary btn-lg dv-run" type="button">데이터 보기</button>
+            <button id="recalcBtn" class="btn" type="button" disabled hidden>기준 변경 재계산</button>
+            <p class="text-xs muted" id="runHint">공항·기간을 고르고 누르세요. 필터·첨두 기준은 결과 화면에서 바꾸는 즉시 다시 계산됩니다.</p>
+            <p id="lastNote" class="text-xs secondary" hidden></p>
+            <div id="dvOpts" hidden>
+              <label class="ccheck"><input type="checkbox" id="cSplit" checked> 여러 해면 연도별로 CSV 나누기</label>
+              <label class="ccheck"><input type="checkbox" id="cAircraft" checked> 기종·운항사 정보 붙이기 (처음 한 번 항공기 DB 내려받음)</label>
+              <div>
+                <label class="lbl" for="cDir">저장 폴더</label>
+                <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0"><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="amapBox" class="amap-box" hidden>
+          <div class="amap-head"><b>지도에서 공항 찾기</b><span class="ptitle-sub" id="amapSel"></span>
+            <span class="text-xs muted">휠 확대 · 끌어서 이동 · 공항을 누르면 선택 · 위 "공항 찾기" 결과도 파란 점으로</span>
+            <button id="amapClose" class="link-btn" type="button">지도 닫기 ✕</button></div>
       <div class="amap" id="amap">
         <canvas id="amapCv" aria-label="공항 지도"></canvas>
         <div class="amap-tip" id="amapTip" hidden></div>
@@ -675,6 +741,24 @@
           <button type="button" id="amapHome" title="고른 공항으로" aria-label="고른 공항으로">◎</button>
         </div>
         <p class="amap-note" id="amapNote">지도: Natural Earth · 공항: mwgg/Airports</p>
+      </div>
+        </div>
+      </div>
+
+      <!-- 받는 중: 큰 진행 막대 + 기록 -->
+      <div class="panel dv-prog" id="dvProg" hidden>
+        <div class="dvp-top">
+          <div class="dvp-txt"><b id="dvpState">받는 중</b><span id="dvpText" class="secondary"></span></div>
+          <div class="dvp-pct" id="dvpPct">0%</div>
+        </div>
+        <div class="dvp-bar"><div id="dvpBar"></div></div>
+        <div class="dvp-actions">
+          <button id="cStop" class="btn" type="button" disabled>받기 중지</button>
+          <button id="cOpenDir2" class="btn" type="button">저장 폴더 열기</button>
+          <span class="text-xs muted">받은 날짜는 저장되어 다시 조회하지 않습니다 · 중지해도 받은 날짜까지는 남습니다</span>
+        </div>
+        <div class="dvp-loghead"><b>기록</b><button id="cLogCopy" class="link-btn" type="button">복사</button></div>
+        <pre id="cLog" class="dvp-log"></pre>
       </div>
     </section>
 
@@ -699,7 +783,7 @@
         <ol class="kit-steps">
           <li><b>처음 한 번</b> OpenSky 계정과 Trino 사용 승인을 받아 둡니다</li>
           <li><b>실행</b> 받은 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
-          <li><b>받기</b> "OpenSky에서 받기"에 사용자명·비밀번호, 공항(이름으로 찾기)·기간을 넣고 [CSV 받고 보기]</li>
+          <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [OpenSky에서 받고 보기]</li>
           <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 문서\OpenSky_CSV 의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
         <p class="text-xs muted">수집기 소스·명령창 버전: <a href="https://github.com/BottleXhan/flightdata" target="_blank" rel="noopener" style="color:var(--accent)">github.com/BottleXhan/flightdata</a></p>
@@ -1688,54 +1772,90 @@ const WEB_URL = 'https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5';
 let COLLECTOR = false;
 /* ---------- FlightData 프로그램(exe) 안: "OpenSky에서 받기" ----------
    local_web 서버의 /api/collect 로 수집을 시작하고 /api/collect/status 를 지켜본 뒤, 받은 CSV 를 그대로 분석한다 */
+const apiPost = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+let LOGIN_USER = null;                                   // 머리의 OpenSky 로그인 (비밀번호는 프로그램 쪽에만, 화면에는 없음)
+function showLogin(user, msg = '', err = false) {
+  LOGIN_USER = user || null;
+  $('hLoginForm').hidden = !!user; $('hLoginOn').hidden = !user;
+  $('hLoginUser').textContent = user || '';
+  $('hLoginMsg').textContent = msg; $('hLoginMsg').hidden = !msg; $('hLoginMsg').classList.toggle('err', err);
+}
+async function doLogin(auto = false) {
+  const user = $('cUser').value.trim();
+  if (!user) { $('cUser').focus(); return showLogin(null, 'OpenSky 사용자명을 넣으세요.', true); }
+  $('hLoginBtn').disabled = true; showLogin(null, auto ? '저장된 비밀번호로 로그인 중…' : '로그인 중…');
+  try {
+    const r = await apiPost('/api/login', { user, password: $('cPw').value, remember: $('cRemember').checked });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+    $('cPw').value = '';
+    showLogin(j.user, j.saved ? '비밀번호를 이 PC에 기억했습니다' : '');
+    setTimeout(() => { if (LOGIN_USER) $('hLoginMsg').hidden = true; }, 3500);
+  } catch (e) {
+    showLogin(null, auto ? '' : e.message + ' — 비밀번호 로그인이 안 되는 계정이면 비워 두고 받으면 브라우저 로그인 창이 열립니다.', !auto);
+  } finally { $('hLoginBtn').disabled = false; }
+}
 function setupCollectUI(info) {
   const opt = document.createElement('option');
   opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기 (이 프로그램에서 바로)';
   $('source').prepend(opt);
   const st = info.settings || {};
+  $('hLogin').hidden = false;
   if (st.user) $('cUser').value = st.user;
   $('cRemember').checked = st.remember !== false; $('cRemember').disabled = !info.canRemember;
   $('cSplit').checked = st.split !== false; $('cAircraft').checked = st.aircraft !== false;
   $('cDir').value = st.outDir || '';
-  const pwHint = saved => { $('cPw').placeholder = saved ? '저장된 비밀번호 사용 (바꾸려면 입력)' : '비우면 브라우저 로그인'; };
-  pwHint(info.pwSaved);
-  $('cUser').addEventListener('change', async () => {
-    try { pwHint((await (await fetch('/api/pwsaved?user=' + encodeURIComponent($('cUser').value.trim()), { cache: 'no-store' })).json()).saved); } catch (e) {}
-  });
-  const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
-  $('cOpenDir').onclick = () => post('/api/open-folder', { dir: $('cDir').value });
-  $('cStop').onclick = () => { post('/api/collect/stop'); $('cStop').disabled = true; setStatus('중지 요청 — 지금 받는 날짜가 끝나면 멈춥니다.'); };
-  $('cLogBtn').onclick = () => { const open = $('cLog').hidden; $('cLog').hidden = !open; $('cLogBtn').setAttribute('aria-expanded', String(open)); $('cLogBtn').textContent = open ? '기록 닫기' : '기록 보기'; };
+  $('hLoginForm').onsubmit = e => { e.preventDefault(); doLogin(); };
+  $('hLogout').onclick = async () => {
+    await apiPost('/api/logout', { forget: true }).catch(() => {});
+    showLogin(null, '로그아웃했습니다 (기억한 비밀번호도 지움)');
+  };
+  if (info.loggedIn) showLogin(info.loggedIn);
+  else if (info.pwSaved && st.user) doLogin(true);        // 기억한 비밀번호가 있으면 바로 로그인
+  else showLogin(null);
+  $('cOpenDir').onclick = $('cOpenDir2').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
+  $('cStop').onclick = () => { apiPost('/api/collect/stop'); $('cStop').disabled = true; dvProg({ text: '중지 요청 — 지금 받는 날짜가 끝나면 멈춥니다.' }); };
+  $('cLogCopy').onclick = () => navigator.clipboard?.writeText($('cLog').textContent);
   $('source').value = 'collect'; $('source').onchange();
   $('kitGuide').hidden = true;                          // 이 프로그램 안에서는 "수집기 받기" 안내가 필요 없음
   $('kitBtn2').hidden = true;
+  $('welcome').classList.add('in-app');
+}
+/** 데이터 탭의 큰 진행 막대 · 기록 */
+function dvProg({ state, text, p } = {}) {
+  $('dvProg').hidden = false;
+  if (state) { $('dvpState').textContent = state; $('dvProg').dataset.state = state; }
+  if (text != null) $('dvpText').textContent = text;
+  if (p != null) { $('dvpBar').style.width = (p * 100).toFixed(1) + '%'; $('dvpPct').textContent = Math.floor(p * 100) + '%'; }
 }
 async function collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH) {
-  const user = $('cUser').value.trim();
-  if (!user) throw new Error('OpenSky 사용자명을 입력하세요.');
-  const r = await fetch('/api/collect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-    user, password: $('cPw').value, remember: $('cRemember').checked, airport, start: sd, end: ed, tz: offsetH,
-    split: $('cSplit').checked, aircraft: $('cAircraft').checked, outDir: $('cDir').value }) });
+  const user = LOGIN_USER || $('cUser').value.trim();
+  if (!user) { $('cUser').focus(); throw new Error('오른쪽 위에 OpenSky 사용자명을 넣고 로그인하세요.'); }
+  const r = await apiPost('/api/collect', { user, password: '', remember: $('cRemember').checked, airport, start: sd, end: ed, tz: offsetH,
+    split: $('cSplit').checked, aircraft: $('cAircraft').checked, outDir: $('cDir').value });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `받기를 시작하지 못했습니다 (HTTP ${r.status})`);
-  $('cPw').value = '';
-  if ($('cRemember').checked) $('cPw').placeholder = '저장된 비밀번호 사용 (바꾸려면 입력)';
   $('cStop').disabled = false; $('cLog').textContent = '';
+  dvProg({ state: '받는 중', text: `${airport} · ${sd} ~ ${ed} · 시작하는 중…`, p: 0 });
+  $('dvProg').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   let since = 0, st;
   for (;;) {                                              // 진행 지켜보기
     await new Promise(ok => setTimeout(ok, 700));
     st = await (await fetch('/api/collect/status?since=' + since, { cache: 'no-store' })).json();
     if (st.log.length) { $('cLog').textContent += st.log.join('\n') + '\n'; $('cLog').scrollTop = 1e9; since = st.logLen; }
-    if (st.n) setProgress(st.i / st.n);
-    setStatus(st.authUrl ? '브라우저에 OpenSky 로그인 창이 열렸습니다. 로그인하면 이어집니다.' : `받는 중 · ${st.text}${st.n ? ` · 전체 ${Math.round(st.i / st.n * 100)}%` : ''}`);
+    if (st.n) { setProgress(st.i / st.n); dvProg({ p: st.i / st.n }); }
+    const t = st.authUrl ? '브라우저에 OpenSky 로그인 창이 열렸습니다. 로그인하면 이어집니다.' : `${airport} · ${st.text}`;
+    setStatus(t); dvProg({ text: t });
     if (st.state !== 'running') break;
   }
   $('cStop').disabled = true;
-  if (st.state === 'error' && !st.results.length) throw new Error(st.error || '받기 중 오류');
+  const files = st.results.length;
+  dvProg(st.state === 'error' ? { state: files ? '일부만 받음' : '오류', text: st.error || '' } : { state: '완료', text: `CSV ${files}개 저장 · 분석 화면으로 넘어갑니다`, p: 1 });
+  if (st.state === 'error' && !files) throw new Error(st.error || '받기 중 오류');
   // 받은 CSV 를 불러와(이 브라우저에도 저장) 분석
   const info = await (await fetch('/api/collector', { cache: 'no-store' })).json();
-  const files = [];
-  for (let i = 0; i < info.files.length; i++) files.push(new File([await (await fetch(`/csv/${i}`, { cache: 'no-store' })).text()], info.files[i], { type: 'text/csv' }));
-  await onCsvSelected(files);
+  const fl = [];
+  for (let i = 0; i < info.files.length; i++) fl.push(new File([await (await fetch(`/csv/${i}`, { cache: 'no-store' })).text()], info.files[i], { type: 'text/csv' }));
+  await onCsvSelected(fl);
   $('startDate').value = sd; $('endDate').value = ed; updateSpan();
   if (st.state === 'error') showMsg(esc(`일부만 받았습니다: ${st.error}`), 'err');
   if (!csvFlights) throw new Error('받은 CSV 를 읽지 못했습니다.');
@@ -1767,12 +1887,14 @@ $('apSearch').addEventListener('input', () => {
     $('apResults').innerHTML = res.map(([, , code, a]) => `<button type="button" data-ap="${esc(code)}"><b>${esc(code)}</b>${a[5] ? esc(a[5]) + ' · ' : ''}${esc(a[0])}<small> — ${esc([a[1], a[2]].filter(Boolean).join(', '))}${a[9] ? ` (${esc(a[9])})` : ''}</small></button>`).join('') ||
       ($('apSearch').value.trim() ? '<p class="text-xs muted" style="padding:.5rem">맞는 공항이 없습니다</p>' : '');
     $('apResults').hidden = !$('apResults').innerHTML;
+    if (res.length && $('amapBox').hidden) amapOpen(true, true);   // 공항을 찾을 때 지도도 열림
     amapMarks(res.map(r => r[2]));
   }, 120);
 });
 $('apResults').onclick = e => {
   const b = e.target.closest('[data-ap]'); if (!b) return;
   $('icao').value = b.dataset.ap; $('apSearch').value = ''; $('apResults').hidden = true; AMAP.marks = [];
+  if (AMAP.auto) amapOpen(false);                         // 검색 때문에 열린 지도는 고르면 닫음
   $('icao').dispatchEvent(new Event('input')); $('icao').dispatchEvent(new Event('change'));
 };
 document.addEventListener('click', e => { if (!e.target.closest('.apsearch')) $('apResults').hidden = true; });
@@ -3535,7 +3657,12 @@ $('source').onchange = () => {
   $('csvOpts').style.display = $('source').value === 'csv' ? '' : 'none';
   $('trinoOpts').style.display = $('source').value === 'trino' ? '' : 'none';
   $('collectOpts').style.display = $('source').value === 'collect' ? '' : 'none';
-  $('runBtn').textContent = $('source').value === 'collect' ? 'CSV 받고 보기' : '데이터 보기';
+  const src = $('source').value;
+  $('runBtn').textContent = src === 'collect' ? 'OpenSky에서 받고 보기' : '데이터 보기';
+  $('dvTitle').textContent = { collect: 'OpenSky에서 데이터 받기', csv: 'CSV 데이터 보기', demo: '데모 데이터로 둘러보기', trino: 'OpenSky Trino (내 PC)' }[src] || '데이터 보기';
+  $('dvGoName').textContent = src === 'collect' ? '받기' : '보기';
+  $('dvSub').textContent = { collect: '공항·기간을 고르고 받으면 CSV 로 저장하고 바로 분석합니다', csv: '왼쪽에서 CSV 를 고르면 공항·기간이 채워집니다', demo: '합성한 운항 스케줄 — 아무 공항·기간이나 됩니다' }[src] || '';
+  $('dvOpts').hidden = src !== 'collect';
   buildYearButtons();
 };
 // 수집 도구(zip) 받기 — 페이지와 함께 올린 kit/*.txt 세 파일을 브라우저에서 zip 으로 묶어 내려준다
@@ -3621,7 +3748,7 @@ function amapDraw() {
 }
 function amapRender() {
   const cv = $('amapCv'), box = $('amap');
-  if (!AMAP.land || !box.offsetWidth) return;
+  if (!AMAP.land || !box.offsetWidth || !box.offsetHeight) return;
   const W = box.clientWidth, H = box.clientHeight, dpr = devicePixelRatio || 1;
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   AMAP.W = W; AMAP.H = H;
@@ -3700,6 +3827,13 @@ function amapRender() {
     g.beginPath(); g.arc(x, y, 8, 0, 7); g.fillStyle = '#f2c230'; g.fill(); g.lineWidth = 2; g.strokeStyle = '#17130a'; g.stroke();
   }
 }
+/** 지도 열기·닫기 (auto = 검색 때문에 저절로 열림) */
+function amapOpen(open, auto = false) {
+  $('amapBox').hidden = !open; AMAP.auto = open && auto;
+  $('amapToggle').setAttribute('aria-expanded', String(open));
+  $('amapToggle').textContent = open ? '지도 닫기' : '지도에서 찾기';
+  if (open) { AMAP.W = $('amap').clientWidth; AMAP.H = $('amap').clientHeight; AMAP.fitted = false; amapSelect(apCode(), !auto); }
+}
 /** 화면 좌표에서 가장 가까운 공항 (r 픽셀 안) */
 function amapNearest(x, y, r = 14) {
   let best = null, bd = r * r;
@@ -3738,6 +3872,7 @@ async function amapMarks(codes) {
     AMAP.lon = (Math.min(...lons) + Math.max(...lons)) / 2; AMAP.lat = (Math.min(...lats) + Math.max(...lats)) / 2;
     const span = Math.max(Math.max(...lats) - Math.min(...lats), (Math.max(...lons) - Math.min(...lons)) * 0.6, 4);
     AMAP.k = Math.max(2, Math.min(80, AMAP.H / (span * 1.6)));
+    AMAP.fitted = true;
   }
   amapDraw();
 }
@@ -3776,6 +3911,8 @@ async function amapMarks(codes) {
   $('amapIn').onclick = () => amapZoom(1.6);
   $('amapOut').onclick = () => amapZoom(1 / 1.6);
   $('amapHome').onclick = () => amapSelect(apCode() || AMAP.sel, true);
+  $('amapToggle').onclick = () => amapOpen($('amapBox').hidden);
+  $('amapClose').onclick = () => amapOpen(false);
   new ResizeObserver(amapDraw).observe($('amap'));
   loadAmap().then(ok => ok && amapSelect(apCode(), true));
 })();
@@ -3910,7 +4047,14 @@ detectLocalApp().then(async () => {
   if (id) try { await openSaved(id, true); } catch (e) { console.warn(e); }
 });
 $('csvFile').onchange = () => onCsvSelected();
-$('icao').addEventListener('change', () => { const ap = apCode(); if (csvSets.has(ap)) selectCsvAirport(ap); else if (csvSets.size) onCsvSelected(); });
+// 공항을 바꾸면: 불러온 CSV 에 그 공항이 있으면 그 데이터로. 없으면 고른 공항을 그대로 두고 알려 줌
+// (예전에는 CSV 를 다시 읽어 CSV 의 공항으로 되돌렸음 — 지도에서 다른 공항을 눌러도 안 바뀌던 원인)
+$('icao').addEventListener('change', () => {
+  const ap = apCode();
+  if (csvSets.has(ap)) { if ($('source').value === 'csv') selectCsvAirport(ap); return; }
+  if (csvSets.size && $('source').value === 'csv')
+    $('csvInfo').textContent = `불러온 CSV 에는 ${ap} 가 없습니다 (있는 공항: ${[...csvSets.keys()].join(', ')}). 이 공항은 CSV 를 새로 고르거나 OpenSky 에서 받으세요.`;
+});
 $('csvAirport').onchange = () => selectCsvAirport($('csvAirport').value);
 /** 기본 select 는 브라우저가 위로 펼치기도 해서, 항상 아래로 펼쳐지는 목록으로 바꾼다 (값·change 는 원래 select 그대로) */
 function enhanceSelect(sel) {

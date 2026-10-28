@@ -7,6 +7,8 @@
 - 수집: POST /api/collect → 작업 스레드에서 fetch_flights.collect_many (연도별로 나눠 받기 가능),
   GET /api/collect/status 로 진행·기록, POST /api/collect/stop, POST /api/open-folder
 - 비밀번호는 화면에서 받아 이 PC 의 Windows 자격 증명 관리자에만 저장(선택)하고, 화면으로 돌려주지 않는다
+- 머리의 로그인: POST /api/login 이 OpenSky 인증 서버에서 토큰을 받아 확인하고, 이 실행 동안 메모리에만 들고 있다가 수집에 쓴다
+  (POST /api/logout 으로 지움, forget 이면 기억한 비밀번호도 삭제)
 - ICAO 원문 페이지(저작권 문서 번역)는 넣지 않으므로 웹 링크로 보낸다
 """
 import datetime as dt
@@ -99,6 +101,8 @@ class Collector:
             raise ValueError("종료일이 시작일보다 빠릅니다.")
         tz = float(p.get("tz", 9))
         remember, pw = bool(p.get("remember")), p.get("password") or ""
+        if not pw and self.server.session and self.server.session[0] == user:   # 머리에서 로그인한 비밀번호
+            pw = self.server.session[1]
         try:
             if pw and remember:
                 oa.save_password(user, pw)
@@ -158,6 +162,7 @@ class Collector:
 class AnalyzerServer:
     def __init__(self):
         self.csvs = []                                       # 분석기에 넘길 CSV 경로 (마지막 수집 결과)
+        self.session = None                                  # (사용자명, 비밀번호) — 머리에서 로그인한 동안 메모리에만
         self.httpd = None
         self.collector = Collector(self)
 
@@ -216,6 +221,7 @@ class AnalyzerServer:
                         pass
                     return self._json({"files": [os.path.basename(p) for p in srv.csvs], "app": True,
                                        "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
+                                       "loggedIn": srv.session[0] if srv.session else None,
                                        "settings": {"user": user, "remember": st.get("remember_pw", True), "split": st.get("split", True),
                                                     "aircraft": st.get("aircraft", True), "outDir": st.get("out_dir") or default_out_dir()}})
                 if path == "/api/pwsaved":
@@ -251,6 +257,45 @@ class AnalyzerServer:
                         srv.collector.start(body)
                     except (ValueError, RuntimeError, KeyError) as e:
                         return self._json({"error": str(e)}, 409 if isinstance(e, RuntimeError) else 400)
+                    return self._json({"ok": True})
+                if path == "/api/login":
+                    import opensky_auth as oa
+                    user = (body.get("user") or "").strip().lower()
+                    pw, remember = body.get("password") or "", bool(body.get("remember", True))
+                    if not user:
+                        return self._json({"error": "OpenSky 사용자명을 넣으세요."}, 400)
+                    if not pw:
+                        try:
+                            pw = oa.load_password(user) or ""
+                        except Exception:  # noqa: BLE001
+                            pw = ""
+                    if not pw:
+                        return self._json({"error": "비밀번호를 넣으세요."}, 400)
+                    try:
+                        oa.PasswordToken(user, pw).token()
+                    except oa.LoginError as e:
+                        return self._json({"error": str(e)}, 401)
+                    except Exception as e:  # noqa: BLE001
+                        return self._json({"error": f"로그인을 확인하지 못했습니다: {e}"}, 502)
+                    srv.session, saved = (user, pw), False
+                    try:
+                        if remember:
+                            saved = bool(oa.save_password(user, pw))
+                        else:
+                            oa.forget_password(user)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    save_settings({"user": user, "remember_pw": remember})
+                    return self._json({"ok": True, "user": user, "saved": saved})
+                if path == "/api/logout":
+                    import opensky_auth as oa
+                    user = srv.session[0] if srv.session else load_settings().get("user", "")
+                    srv.session = None
+                    if body.get("forget") and user:
+                        try:
+                            oa.forget_password(user)
+                        except Exception:  # noqa: BLE001
+                            pass
                     return self._json({"ok": True})
                 if path == "/api/collect/stop":
                     srv.collector.stop = True
