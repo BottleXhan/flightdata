@@ -30,6 +30,8 @@ def selftest():
     assert oa.load_password("flightdata-selftest") == "pw-테스트"
     assert oa.forget_password("flightdata-selftest") and oa.load_password("flightdata-selftest") is None
     zoneinfo.ZoneInfo("Asia/Seoul")
+    api = Api()                                             # js_api 에 함수 말고 객체가 보이면 pywebview 가 그 안을 다 뒤져 창이 멈춤 (1.2.3)
+    assert not [n for n in dir(api) if not n.startswith("_") and not callable(getattr(api, n))]
     srv = local_web.AnalyzerServer()
     assert srv.start()
     return 0
@@ -38,14 +40,14 @@ def selftest():
 class Api:
     """화면(JavaScript)에서 window.pywebview.api.<이름>() 으로 부르는 것 — 프로그램 창에서만 되는 일."""
 
-    window = None
+    _window = None                                           # 밑줄: pywebview 가 js_api 로 노출하며 창 객체(.NET 폼 전체)를 뒤지지 않게
 
     def choose_folder(self, start=""):
         """저장 폴더 고르기 창. 고른 폴더 경로(취소하면 None)."""
         import webview
         kind = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
         start = start if start and os.path.isdir(start) else os.path.expanduser("~")
-        res = self.window.create_file_dialog(kind, directory=start)
+        res = self._window.create_file_dialog(kind, directory=start)
         return (res[0] if isinstance(res, (list, tuple)) else res) if res else None
 
     # ---------- 제목줄 없는 창(frameless)의 창 버튼·끌기 (사용자 요청: Windows 제목줄 없애고 헤더 오른쪽에 버튼) ----------
@@ -56,7 +58,7 @@ class Api:
 
     def _hwnd(self):
         import ctypes
-        return ctypes.windll.user32.FindWindowW(None, self.window.title)
+        return ctypes.windll.user32.FindWindowW(None, self._window.title)
 
     def _scale(self, hwnd):
         import ctypes
@@ -110,7 +112,7 @@ class Api:
 
     def maximize_now(self):
         if not sys.platform.startswith("win"):
-            return self.window.maximize()
+            return self._window.maximize()
         hwnd = self._hwnd()
         if not hwnd:
             return
@@ -123,7 +125,7 @@ class Api:
 
     def restore_now(self):
         if not sys.platform.startswith("win"):
-            return self.window.restore()
+            return self._window.restore()
         hwnd = self._hwnd()
         if not hwnd:
             return
@@ -136,7 +138,7 @@ class Api:
         self._maxed = False
 
     def win_min(self):
-        self.window.minimize()
+        self._window.minimize()
 
     def win_max(self):
         """최대화 ↔ 이전 크기. 바뀐 상태(True = 최대화)를 돌려줌."""
@@ -147,12 +149,12 @@ class Api:
         return self._maxed
 
     def win_close(self):
-        self.window.destroy()
+        self._window.destroy()
 
     def win_move(self, x, y):
         """헤더를 끌 때: 화면 좌표(CSS 픽셀) → 물리 픽셀로 창 왼쪽 위를 옮김 (최대화였으면 이전 크기로)."""
         if not sys.platform.startswith("win"):
-            return self.window.move(int(x), int(y))
+            return self._window.move(int(x), int(y))
         hwnd = self._hwnd()
         if not hwnd:
             return
@@ -183,13 +185,13 @@ class Api:
 
     def set_theme(self, dark, caption="", text=""):
         """창 맨 위 제목 표시줄을 화면의 밝게/어둡게에 맞춘다 (Windows 10 1809+ 어두운 제목줄, Windows 11 은 색까지)."""
-        if not sys.platform.startswith("win") or self.window is None:
+        if not sys.platform.startswith("win") or self._window is None:
             return False
         try:
             import ctypes
             from ctypes import wintypes
             # 창 찾기: 제목으로 (다른 스레드에서 .NET 창 객체를 건드리지 않게 — 멈춤 방지)
-            hwnd = ctypes.windll.user32.FindWindowW(None, self.window.title)
+            hwnd = ctypes.windll.user32.FindWindowW(None, self._window.title)
             if not hwnd:
                 return False
             dwm = ctypes.windll.dwmapi
@@ -256,11 +258,11 @@ def main():
         except Exception:  # noqa: BLE001
             pass
         api = Api()
-        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), js_api=api,
+        api._window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), js_api=api,
                                            frameless=True, easy_drag=False)   # Windows 제목줄 없이 — 창 버튼·끌기는 화면 헤더에서
-        srv.close_window = lambda: api.window.destroy()
+        srv.close_window = lambda: api._window.destroy()
         # 처음엔 작업 영역에 꽉 차게 (제목줄 없는 창이라 pywebview maximized 대신 직접)
-        api.window.events.shown += lambda: (time.sleep(0.15), api.maximize_now())
+        api._window.events.shown += lambda: (time.sleep(0.15), api.maximize_now())
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
         return 0
