@@ -1,5 +1,6 @@
 # main 에 올라오면 Windows exe 를 빌드해 GitHub Release 로 올린다.
-# exe 이름에 버전: FlightData_<VERSION>.exe (VERSION 파일, 예 1.0.32 — 패치할 때마다 마지막 숫자를 올림, 사용자 요청 2026-10-28)
+# 배포: FlightData_<VERSION>.zip (폴더 FlightData_<VERSION>\ 안에 FlightData.exe · README_KR.txt · OpenSky_CSV\) — 사용자 요청 2026-10-28.
+# 버전: VERSION 파일 (VERSION 파일, 예 1.0.32 — 패치할 때마다 마지막 숫자를 올림, 사용자 요청 2026-10-28)
 # 최신 릴리스 페이지: https://github.com/<owner>/<repo>/releases/latest
 name: Build & release
 
@@ -34,18 +35,25 @@ jobs:
         run: |
           $p = Start-Process -FilePath dist\FlightData.exe -ArgumentList "--selftest" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "selftest failed: $($p.ExitCode)" }
-      - name: Versioned name
+      - name: Zip (폴더째 배포)
         shell: pwsh
-        run: Copy-Item dist\FlightData.exe "dist\FlightData_${{ env.VER }}.exe"
+        run: |
+          $d = "pkg\FlightData_${{ env.VER }}"
+          New-Item -ItemType Directory -Force -Path "$d\OpenSky_CSV" | Out-Null
+          Copy-Item dist\FlightData.exe $d
+          Copy-Item README_KR.txt $d
+          Set-Content -Path "$d\OpenSky_CSV\여기에_CSV가_저장됩니다.txt" -Value "FlightData 가 OpenSky 에서 받은 CSV 와 조회 캐시(trino_cache)를 이 폴더에 저장합니다.`r`n미리 받아 둔 CSV 를 여기에 넣으면 보관함의 '저장 폴더의 CSV' 목록에 나옵니다." -Encoding utf8
+          Compress-Archive -Path $d -DestinationPath "dist\FlightData_${{ env.VER }}.zip" -Force
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VER }}
           name: FlightData_${{ env.VER }}
           make_latest: true
           body: |
-            Windows 용 FlightData_${{ env.VER }} 입니다. 설치 없이 FlightData_${{ env.VER }}.exe 를 더블클릭하세요.
+            Windows 용 FlightData_${{ env.VER }} 입니다. FlightData_${{ env.VER }}.zip 을 받아 **압축을 푼 뒤** 폴더 안의 FlightData.exe 를 더블클릭하세요 (설치 필요 없음).
+            폴더 안에 설정·항공기 DB·보관함(app_data)·받은 CSV(OpenSky_CSV)가 함께 쌓이므로, 이 폴더를 통째로 옮기면 다른 PC 에서도 그대로 씁니다.
             처음 실행할 때 "Windows의 PC 보호" 경고가 뜨면 [추가 정보] → [실행].
             한 창에서 OpenSky 운항 CSV 를 받고(1 데이터 → "OpenSky에서 받기") 바로 분석합니다.
             사용법: https://github.com/${{ github.repository }}#readme
           files: |
-            dist/FlightData_${{ env.VER }}.exe
+            dist/FlightData_${{ env.VER }}.zip

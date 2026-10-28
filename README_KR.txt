@@ -2,7 +2,8 @@
 ====================
 
 OpenSky Network 의 공항 운항 기록을 받아서, 같은 창에서 바로 시간대·일·요일·월별 운항과 노선·항공사·기종을 보는 프로그램입니다.
-설치 없이 FlightData_1.xx.exe (숫자가 버전) 를 더블클릭하면 됩니다. (Python 필요 없음)
+FlightData_1.0.xx.zip 의 압축을 풀고 폴더 안의 FlightData.exe 를 더블클릭하면 됩니다 (설치 필요 없음).
+이 폴더에 설정·항공기 DB·보관함(app_data)·받은 CSV(OpenSky_CSV)가 함께 쌓여, 폴더째 옮기면 다른 PC 에서도 그대로 씁니다. (Python 필요 없음)
 
 [처음 한 번]
 - OpenSky 계정(https://opensky-network.org)과 Trino(과거 데이터) 사용 승인이 필요합니다.

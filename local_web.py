@@ -40,6 +40,14 @@ def default_out_dir():
     return os.path.join(ff.APP_DIR, "OpenSky_CSV")
 
 
+def in_temp_dir():
+    """zip 을 풀지 않고 압축 파일 안에서 exe 를 실행하면 Windows 가 임시 폴더에 꺼내 실행한다 → 설정·CSV 가 사라짐."""
+    import tempfile
+    import fetch_flights as ff
+    t = os.path.normcase(os.path.abspath(tempfile.gettempdir()))
+    return os.path.normcase(os.path.abspath(ff.APP_DIR)).startswith(t + os.sep)
+
+
 def app_version():
     """빌드할 때 GitHub Actions 가 만드는 _build.py 의 버전 (예: "1.32"). 개발 실행이면 빈 문자열."""
     try:
@@ -250,6 +258,7 @@ class AnalyzerServer:
                                        "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
                                        "loggedIn": srv.session[0] if srv.session else None,
                                        "version": app_version(),
+                                       "inTemp": in_temp_dir(),
                                        "settings": {"user": user, "remember": st.get("remember_pw", True), "split": st.get("split", True),
                                                     "aircraft": st.get("aircraft", True), "outDir": out_dir_setting()}})
                 if path == "/api/pwsaved":

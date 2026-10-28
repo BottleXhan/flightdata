@@ -896,12 +896,12 @@
           </div>
           <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-            FlightData 받기 (exe)
+            FlightData 받기 (zip)
           </a>
         </div>
         <ol class="kit-steps">
           <li><b>처음 한 번</b> OpenSky 계정과 Trino 사용 승인을 받아 둡니다</li>
-          <li><b>실행</b> 최신 릴리스의 <code>FlightData_1.xx.exe</code> 를 받아 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
+          <li><b>실행</b> 최신 릴리스의 <code>FlightData_1.0.xx.zip</code> 을 받아 압축을 풀고, 폴더 안의 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
           <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [OpenSky에서 받고 보기]</li>
           <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
@@ -1924,6 +1924,7 @@ function setupCollectUI(info) {
   $('source').prepend(opt);
   const st = info.settings || {};
   $('hLogin').hidden = false;
+  if (info.inTemp) showMsg('<b>압축 파일 안에서 실행 중입니다.</b> 이대로 쓰면 받은 CSV·설정·보관함이 임시 폴더에 저장돼 사라집니다. 창을 닫고 zip 의 <b>압축을 푼 뒤</b> 폴더 안의 FlightData.exe 를 실행하세요.', 'err');
   if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
   if (st.user) $('cUser').value = st.user;
   $('cRemember').checked = st.remember !== false; $('cRemember').disabled = !info.canRemember;
