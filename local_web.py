@@ -40,13 +40,24 @@ def default_out_dir():
     return os.path.join(ff.APP_DIR, "OpenSky_CSV")
 
 
+def app_version():
+    """빌드할 때 GitHub Actions 가 만드는 _build.py 의 버전 (예: "1.32"). 개발 실행이면 빈 문자열."""
+    try:
+        from _build import BUILD
+        return BUILD
+    except ImportError:
+        return ""
+
+
 OLD_DEFAULT_OUT = os.path.join(os.path.expanduser("~"), "Documents", "OpenSky_CSV")
+OLD_DEFAULTS = {os.path.normcase(os.path.abspath(os.path.join(os.path.expanduser("~"), *x, "OpenSky_CSV")))
+                for x in (("Documents",), ("OneDrive", "Documents"), ("OneDrive", "문서"), ("문서",))}
 
 
 def out_dir_setting():
     """설정의 저장 폴더. 예전 기본값(문서 폴더의 OpenSky_CSV)이 자동으로 저장돼 있던 것이면 새 기본값으로."""
     d = load_settings().get("out_dir") or ""
-    if not d or os.path.normcase(os.path.abspath(d)) == os.path.normcase(OLD_DEFAULT_OUT):
+    if not d or os.path.normcase(os.path.abspath(d)) in OLD_DEFAULTS:
         return default_out_dir()
     return d
 
@@ -238,6 +249,7 @@ class AnalyzerServer:
                     return self._json({"files": [os.path.basename(p) for p in srv.csvs], "app": True,
                                        "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
                                        "loggedIn": srv.session[0] if srv.session else None,
+                                       "version": app_version(),
                                        "settings": {"user": user, "remember": st.get("remember_pw", True), "split": st.get("split", True),
                                                     "aircraft": st.get("aircraft", True), "outDir": out_dir_setting()}})
                 if path == "/api/pwsaved":

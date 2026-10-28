@@ -57,7 +57,7 @@ def main():
         except Exception:  # noqa: BLE001
             pass
         api = Api()
-        api.window = webview.create_window("FlightData", url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api)
+        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api)
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
         return 0

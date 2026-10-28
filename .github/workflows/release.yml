@@ -1,5 +1,6 @@
 # main 에 올라오면 Windows exe 를 빌드해 GitHub Release 로 올린다.
-# 최신 exe 고정 주소: https://github.com/<owner>/<repo>/releases/latest/download/FlightData_Collector.exe
+# exe 이름에 버전: FlightData_1.<실행 번호>.exe (사용자 요청 2026-10-28 — GitHub 자산 이름에는 띄어쓰기를 쓸 수 없어 밑줄)
+# 최신 릴리스 페이지: https://github.com/<owner>/<repo>/releases/latest
 name: Build & release
 
 on:
@@ -22,7 +23,7 @@ jobs:
         run: python -m pip install --upgrade pip trino pyinstaller tzdata pywebview
       - name: Build number
         shell: pwsh
-        run: Set-Content -Path _build.py -Value "BUILD = `"빌드 ${{ github.run_number }}`"" -Encoding utf8
+        run: Set-Content -Path _build.py -Value "BUILD = `"1.${{ github.run_number }}`"" -Encoding utf8
       - name: Build exe
         run: pyinstaller --noconfirm --onefile --windowed --name FlightData --collect-submodules trino --collect-all webview --collect-data tzdata --add-data "web;web" --hidden-import _build flightdata_app.py
       - name: Self test
@@ -30,6 +31,9 @@ jobs:
         run: |
           $p = Start-Process -FilePath dist\FlightData.exe -ArgumentList "--selftest" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "selftest failed: $($p.ExitCode)" }
+      - name: Versioned name
+        shell: pwsh
+        run: Copy-Item dist\FlightData.exe "dist\FlightData_1.${{ github.run_number }}.exe"
       - name: Command-line kit (Python 버전)
         shell: pwsh
         run: |
@@ -39,15 +43,15 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: FlightData (빌드 ${{ github.run_number }})
+          name: FlightData 1.${{ github.run_number }}
           make_latest: true
           body: |
-            Windows 용 FlightData 입니다. 설치 없이 FlightData.exe 를 더블클릭하세요.
+            Windows 용 FlightData 1.${{ github.run_number }} 입니다. 설치 없이 FlightData_1.${{ github.run_number }}.exe 를 더블클릭하세요.
             처음 실행할 때 "Windows의 PC 보호" 경고가 뜨면 [추가 정보] → [실행].
             한 창에서 OpenSky 운항 CSV 를 받고(1 데이터 → "OpenSky에서 받기") 바로 분석합니다.
             사용법은 README_KR.txt 를 보세요.
             FlightData_CLI.zip 은 Python 이 있는 PC 에서 쓰는 명령창 버전입니다 (run_fetch.bat 더블클릭).
           files: |
-            dist/FlightData.exe
+            dist/FlightData_1.${{ github.run_number }}.exe
             dist/FlightData_CLI.zip
             README_KR.txt

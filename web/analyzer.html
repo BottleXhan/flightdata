@@ -211,6 +211,7 @@
   .hl-msg { position: absolute; right: 0; top: calc(100% + 8px); width: max-content; max-width: 420px; margin: 0; padding: 8px 12px; border-radius: 10px; font-size: .75rem;
             background: var(--surface); color: var(--text-secondary); box-shadow: 0 8px 24px rgba(0,0,0,.16); z-index: 40; }
   .hl-msg.err { color: var(--danger, #c0392b); }
+  .brand-ver { font-size: .72rem; font-weight: 600; color: var(--text-muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
   .hl-form .link-btn { font-size: .78rem; white-space: nowrap; }
   #cDirMsg.err { color: var(--danger, #c0392b); }
   .hl-pop { position: absolute; right: 0; top: calc(100% + 8px); width: 380px; z-index: 45; background: var(--surface); border-radius: 14px; padding: 16px 18px;
@@ -489,7 +490,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
       </span>
       <div>
-        <div class="brand-name">FlightData</div>
+        <div class="brand-name">FlightData <span id="brandVer" class="brand-ver" hidden></span></div>
         <div class="brand-sub">OpenSky 데이터 · ICAO Doc 9184 첨두시간</div>
       </div>
     </div>
@@ -576,7 +577,7 @@
           <span class="lbl">저장된 데이터 <span class="snote">이 브라우저에만 · 다음에 열면 마지막 데이터가 바로 열림</span></span>
           <div id="savedList" class="saved"></div>
         </div>
-        <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData.exe" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">CSV가 없나요? FlightData 프로그램(exe) 받기</a>
+        <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">CSV가 없나요? FlightData 프로그램(exe) 받기</a>
       </div>
 
       <div id="trinoOpts" class="sub-panel" style="display:none">
@@ -893,16 +894,16 @@
             <b>처음이라면: CSV 수집 도구</b>
             <p class="text-xs muted">웹페이지는 OpenSky에 직접 접속할 수 없어서, PC에서 FlightData 수집기로 CSV를 만듭니다 (Windows, 설치 필요 없음).</p>
           </div>
-          <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest/download/FlightData.exe" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+          <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
             FlightData 받기 (exe)
           </a>
         </div>
         <ol class="kit-steps">
           <li><b>처음 한 번</b> OpenSky 계정과 Trino 사용 승인을 받아 둡니다</li>
-          <li><b>실행</b> 받은 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
+          <li><b>실행</b> 최신 릴리스의 <code>FlightData_1.xx.exe</code> 를 받아 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
           <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [OpenSky에서 받고 보기]</li>
-          <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData.exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
+          <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
         <p class="text-xs muted">수집기 소스·명령창 버전: <a href="https://github.com/BottleXhan/flightdata" target="_blank" rel="noopener" style="color:var(--accent)">github.com/BottleXhan/flightdata</a></p>
       </div>
@@ -1923,6 +1924,7 @@ function setupCollectUI(info) {
   $('source').prepend(opt);
   const st = info.settings || {};
   $('hLogin').hidden = false;
+  if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
   if (st.user) $('cUser').value = st.user;
   $('cRemember').checked = st.remember !== false; $('cRemember').disabled = !info.canRemember;
   $('cSplit').checked = st.split !== false; $('cAircraft').checked = st.aircraft !== false;
