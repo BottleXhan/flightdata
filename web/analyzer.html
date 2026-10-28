@@ -538,6 +538,7 @@
           <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
         </div>
       </div>
+      <button id="homeBtn" class="link-btn" type="button" title="불러온 데이터·결과를 비우고 처음 화면(데이터 탭)으로">⟲ 처음으로</button>
       <a href="icao-source.html" class="link-btn">ICAO 원문</a>
       <button id="themeBtn" class="icon-btn" type="button"></button>
     </div>
@@ -739,7 +740,8 @@
           <div class="dv-col">
             <div class="dv-h" id="apSlotHome"><span class="step-num">1</span>공항</div>
             <div class="apsearch">
-              <input id="apSearch" class="field" placeholder="공항 찾기 — 이름·도시·한글 (예: 하네다, Frankfurt)" autocomplete="off" aria-label="공항 찾기">
+              <label class="lbl" for="apSearch">공항 검색</label>
+              <input id="apSearch" class="field" placeholder="예: 인천, 인천국제공항, Incheon, ICN, RKSI" autocomplete="off">
               <div id="apResults" class="apres" hidden></div>
             </div>
             <div class="row2">
@@ -829,7 +831,7 @@
         </div>
         <div class="dvp-bar"><div id="dvpBar"></div></div>
         <div class="dvp-actions">
-          <button id="cStop" class="btn" type="button" disabled>받기 중지</button>
+          <button id="cStop" class="btn" type="button" disabled>중지</button>
           <button id="cOpenDir2" class="btn" type="button">저장 폴더 열기</button>
           <span class="text-xs muted">받은 날짜는 저장되어 다시 조회하지 않습니다 · 중지해도 받은 날짜까지는 남습니다</span>
         </div>
@@ -1962,7 +1964,7 @@ function setupCollectUI(info) {
   $('hSignupClose').onclick = () => signup(false);
   $('hSignupGo').onclick = () => apiPost('/api/open-url', { url: 'https://opensky-network.org/' });
   document.addEventListener('click', e => { if (!e.target.closest('#hSignupPop, #hSignup')) signup(false); });
-  $('cStop').onclick = () => { apiPost('/api/collect/stop'); $('cStop').disabled = true; dvProg({ text: '중지 요청 — 지금 받는 날짜가 끝나면 멈춥니다.' }); };
+  $('cStop').onclick = () => { apiPost('/api/collect/stop'); $('cStop').disabled = true; dvProg({ state: '중지하는 중', text: '지금 조회를 취소하고 멈춥니다…' }); };
   $('cLogCopy').onclick = () => navigator.clipboard?.writeText($('cLog').textContent);
   $('source').value = 'collect'; $('source').onchange();
   $('kitGuide').hidden = true;                          // 이 프로그램 안에서는 "수집기 받기" 안내가 필요 없음
@@ -1997,7 +1999,11 @@ async function collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH) {
   }
   $('cStop').disabled = true;
   const files = st.results.length;
-  dvProg(st.state === 'error' ? { state: files ? '일부만 받음' : '오류', text: st.error || '' } : { state: '완료', text: `CSV ${files}개 저장 · 분석 화면으로 넘어갑니다`, p: 1 });
+  if (st.state === 'stopped') {
+    dvProg({ state: '중지됨', text: '중지했습니다 — 다시 받으면 이미 받은 날짜는 건너뜁니다' });
+    const e = new Error('중지했습니다. 다시 [OpenSky에서 받고 보기]를 누르면 이미 받은 날짜는 건너뛰고 이어서 받습니다.'); e.stopped = true;
+    if (!files) throw e;
+  } else dvProg(st.state === 'error' ? { state: files ? '일부만 받음' : '오류', text: st.error || '' } : { state: '완료', text: `CSV ${files}개 저장 · 분석 화면으로 넘어갑니다`, p: 1 });
   if (st.state === 'error' && !files) throw new Error(st.error || '받기 중 오류');
   // 받은 CSV 를 불러와(이 브라우저에도 저장) 분석
   const info = await (await fetch('/api/collector', { cache: 'no-store' })).json();
@@ -3737,7 +3743,7 @@ async function run() {
   } catch (e) {
     console.error(e);
     setStatus('');
-    showMsg(esc(e.message), 'err');
+    showMsg(esc(e.message), e.stopped ? 'warn' : 'err');
   } finally {
     $('runBtn').disabled = false; setTimeout(() => setProgress(null), 600);
   }
@@ -4223,6 +4229,32 @@ $('libDiskTbl').addEventListener('click', async e => {
 });
 $('libDiskRefresh').onclick = renderDisk;
 $('libDiskOpen').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
+
+/* ---------- ⟲ 처음으로: 불러온 데이터·결과·필터를 비우고 첫 화면(데이터 탭)으로 (사용자 요청) ---------- */
+function resetHome() {
+  if ($('runBtn').disabled) { showMsg('받는 중에는 처음으로 돌아갈 수 없습니다. 먼저 [중지]를 누르세요.', 'warn'); return; }
+  STATE.data = STATE.res = STATE.view = null;
+  csvFlights = null; csvSets = new Map(); CSV_FILES = []; CSV_NAMES = [];
+  $('csvFile').value = ''; $('csvAirportWrap').style.display = 'none';
+  $('csvInfo').textContent = '수집 도구로 받은 CSV를 고르면 공항과 기간이 자동으로 채워집니다.';
+  ['catFilter', 'fDir', 'fRoute', 'fSize', 'fAl', 'fH'].forEach(id => { try { clearFilter(id); } catch (e) {} });
+  syncFilterUI();
+  $('results').classList.add('hidden'); $('hrun').hidden = true; $('fChips').hidden = true;
+  document.body.classList.remove('has-data');
+  $('welcome').hidden = false; $('dvProg').hidden = true; $('cLog').textContent = ''; $('lastNote').hidden = true;
+  $('icao').value = ''; $('tz').value = ''; $('apSearch').value = ''; $('apResults').hidden = true;
+  quickDays(7); buildYearButtons(); updateApInfo();
+  if (COLLECTOR && document.querySelector('#source option[value="collect"]')) $('source').value = 'collect';
+  else if ($('source').value !== 'trino') $('source').value = 'csv';
+  $('source').onchange();
+  amapOpen(false);
+  showMsg(null); setStatus(''); setProgress(null);
+  syncSideNav(); setPane('data');
+}
+$('homeBtn').onclick = resetHome;
+document.querySelector('.brand').style.cursor = 'pointer';
+document.querySelector('.brand').title = '처음으로';
+document.querySelector('.brand').onclick = resetHome;
 
 /* ---------- 사이드바 목차: 누르면 그 장으로 이동하고, 사이드바 내용도 그 장에 맞게 바꿈 ----------
    공항 개요 = 데이터·공항·기간·첨두 스위치 / 운항 프로파일 = 보기 탭 + 필터 / 운항 구성 = 바로 가기 + 필터 / 첨두시간 산정 = 기준 */

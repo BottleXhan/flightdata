@@ -18,6 +18,7 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -122,8 +123,13 @@ class Collector:
     def start(self, p):
         import fetch_flights as ff
         import opensky_auth as oa
+        if self.state == "running" and self.stop:          # 중지 직후: 작업이 끝날 때까지 잠깐 기다림
+            for _ in range(40):
+                if self.state != "running":
+                    break
+                time.sleep(0.25)
         if self.state == "running":
-            raise RuntimeError("이미 받는 중입니다.")
+            raise RuntimeError("이미 받는 중입니다." + (" 중지하는 중이니 잠시 뒤 다시 누르세요." if self.stop else ""))
         user = (p.get("user") or "").strip().lower()
         airports = ff.parse_airports(p.get("airport") or "")
         if not user:
@@ -187,8 +193,10 @@ class Collector:
                 self.results, self.state, self.i, self.n = results, "done", total, total
             self.server.set_csvs([pth for _, pth, _ in results])
         except Exception as ex:  # noqa: BLE001 — 화면에 그대로 보여 준다
+            import fetch_flights as ff
             with self.lock:
-                self.results, self.state, self.error = results, "error", str(ex)
+                self.results, self.error = results, str(ex)
+                self.state = "stopped" if isinstance(ex, ff.Stopped) or self.stop else "error"
             if results:
                 self.server.set_csvs([pth for _, pth, _ in results])
 
@@ -371,8 +379,12 @@ class AnalyzerServer:
                     import webbrowser
                     webbrowser.open(u)
                     return self._json({"ok": True})
-                if path == "/api/collect/stop":
+                if path == "/api/collect/stop":           # 바로 멈춤: 다음 날짜 전에 멈추고, 실행 중인 쿼리도 취소
+                    import fetch_flights as ff
                     srv.collector.stop = True
+                    with srv.collector.lock:
+                        srv.collector.text = "중지하는 중…"
+                    ff.cancel_current()
                     return self._json({"ok": True})
                 if path == "/api/open-folder":
                     d = (body.get("dir") or "").strip() or out_dir_setting()

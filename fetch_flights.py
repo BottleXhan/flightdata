@@ -99,6 +99,23 @@ def connect(user, on_auth_url=None, password=None, log=print):
     )
 
 
+class Stopped(RuntimeError):
+    """사용자가 중지함 (받은 날짜는 캐시에 남아 다음에 건너뜀)."""
+
+
+_CURRENT = {"cur": None}                                     # 지금 실행 중인 Trino 쿼리 (중지할 때 취소)
+
+
+def cancel_current():
+    """다른 스레드에서 부름: 실행 중인 쿼리를 OpenSky 서버에서 취소해 바로 멈춘다."""
+    cur = _CURRENT.get("cur")
+    if cur is not None:
+        try:
+            cur.cancel()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def query_day(conn, day, airports):
     """day 파티션 하나에서 여러 공항(도착 또는 출발)의 운항을 한 번에 조회."""
     if isinstance(airports, str):
@@ -110,10 +127,16 @@ def query_day(conn, day, airports):
         f"AND (estarrivalairport IN ({marks}) OR estdepartureairport IN ({marks}))"
     )
     cur = conn.cursor()
-    cur.execute(sql, tuple(airports) * 2)
-    rows = cur.fetchall()
-    cur.close()
-    return rows
+    _CURRENT["cur"] = cur
+    try:
+        cur.execute(sql, tuple(airports) * 2)
+        return cur.fetchall()
+    finally:
+        _CURRENT["cur"] = None
+        try:
+            cur.close()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def read_cache(path):
@@ -323,7 +346,7 @@ def collect_many(user, airports, start, end_date, tz, cache_root="trino_cache", 
     all_rows = {ap: [] for ap in airports}
     for i, d in enumerate(days, 1):
         if should_stop and should_stop():
-            raise RuntimeError("사용자가 중지했습니다. 다시 시작하면 받은 날은 건너뜁니다.")
+            raise Stopped("중지했습니다. 다시 받으면 이미 받은 날짜는 건너뜁니다.")
         label = f"{dt.datetime.fromtimestamp(d, dt.timezone.utc):%Y-%m-%d}"
         caches = {ap: os.path.join(cache_root, ap, f"{label}.csv") for ap in airports}
         got = {}
@@ -341,11 +364,16 @@ def collect_many(user, airports, start, end_date, tz, cache_root="trino_cache", 
                     rows = query_day(conn, d, need)
                     break
                 except Exception as e:                      # 대기열 초과 등: 기다렸다 재시도
+                    if should_stop and should_stop():       # 중지로 쿼리가 취소된 것 → 재시도하지 않음
+                        raise Stopped("중지했습니다. 다시 받으면 이미 받은 날짜는 건너뜁니다.") from e
                     if attempt == 2:
                         raise
                     wait = 30 * (attempt + 1)
                     log(f"  오류: {e} → {wait}초 후 재시도")
-                    time.sleep(wait)
+                    for _ in range(wait * 2):               # 기다리는 동안에도 중지되게
+                        if should_stop and should_stop():
+                            raise Stopped("중지했습니다. 다시 받으면 이미 받은 날짜는 건너뜁니다.") from e
+                        time.sleep(0.5)
             # 아직 야간 일괄 처리가 끝나지 않았을 수 있는 최근 날짜와 0건은 캐시하지 않음 → 다음 실행 때 다시 조회
             fresh = d >= today_utc - DAY
             for ap in need:
