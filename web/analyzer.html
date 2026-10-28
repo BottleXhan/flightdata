@@ -149,6 +149,11 @@
   .snote { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text-muted); }
   .sfoot { display: flex; flex-direction: column; gap: 8px; }
   .sfoot:empty { display: none; }
+  .hbar-box { position: relative; height: 420px; }
+  .ctitle { font-size: .78rem; color: var(--text-secondary); margin: 0 0 6px; }
+  .dtoggle { display: inline-flex; align-items: center; gap: 6px; }
+  .dtoggle svg { transition: transform .15s; }
+  .dtoggle[aria-expanded="true"] svg { transform: rotate(180deg); }
   .saved { display: flex; flex-direction: column; gap: 4px; }
   .saved .srow { display: flex; align-items: stretch; gap: 4px; }
   .saved .sopen { flex: 1; min-width: 0; text-align: left; padding: .4rem .6rem; border-radius: 8px; background: var(--surface); font-size: .78rem; font-weight: 600; color: var(--text-primary); }
@@ -880,13 +885,18 @@
               <div id="rtTip" class="rttip" hidden></div>
               <div class="rtmap-foot"><span id="rtMapNote"></span><span>끌어서 이동 · 휠로 확대 · 지도: Natural Earth</span></div>
             </div>
-            <div class="overflow-auto" style="max-height:420px"><table class="data" id="rtTable"></table></div>
+            <div><p class="ctitle" id="rtChartTitle"></p><div class="hbar-box"><canvas id="rtChart" aria-label="노선별 운항 막대 차트"></canvas></div></div>
           </div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="rtDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="rtDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="rtTable"></table></div></div>
         </div>
         <div class="panel" id="sec-airline">
           <h3 class="panel-title">항공사 (편명 앞 3자리)</h3>
           <p class="panel-desc" id="alNote"></p>
-          <div class="overflow-auto mt-3" style="max-height:420px"><table class="data" id="alTable"></table></div>
+          <p class="ctitle mt-3" id="alChartTitle"></p>
+          <div class="hbar-box"><canvas id="alChart" aria-label="항공사별 운항 막대 차트"></canvas></div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="alDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="alDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="alTable"></table></div></div>
         </div>
         <div class="panel" hidden>   <!-- 2026-10-27 사용자 요청으로 숨김 (여객·화물) -->
           <h3 class="panel-title">여객 · 화물 구분 (추정)</h3>
@@ -902,7 +912,10 @@
         <div class="panel" id="sec-type">
           <h3 class="panel-title">기종별 운항</h3>
           <p class="panel-desc" id="typeNote"></p>
-          <div class="overflow-x-auto mt-3"><table class="data" id="typeTable"></table></div>
+          <div id="typeChartWrap"><p class="ctitle mt-3" id="typeChartTitle"></p>
+          <div class="hbar-box"><canvas id="typeChart" aria-label="기종별 운항 막대 차트"></canvas></div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="typeDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+          <div id="typeDetail" class="mt-3" hidden><div class="overflow-x-auto"><table class="data" id="typeTable"></table></div></div>
         </div>
       </section>
 
@@ -2245,6 +2258,31 @@ function baseOptions(tc, extra = {}) {
     }
   };
 }
+/** 운항 구성용 가로 막대 (상위 N개, 도착·출발 쌓기 또는 한 값) */
+function hbarChart(id, rows, { labelOf, arrOf, depOf, valOf, total, unitNote = '' }) {
+  const tc = themeColors(), box = $(id).parentElement;
+  box.style.height = Math.max(160, rows.length * 26 + 50) + 'px';
+  const labels = rows.map(labelOf), split = !!arrOf;
+  const o = baseOptions(tc, { stacked: true });
+  o.indexAxis = 'y';
+  Object.assign(o.scales.x, { grid: { color: tc.grid }, ticks: { color: tc.text } });
+  Object.assign(o.scales.y, { grid: { display: false }, ticks: { color: tc.primary, autoSkip: false, font: { size: 11.5 } }, title: { display: false } });
+  o.scales.x.title = { display: true, text: '운항 (편)', color: tc.text };
+  o.plugins.tooltip.callbacks = {
+    label: c => `${c.dataset.label}: ${fmtN(c.parsed.x, 0)}편`,
+    footer: it => { const i = it[0].dataIndex, v = split ? arrOf(rows[i]) + depOf(rows[i]) : valOf(rows[i]); return `합계: ${v.toLocaleString()}편 · ${fmtPct(v / total)}`; }
+  };
+  if (split) o.plugins.legend = { display: true, position: 'top', align: 'start', labels: { boxWidth: 10, boxHeight: 10, color: tc.text } };
+  const hb = (label, data, color) => ({ type: 'bar', label, data, backgroundColor: color, stack: 's', borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.9 });
+  const datasets = split ? [hb('도착', rows.map(arrOf), tc.arr), hb('출발', rows.map(depOf), tc.dep)] : [hb('운항', rows.map(valOf), tc.arr)];
+  mkChart(id, { type: 'bar', data: { labels, datasets }, options: o });
+}
+document.addEventListener('click', e => {                // 세부 정보 열기·닫기 (운항 구성 표)
+  const b = e.target.closest('.dtoggle'); if (!b) return;
+  const d = $(b.getAttribute('aria-controls')), open = d.hidden;
+  d.hidden = !open; b.setAttribute('aria-expanded', String(open));
+  b.firstElementChild.textContent = open ? '세부 정보 닫기' : '세부 정보';
+});
 function mkChart(id, config) { charts[id]?.destroy(); charts[id] = new Chart($(id), config); }
 const barDs = (label, data, color, stack = 's') => ({ type: 'bar', label, data, backgroundColor: color, stack, borderRadius: 4, borderSkipped: 'start', borderColor: cssVar('--surface'), borderWidth: { top: 2 }, barPercentage: 0.9, categoryPercentage: 0.9 });
 
@@ -2864,8 +2902,13 @@ function renderTypes(res, sel) {
   if (!t.rows.length) {
     $('typeNote').innerHTML = '이 데이터에는 기종 정보가 없습니다. 최신 <code>fetch_flights.py</code>로 다시 받으면 OpenSky 항공기 데이터베이스에서 기종·운항사를 붙여 줍니다 (이미 받은 날짜는 다시 조회하지 않음).';
     $('typeTable').innerHTML = '';
+    $('typeChartWrap').hidden = true;
     return;
   }
+  $('typeChartWrap').hidden = false;
+  const tops = t.rows.slice(0, 15);
+  $('typeChartTitle').textContent = `운항이 많은 기종 상위 ${tops.length}개 (전체 ${t.rows.length.toLocaleString()}개)`;
+  hbarChart('typeChart', tops, { labelOf: r => r.model ? `${r.code} ${r.model.length > 16 ? r.model.slice(0, 15) + '…' : r.model}` : r.code, valOf: r => r.n, total: t.total });
   $('typeNote').textContent = `기종 확인 ${fmtPct(t.coverage)} (${(t.coverage * t.total).toLocaleString()} / ${t.total.toLocaleString()}편) · 출처: OpenSky aircraft database (icao24 기준 연결, 등록 정보라 실제 운항 기종과 다를 수 있음)`;
   const top = t.rows.slice(0, 20);
   $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:30%"></th></tr></thead><tbody>' +
@@ -2925,6 +2968,14 @@ function renderAirlinesRoutes() {
     S.routes.slice(0, TOP).map((r, i) => `<tr data-rt="${esc(r.ap)}"><td class="num">${i + 1}</td><td><b>${esc(r.ap)}</b> <span class="text-xs muted">${esc(apName(r.ap))}</span></td>
       <td class="num"><b>${r.n.toLocaleString()}</b></td><td>${bar(r.n, rmax)}</td><td class="num">${fmtPct(r.n / S.total)}</td><td class="num">${r.from.toLocaleString()}</td><td class="num">${r.to.toLocaleString()}</td></tr>`).join('') +
     (S.routes.length > TOP ? `<tr><td colspan="7" class="muted">외 ${S.routes.length - TOP}개 (엑셀 "노선" 시트에 전체)</td></tr>` : '') + '</tbody>';
+  // 그래프: 상위 15개 (도착·출발 쌓기)
+  const CT = 15, shortAp = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[1] || a[0]).split(' ')[0] : ''; };
+  const rts = S.routes.filter(r => r.ap !== '미상').slice(0, CT);
+  $('rtChartTitle').textContent = `운항이 많은 노선 상위 ${rts.length}곳 (전체 ${S.routes.length.toLocaleString()}곳) · 도착 = 그 공항에서 옴, 출발 = 그 공항으로 감`;
+  hbarChart('rtChart', rts, { labelOf: r => `${r.ap} ${shortAp(r.ap)}`.trim(), arrOf: r => r.from, depOf: r => r.to, total: S.total });
+  const als = S.airlines.slice(0, CT);
+  $('alChartTitle').textContent = `운항이 많은 항공사 상위 ${als.length}곳 (전체 ${S.airlines.length.toLocaleString()}곳)`;
+  hbarChart('alChart', als, { labelOf: a => a.name ? `${a.code} ${a.name.length > 14 ? a.name.slice(0, 13) + '…' : a.name}` : a.code, arrOf: a => a.arr, depOf: a => a.dep, total: S.total });
   if (!MAPDATA) loadMapData().then(ok => ok && renderAirlinesRoutes());   // 지도·공항명 자료를 받은 뒤 다시 그림
   else { renderRouteMap(S); renderAirportCard(S); }
 }
@@ -3385,7 +3436,7 @@ function setPane(name, scroll = true) {
   document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
   if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
     if (name === 'profile') renderProfileTab();
-    if (name === 'mix') renderAirlinesRoutes();
+    if (name === 'mix') { renderAirlinesRoutes(); renderTypes(STATE.res, STATE.res.methods.find(m => m.id === cfgFromUI().method) || STATE.res.methods[0]); }
   }
   if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
 }
