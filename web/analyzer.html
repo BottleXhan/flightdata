@@ -120,12 +120,14 @@
   .fchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .fchips button { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
   .fchips button:hover { filter: brightness(.95); }
-  .snav { display: flex; flex-direction: column; gap: 2px; padding-bottom: 12px; border-bottom: 1px solid var(--surface-2); }
-  .snav button { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: .45rem .7rem; border-radius: 10px; color: var(--text-secondary); }
-  .snav button span { font-size: .875rem; font-weight: 700; }
-  .snav button small, .slist button small { font-size: .7rem; font-weight: 400; color: var(--text-muted); }
-  .snav button:hover:not(:disabled) { background: var(--surface-2); color: var(--text-primary); }
-  .snav button[aria-current="true"] { background: var(--accent-soft); color: var(--accent); }
+  /* 사이드바 목차: 가로 탭 한 줄 */
+  .snav { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 12px; background: var(--surface-2); }
+  .snav button { flex: 1 1 auto; min-width: 0; padding: .45rem .25rem; border-radius: 9px; color: var(--text-secondary); text-align: center; white-space: nowrap; }
+  .snav button span { font-size: .78rem; font-weight: 700; letter-spacing: -.01em; }
+  .snav button small { display: none; }
+  .slist button small { font-size: .7rem; font-weight: 400; color: var(--text-muted); }
+  .snav button:hover:not(:disabled) { color: var(--text-primary); }
+  .snav button[aria-current="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .snav button:disabled { opacity: .4; cursor: default; }
   .spane { display: flex; flex-direction: column; gap: 18px; }
   .slist { display: flex; flex-direction: column; gap: 4px; }
@@ -360,10 +362,10 @@
   <!-- ───────────── 분석 설정 (왼쪽) ───────────── -->
   <aside class="side" id="sidePanel" aria-label="분석 설정">
     <nav class="snav" id="sideNav" aria-label="목차">
-      <button type="button" data-pane="overview" aria-current="true"><span>공항 개요</span><small>데이터 · 공항 · 기간</small></button>
-      <button type="button" data-pane="profile" disabled><span>운항 프로파일</span><small>보기 · 필터</small></button>
-      <button type="button" data-pane="mix" disabled><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
-      <button type="button" data-pane="peak" hidden><span>첨두시간 산정</span><small>ICAO 기준 선택</small></button>
+      <button type="button" data-pane="overview" aria-current="true" title="데이터 · 공항 · 기간"><span>공항 개요</span><small>데이터 · 공항 · 기간</small></button>
+      <button type="button" data-pane="profile" disabled title="보기 · 필터"><span>프로파일</span><small>보기 · 필터</small></button>
+      <button type="button" data-pane="mix" disabled title="노선 · 항공사 · 기종"><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
+      <button type="button" data-pane="peak" hidden title="ICAO 기준 선택"><span>첨두시간</span><small>ICAO 기준 선택</small></button>
     </nav>
     <div class="spane" data-spane="overview">
     <div class="step">
