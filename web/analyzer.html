@@ -121,6 +121,17 @@
   .fchips button { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
   .fchips button:hover { filter: brightness(.95); }
   /* 사이드바 목차: 가로 탭 한 줄 */
+  /* 오른쪽 본문: 목차에서 고른 장만 보임 (#results[data-view]) */
+  #results[data-view="overview"] [data-sec]:not([data-sec="overview"]),
+  #results[data-view="profile"] [data-sec]:not([data-sec="profile"]),
+  #results[data-view="mix"] [data-sec]:not([data-sec="mix"]),
+  #results[data-view="peak"] [data-sec]:not([data-sec="peak"]) { display: none !important; }
+  .ovgo { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .ovgo button { position: relative; text-align: left; background: var(--surface); border-radius: 16px; padding: 18px 44px 18px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .ovgo button:hover { box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+  .ovgo b { font-size: 1rem; color: var(--text-primary); }
+  .ovgo span { font-size: .8rem; color: var(--text-secondary); }
+  .ovgo i { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--accent); font-size: 1.2rem; }
   .snav { display: flex; flex-wrap: wrap; gap: 3px; padding: 3px; border-radius: 12px; background: var(--surface-2); }
   .snav button { flex: 1 1 auto; min-width: 0; padding: .45rem .25rem; border-radius: 9px; color: var(--text-secondary); text-align: center; white-space: nowrap; }
   .snav button span { font-size: .78rem; font-weight: 700; letter-spacing: -.01em; }
@@ -346,9 +357,10 @@
       </div>
     </div>
     <nav class="chapnav" id="sideToc" aria-label="결과 바로가기" hidden>
-      <a href="#ch-overview">운항 프로파일</a>
-      <a href="#ch-mix">운항 구성</a>
-      <a href="#ch-peak" id="tocPeak" hidden>첨두시간 산정</a>
+      <a href="#ch-overview" data-pane="overview">공항 개요</a>
+      <a href="#sec-profile" data-pane="profile">운항 프로파일</a>
+      <a href="#ch-mix" data-pane="mix">운항 구성</a>
+      <a href="#ch-peak" data-pane="peak" id="tocPeak" hidden>첨두시간 산정</a>
     </nav>
     <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
       <a href="icao-source.html" class="link-btn">ICAO 원문</a>
@@ -588,7 +600,7 @@
       </div>
     </section>
 
-    <div id="results" class="hidden results-wrap">
+    <div id="results" class="hidden results-wrap" data-view="overview">
 
       <!-- ═════════ 개요 ═════════ -->
       <section class="chapter" id="ch-overview">
@@ -611,7 +623,7 @@
           </div>
         </div>
 
-        <div class="panel apcard" id="apCard" hidden>
+        <div class="panel apcard" id="apCard" data-sec="overview" hidden>
           <div class="apglobe" id="apGlobe" aria-hidden="true"></div>
           <div class="apbody">
             <div class="aptitle"><b id="apcName"></b><span id="apcKo" class="secondary"></span></div>
@@ -643,8 +655,14 @@
           </div>
         </div>
 
+        <div class="ovgo" data-sec="overview">
+          <button type="button" data-goto="profile"><b>운항 프로파일</b><span>시간대별 · 일별 · 요일별 · 월별 운항</span><i aria-hidden="true">→</i></button>
+          <button type="button" data-goto="mix"><b>운항 구성</b><span>노선 지도 · 항공사 · 기종</span><i aria-hidden="true">→</i></button>
+          <button type="button" data-goto="peak" class="design-only"><b>첨두시간 산정</b><span>ICAO Doc 9184 기준</span><i aria-hidden="true">→</i></button>
+        </div>
+
         <!-- 운항 프로파일: 시간대별 · 일별 · 요일별 · 월별 -->
-        <div class="panel" id="sec-profile">
+        <div class="panel" id="sec-profile" data-sec="profile">
           <div class="panel-head">
             <h3 class="panel-title">운항 프로파일</h3>
             <div class="tabs" role="tablist">
@@ -789,7 +807,7 @@
         </div>
 
         <!-- 공항별 비교 (CSV 여러 공항) -->
-        <div class="panel" id="compareSection" style="display:none" hidden>
+        <div class="panel" id="compareSection" data-sec="overview" style="display:none" hidden>
           <h3 class="panel-title">공항별 비교</h3>
           <p class="panel-desc" id="compareNote"></p>
           <div class="overflow-x-auto mt-3"><table class="data" id="compareTable"></table></div>
@@ -825,7 +843,7 @@
       </section>
 
       <!-- ═════════ 운항 구성 ═════════ -->
-      <section class="chapter" id="ch-mix">
+      <section class="chapter" id="ch-mix" data-sec="mix">
         <div class="chapter-head"><h2>운항 구성</h2><p>노선 · 항공사 · 기종</p></div>
         <div class="panel" id="sec-route">
           <h3 class="panel-title">노선 (출발지 · 목적지 공항)</h3>
@@ -892,7 +910,7 @@
       </section>
 
       <!-- ═════════ 첨두시간 (선택) ═════════ -->
-      <section class="chapter" id="ch-peak" hidden>
+      <section class="chapter" id="ch-peak" data-sec="peak" hidden>
         <div class="chapter-head"><h2>첨두시간 산정</h2><span class="chip">선택</span><p>ICAO Doc 9184 기준으로 설계 첨두시간을 구할 때 봅니다.</p></div>
         <div class="panel">
           <h3 class="panel-title">설계 첨두시간 산정 기준</h3>
@@ -3191,7 +3209,14 @@ function setPane(name, scroll = true) {
   const host = document.querySelector(`[data-filterhost="${name}"]`);   // 필터는 프로파일·구성에서 함께 씀
   if (host) { host.appendChild($('filterStep')); $('filterStep').hidden = false; } else $('filterStep').hidden = true;
   $('sidePanel').scrollTop = 0;
-  if (scroll && STATE.data) $(PANE_TARGET[name])?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // 오른쪽 본문도 그 장만 보이게 + 상단 바 표시
+  $('results').dataset.view = name;
+  document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
+  if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
+    if (name === 'profile') renderProfileTab();
+    if (name === 'mix') renderAirlinesRoutes();
+  }
+  if (scroll) window.scrollTo({ top: 0, behavior: 'auto' });
 }
 /** 결과가 생기면 목차를 켜고, 연별 탭·첨두 항목·현재 보기 탭을 맞춤 */
 function syncSideNav() {
@@ -3205,17 +3230,17 @@ function syncSideNav() {
 $('sideNav').onclick = e => { const b = e.target.closest('[data-pane]'); if (b && !b.disabled) setPane(b.dataset.pane); };
 $('sProfTabs').onclick = e => {
   const b = e.target.closest('[data-ppick]'); if (!b) return;
+  if (PANE !== 'profile') setPane('profile');
   document.querySelector(`[data-ptab="${b.dataset.ppick}"]`).click();
   syncSideNav();
-  $('sec-profile').scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 document.querySelectorAll('[data-ptab]').forEach(b => b.addEventListener('click', () => setTimeout(syncSideNav)));
 document.querySelector('[data-spane="mix"]').onclick = e => { const b = e.target.closest('[data-jump]'); if (b) $(b.dataset.jump).scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+document.querySelector('.ovgo').onclick = e => { const b = e.target.closest('[data-goto]'); if (b) setPane(b.dataset.goto); };
 // 상단 바 바로가기도 같은 동작 (사이드바 내용까지 바꿈)
 $('sideToc').addEventListener('click', e => {
-  const a = e.target.closest('a[href^="#"]'); if (!a) return;
-  const pane = { '#ch-overview': 'profile', '#ch-mix': 'mix', '#ch-peak': 'peak' }[a.getAttribute('href')];
-  if (pane) { e.preventDefault(); setPane(pane); }
+  const a = e.target.closest('[data-pane]'); if (!a) return;
+  e.preventDefault(); setPane(a.dataset.pane);
 });
 
 // 첨두시간 산정 스위치: 기준 선택 칸을 사이드바로 옮겨 두고, 켜면 "첨두시간 산정" 장과 목차 항목을 보임
@@ -3266,14 +3291,6 @@ function saveLast(extra = {}) {
 LAST_IDS.forEach(id => $(id).addEventListener('change', () => saveLast()));
 syncFilterUI();
 
-// 사이드바 목차: 지금 보고 있는 장 표시
-if ('IntersectionObserver' in window) {
-  const links = [...document.querySelectorAll('#sideToc a')];
-  const io = new IntersectionObserver(entries => {
-    for (const e of entries) if (e.isIntersecting) links.forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + e.target.id)));
-  }, { rootMargin: '-30% 0px -60% 0px' });
-  document.querySelectorAll('.chapter').forEach(c => io.observe(c));
-}
 // 왼쪽 분석 설정 열기/닫기 (PC 에서는 선택을 기억, 휴대폰에서는 분석 후 자동으로 닫힘)
 function setSide(open, remember = true) {
   document.body.classList.toggle('side-closed', !open);
