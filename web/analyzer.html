@@ -170,6 +170,17 @@
   .winctl .wc-close:hover { background: #e81123; color: #fff; }
   body.frameless .topbar { user-select: none; }
   body.frameless .topbar { padding-right: 0; }
+  /* 제목줄 없는 창: 테두리 끌어 크기 바꾸기 */
+  .rsz[hidden] { display: none; }
+  .rsz i { position: fixed; z-index: 400; }
+  .rsz [data-e="n"] { top: 0; left: 8px; right: 8px; height: 4px; cursor: ns-resize; }
+  .rsz [data-e="s"] { bottom: 0; left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+  .rsz [data-e="w"] { left: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+  .rsz [data-e="e"] { right: 0; top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+  .rsz [data-e="nw"] { left: 0; top: 0; width: 9px; height: 9px; cursor: nwse-resize; }
+  .rsz [data-e="se"] { right: 0; bottom: 0; width: 10px; height: 10px; cursor: nwse-resize; }
+  .rsz [data-e="ne"] { right: 0; top: 0; width: 9px; height: 9px; cursor: nesw-resize; }
+  .rsz [data-e="sw"] { left: 0; bottom: 0; width: 10px; height: 10px; cursor: nesw-resize; }
   .boot { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 80%, transparent); backdrop-filter: blur(2px); }
   .boot[hidden] { display: none; }
   /* 오른쪽 아래 업데이트 알림 */
@@ -1641,6 +1652,7 @@
     <!-- ───────────── 데이터 출처 · 인용 ───────────── -->
   </main>
 </div>
+<div class="rsz" id="rsz" hidden><i data-e="n"></i><i data-e="s"></i><i data-e="w"></i><i data-e="e"></i><i data-e="nw"></i><i data-e="ne"></i><i data-e="sw"></i><i data-e="se"></i></div>
 <div id="updModal" class="upd-toast" role="status" aria-live="polite" hidden><div class="upd-card">
   <div class="upd-top"><span class="upd-ico" aria-hidden="true">↑</span><div><b id="updTitle">새 버전이 있습니다</b><p id="updSub" class="text-xs muted"></p></div></div>
   <details class="upd-more"><summary>변경 사항</summary><ul id="updList"></ul></details>
@@ -4627,17 +4639,39 @@ $('homeBtn').onclick = goHome;
 /* ---------- 제목줄 없는 프로그램 창: 헤더 오른쪽 창 버튼 + 헤더 끌어서 옮기기 ---------- */
 const MAX_ICO = '<path d="M3 1.5h7.5V9M1.5 3h7.5v7.5H1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/>';
 const RES_ICO = '<rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.1"/>';
-function setMaxIco(maxed) { $('winMaxIco').innerHTML = maxed ? MAX_ICO : RES_ICO; document.querySelector('[data-win="max"]').title = maxed ? '이전 크기로' : '최대화'; }
+function setMaxIco(maxed) {
+  $('winMaxIco').innerHTML = maxed ? MAX_ICO : RES_ICO; document.querySelector('[data-win="max"]').title = maxed ? '이전 크기로' : '최대화';
+  $('rsz').hidden = !document.body.classList.contains('frameless') || maxed;   // 최대화일 땐 테두리 크기 조절 없음
+}
 window.addEventListener('pywebviewready', async () => {
   const api = window.pywebview?.api; if (!api?.win_close) return;
   document.body.classList.add('frameless'); $('winCtl').hidden = false;
-  try { setMaxIco(await api.win_state()); } catch (e) {}
+  const syncMax = async () => { try { setMaxIco(await api.win_state()); } catch (e) {} };
+  syncMax(); setTimeout(syncMax, 800); setTimeout(syncMax, 2000);   // 처음 최대화가 끝난 뒤 아이콘 맞춤
   $('winCtl').onclick = async e => {
     const b = e.target.closest('[data-win]'); if (!b) return;
     if (b.dataset.win === 'min') api.win_min();
     if (b.dataset.win === 'max') setMaxIco(await api.win_max());
     if (b.dataset.win === 'close') api.win_close();
   };
+  // 테두리 끌어 크기 바꾸기
+  $('rsz').addEventListener('mousedown', async e => {
+    const ed = e.target.dataset.e; if (!ed || e.button !== 0) return;
+    e.preventDefault();
+    const r0 = await api.win_rect(); if (!r0) return;
+    const sx = e.screenX, sy = e.screenY; let raf = 0, last = null;
+    const mv = ev => {
+      const dx = ev.screenX - sx, dy = ev.screenY - sy; let [x, y, w, h] = r0;
+      if (ed.includes('e')) w = r0[2] + dx;
+      if (ed.includes('s')) h = r0[3] + dy;
+      if (ed.includes('w')) { w = Math.max(1100, r0[2] - dx); x = r0[0] + r0[2] - w; }
+      if (ed.includes('n')) { h = Math.max(700, r0[3] - dy); y = r0[1] + r0[3] - h; }
+      last = [x, y, w, h];
+      if (!raf) raf = requestAnimationFrame(() => { raf = 0; api.win_set_rect(...last); });
+    };
+    const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+    addEventListener('mousemove', mv); addEventListener('mouseup', up);
+  });
   const bar = document.querySelector('.topbar');
   const free = t => !t.closest('button, a, input, select, label, textarea, .hl-pop, .brand, .winctl');
   bar.addEventListener('dblclick', async e => { if (free(e.target)) setMaxIco(await api.win_max()); });

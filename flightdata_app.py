@@ -49,18 +49,84 @@ class Api:
         return (res[0] if isinstance(res, (list, tuple)) else res) if res else None
 
     # ---------- 제목줄 없는 창(frameless)의 창 버튼·끌기 (사용자 요청: Windows 제목줄 없애고 헤더 오른쪽에 버튼) ----------
-    _maxed = True                                            # 처음엔 최대화로 엶
+    # pywebview 의 maximize/move 는 제목줄 없는 창에서 화면 배율·위치를 잘못 잡아 창이 화면 밖으로 나가는 일이 있어
+    # (사용자 보고 1.1.4) Windows API 로 직접: 최대화 = 지금 모니터의 작업 영역(작업 표시줄 제외)에 꽉 맞춤
+    _maxed = False
+    _normal = None                                           # 이전 크기 (물리 픽셀 left, top, width, height)
+
+    def _hwnd(self):
+        import ctypes
+        return ctypes.windll.user32.FindWindowW(None, self.window.title)
+
+    def _scale(self, hwnd):
+        import ctypes
+        try:
+            return ctypes.windll.user32.GetDpiForWindow(hwnd) / 96 or 1
+        except Exception:  # noqa: BLE001
+            return 1
+
+    def _work(self, hwnd):
+        """창이 있는 모니터의 작업 영역 (left, top, right, bottom)."""
+        import ctypes
+        from ctypes import wintypes
+
+        class MI(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+        mi = MI(); mi.cbSize = ctypes.sizeof(MI)
+        mon = ctypes.windll.user32.MonitorFromWindow(hwnd, 2)          # MONITOR_DEFAULTTONEAREST
+        ctypes.windll.user32.GetMonitorInfoW(mon, ctypes.byref(mi))
+        r = mi.rcWork
+        return r.left, r.top, r.right, r.bottom
+
+    def _rect(self, hwnd):
+        import ctypes
+        from ctypes import wintypes
+        r = wintypes.RECT()
+        ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(r))
+        return r.left, r.top, r.right - r.left, r.bottom - r.top
+
+    def _place(self, hwnd, x, y, w, h):
+        import ctypes
+        ctypes.windll.user32.SetWindowPos(hwnd, None, int(x), int(y), int(w), int(h), 0x0004 | 0x0010 | 0x4000)  # NOZORDER·NOACTIVATE·ASYNC
+
+    def _default_rect(self, hwnd):
+        """이전 크기: 1480×920(화면 배율 반영)을 작업 영역 가운데, 작업 영역보다 크면 맞춤."""
+        l, t, r, b = self._work(hwnd)
+        s = self._scale(hwnd)
+        w, h = min(int(1480 * s), r - l - 40), min(int(920 * s), b - t - 40)
+        return l + (r - l - w) // 2, t + (b - t - h) // 2, w, h
+
+    def maximize_now(self):
+        if not sys.platform.startswith("win"):
+            return self.window.maximize()
+        hwnd = self._hwnd()
+        if not hwnd:
+            return
+        if not self._maxed:
+            self._normal = self._rect(hwnd)
+        l, t, r, b = self._work(hwnd)
+        self._place(hwnd, l, t, r - l, b - t)
+        self._maxed = True
+
+    def restore_now(self):
+        if not sys.platform.startswith("win"):
+            return self.window.restore()
+        hwnd = self._hwnd()
+        if not hwnd:
+            return
+        n = self._normal
+        l, t, r, b = self._work(hwnd)
+        if not n or n[2] >= r - l - 10:                       # 처음부터 최대화였으면 기본 크기로
+            n = self._default_rect(hwnd)
+        self._place(hwnd, *n)
+        self._maxed = False
 
     def win_min(self):
         self.window.minimize()
 
     def win_max(self):
-        """최대화 ↔ 원래 크기. 바뀐 상태(True = 최대화)를 돌려줌."""
-        if self._maxed:
-            self.window.restore()
-        else:
-            self.window.maximize()
-        self._maxed = not self._maxed
+        """최대화 ↔ 이전 크기. 바뀐 상태(True = 최대화)를 돌려줌."""
+        self.restore_now() if self._maxed else self.maximize_now()
         return self._maxed
 
     def win_state(self):
@@ -70,11 +136,36 @@ class Api:
         self.window.destroy()
 
     def win_move(self, x, y):
-        """화면 좌표(CSS 픽셀)로 창 옮기기 — 헤더를 끌 때."""
+        """헤더를 끌 때: 화면 좌표(CSS 픽셀) → 물리 픽셀로 창 왼쪽 위를 옮김 (최대화였으면 이전 크기로)."""
+        if not sys.platform.startswith("win"):
+            return self.window.move(int(x), int(y))
+        hwnd = self._hwnd()
+        if not hwnd:
+            return
+        s = self._scale(hwnd)
         if self._maxed:
-            self.window.restore()
-            self._maxed = False
-        self.window.move(int(x), int(y))
+            self.restore_now()
+        _, _, w, h = self._rect(hwnd)
+        self._place(hwnd, x * s, y * s, w, h)
+
+    def win_rect(self):
+        """지금 창 위치·크기 (CSS 픽셀) — 테두리를 끌어 크기 바꿀 때 시작값."""
+        hwnd = self._hwnd()
+        if not hwnd:
+            return None
+        s = self._scale(hwnd)
+        x, y, w, h = self._rect(hwnd)
+        return [x / s, y / s, w / s, h / s]
+
+    def win_set_rect(self, x, y, w, h):
+        """테두리 끌기로 크기 바꾸기 (CSS 픽셀, 최소 1100×700)."""
+        hwnd = self._hwnd()
+        if not hwnd:
+            return
+        s = self._scale(hwnd)
+        w, h = max(1100, w), max(700, h)
+        self._maxed = False
+        self._place(hwnd, x * s, y * s, w * s, h * s)
 
     def set_theme(self, dark, caption="", text=""):
         """창 맨 위 제목 표시줄을 화면의 밝게/어둡게에 맞춘다 (Windows 10 1809+ 어두운 제목줄, Windows 11 은 색까지)."""
@@ -151,9 +242,11 @@ def main():
         except Exception:  # noqa: BLE001
             pass
         api = Api()
-        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), maximized=True, js_api=api,
+        api.window = webview.create_window(f"FlightData {local_web.app_version()}".strip(), url, width=1480, height=920, min_size=(1100, 700), js_api=api,
                                            frameless=True, easy_drag=False)   # Windows 제목줄 없이 — 창 버튼·끌기는 화면 헤더에서
         srv.close_window = lambda: api.window.destroy()
+        # 처음엔 작업 영역에 꽉 차게 (제목줄 없는 창이라 pywebview maximized 대신 직접)
+        api.window.events.shown += lambda: (time.sleep(0.15), api.maximize_now())
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))
         return 0

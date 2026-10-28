@@ -4,7 +4,8 @@
   1) 최신 릴리스의 FlightData_<버전>.zip 을 받아 (GitHub 가 알려 주는 sha256 이 있으면 대조)
   2) 그 안의 FlightData.exe 를 지금 exe 옆에 FlightData.new.exe 로 풀고
   3) 지금 exe → FlightData.old.exe, 새 exe → 원래 이름으로 바꾼 뒤
-  4) 새 exe 를 --after-update 로 띄우고 지금 창을 닫는다 (새 exe 는 시작할 때 .old 를 지움).
+  4) 지금 창을 닫으면 작은 cmd 스크립트가 끝나기를 기다렸다가 FlightData.old.exe 를 지우고,
+     폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾼 뒤 새 exe 를 --after-update 로 띄운다.
 설정·항공기 DB·보관함(app_data)·OpenSky_CSV 는 exe 옆에 그대로 남는다.
 """
 import hashlib
@@ -136,12 +137,40 @@ class Updater:
             self._set(state="error", error=str(e), text="")
 
     def restart(self, close_window):
-        """새 exe 를 띄우고 지금 창을 닫는다."""
+        """새 exe 로 다시 시작. 지금 프로세스가 끝나기를 기다렸다가 (1) 이전 exe(FlightData.old.exe) 삭제,
+        (2) 폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾸고 (사용자 요청), (3) 새 exe 실행 — 작은 cmd 스크립트가 함."""
         cur = exe_path()
         if self.state != "ready" or not cur:
             raise RuntimeError("업데이트가 아직 끝나지 않았습니다.")
-        flags = 0x00000008 | 0x00000200 if sys.platform.startswith("win") else 0   # DETACHED_PROCESS | NEW_PROCESS_GROUP
-        subprocess.Popen([cur, "--after-update"], cwd=os.path.dirname(cur), creationflags=flags, close_fds=True)
+        d = os.path.dirname(cur)
+        parent, base = os.path.dirname(d), os.path.basename(d)
+        latest = (self.cache[1] or {}).get("latest", "")
+        new_dir = d
+        if re.fullmatch(r"FlightData_\d+\.\d+\.\d+", base, re.I) and latest and parse_ver(latest):
+            cand = os.path.join(parent, f"FlightData_{latest}")
+            if not os.path.exists(cand):
+                new_dir = cand
+        if not sys.platform.startswith("win"):
+            subprocess.Popen([cur, "--after-update"], cwd=d, close_fds=True)
+            threading.Timer(0.3, close_window).start()
+            return
+        import tempfile
+        pids = [os.getpid()] + ([os.getppid()] if getattr(sys, "frozen", False) else [])   # onefile 은 부모(부트로더)가 exe 를 잡고 있음
+        lines = ["@echo off", "chcp 65001 >nul", ":wait"]
+        for pid in pids:
+            lines.append(f'tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul && (timeout /t 1 /nobreak >nul & goto wait)')
+        old = os.path.join(d, "FlightData.old.exe")
+        lines += [f'del /f /q "{old}" >nul 2>&1']
+        if new_dir != d:
+            lines += [f'ren "{d}" "{os.path.basename(new_dir)}" >nul 2>&1']
+        lines += [f'if exist "{os.path.join(new_dir, "FlightData.exe")}" (start "" "{os.path.join(new_dir, "FlightData.exe")}" --after-update) '
+                  f'else (start "" "{cur}" --after-update)',
+                  '(goto) 2>nul & del "%~f0"']
+        script = os.path.join(tempfile.gettempdir(), f"flightdata_update_{os.getpid()}.cmd")
+        with open(script, "w", encoding="utf-8") as f:
+            f.write("\r\n".join(lines) + "\r\n")
+        flags = 0x00000008 | 0x00000200 | 0x08000000           # DETACHED · NEW_PROCESS_GROUP · CREATE_NO_WINDOW
+        subprocess.Popen(["cmd", "/c", script], cwd=tempfile.gettempdir(), creationflags=flags, close_fds=True)
         threading.Timer(0.3, close_window).start()
 
 

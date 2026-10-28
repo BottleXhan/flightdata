@@ -68,6 +68,11 @@ def out_dir_setting():
     d = load_settings().get("out_dir") or ""
     if not d or os.path.normcase(os.path.abspath(d)) in OLD_DEFAULTS:
         return default_out_dir()
+    # 예전 버전 폴더(FlightData_x.y.z\OpenSky_CSV)를 가리키는데 그 폴더가 없어졌으면(업데이트로 이름이 바뀜) 지금 기본값
+    import re
+    if not os.path.isdir(d) and os.path.basename(d.rstrip("\\/")).lower() == "opensky_csv" \
+            and re.fullmatch(r"flightdata_\d+\.\d+\.\d+", os.path.basename(os.path.dirname(d.rstrip("\\/"))).lower()):
+        return default_out_dir()
     return d
 
 
@@ -154,7 +159,8 @@ class Collector:
             pass
         out_dir = (p.get("outDir") or "").strip() or out_dir_setting()
         os.makedirs(out_dir, exist_ok=True)
-        save_settings({"user": user, "airport": ",".join(airports), "tz": tz, "out_dir": out_dir,
+        save_settings({"user": user, "airport": ",".join(airports), "tz": tz,
+                       "out_dir": "" if os.path.normcase(os.path.abspath(out_dir)) == os.path.normcase(default_out_dir()) else out_dir,
                        "aircraft": bool(p.get("aircraft", True)), "remember_pw": remember, "split": bool(p.get("split", True))})
         segs = year_segments(s, e) if p.get("split", True) else [(s, e)]
         with self.lock:
@@ -406,7 +412,7 @@ class AnalyzerServer:
                         os.remove(probe)
                     except OSError as e:
                         return self._json({"error": f"이 폴더에 저장할 수 없습니다: {e}"}, 400)
-                    save_settings({"out_dir": d})
+                    save_settings({"out_dir": "" if os.path.normcase(d) == os.path.normcase(default_out_dir()) else d})
                     return self._json({"ok": True, "outDir": d})
                 if path == "/api/open-url":                  # 회원가입 안내: OpenSky 홈페이지만 기본 브라우저로
                     u = (body.get("url") or "").strip()
