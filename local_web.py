@@ -21,7 +21,8 @@ WEB_URL = "https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5"
 STATIC = {"/": ("analyzer.html", "text/html; charset=utf-8"),
           "/index.html": ("analyzer.html", "text/html; charset=utf-8"),
           "/mapdata/land.json": ("mapdata/land.json", "application/json"),
-          "/mapdata/airports_min.json": ("mapdata/airports_min.json", "application/json")}
+          "/mapdata/airports_min.json": ("mapdata/airports_min.json", "application/json"),
+          "/mapdata/land50.json": ("mapdata/land50.json", "application/json")}
 
 
 def web_dir():
