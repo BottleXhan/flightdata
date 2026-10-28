@@ -38,6 +38,10 @@ def main():
     url = srv.url()
     try:
         import webview
+        try:
+            webview.settings["ALLOW_DOWNLOADS"] = True      # 보관함의 CSV 내려받기 (pywebview 5+)
+        except Exception:  # noqa: BLE001
+            pass
         webview.create_window("FlightData", url, width=1480, height=920, min_size=(1100, 700), maximized=True)
         # private_mode 를 끄고 exe 폴더에 보관 → 분석기의 "저장된 데이터"(IndexedDB)가 다음 실행에도 남음
         webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "app_data"))

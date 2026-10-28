@@ -127,7 +127,33 @@
   #results[data-view="mix"] [data-sec]:not([data-sec="mix"]),
   #results[data-view="peak"] [data-sec]:not([data-sec="peak"]) { display: none !important; }
   /* 데이터 탭: 지도 / 그 밖의 탭: 결과 */
-  main[data-pane="data"] #results, main:not([data-pane="data"]) #dataView, main:not([data-pane="data"]) #welcome { display: none !important; }
+  main[data-pane="data"] #results, main[data-pane="lib"] #results, main:not([data-pane="data"]) #dataView, main:not([data-pane="data"]) #welcome,
+  main:not([data-pane="lib"]) #libView { display: none !important; }
+  /* 보관함 */
+  .lib { display: flex; flex-direction: column; gap: 16px; }
+  .lib-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .lib-stats > div { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+  .lib-stats b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+  .lib-stats span { font-size: .75rem; color: var(--text-muted); }
+  .lib-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .lib-bar .field { width: 260px; }
+  .lib-bar select.field { width: auto; }
+  .lib-bar .grow { flex: 1; }
+  .lib-tbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  .lib-tbl th { text-align: left; font-size: .72rem; font-weight: 600; color: var(--text-muted); padding: .5rem .6rem; border-bottom: 1px solid var(--border, rgba(0,0,0,.08)); white-space: nowrap; }
+  .lib-tbl td { padding: .55rem .6rem; border-bottom: 1px solid var(--border, rgba(0,0,0,.06)); vertical-align: middle; }
+  .lib-tbl td.num, .lib-tbl th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lib-tbl tr.cur td { background: var(--accent-soft); }
+  .lib-tbl .lname { font-weight: 600; color: var(--text-primary); }
+  .lib-tbl .lname small { display: block; font-weight: 400; color: var(--text-muted); font-size: .7rem; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-tbl .lnote { color: var(--text-secondary); font-size: .75rem; }
+  .lib-tbl .lact { display: flex; gap: 4px; justify-content: flex-end; white-space: nowrap; }
+  .lib-tbl .lact button { padding: .3rem .6rem; font-size: .75rem; }
+  .lib-tbl input.field { padding: .3rem .5rem; font-size: .8rem; }
+  .lib-tbl .aps { font-family: var(--font-data); font-weight: 700; letter-spacing: .03em; }
+  .lib-empty { padding: 28px; text-align: center; color: var(--text-muted); font-size: .85rem; }
+  .lib-sel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .8rem; }
+  .lib-sel[hidden] { display: none; }
   main[data-pane="data"] { gap: 16px; }
   .dview { display: flex; flex-direction: column; gap: 16px; }
   .dv-card .panel-head { margin-bottom: 14px; }
@@ -493,6 +519,7 @@
   <aside class="side" id="sidePanel" aria-label="분석 설정">
     <nav class="snav" id="sideNav" aria-label="목차">
       <button type="button" data-pane="data" aria-current="true" title="받기 · CSV · 공항 · 기간"><span>데이터</span><small>공항 · 기간</small></button>
+      <button type="button" data-pane="lib" title="저장한 데이터 보관 · 관리"><span>보관함</span><small>저장한 데이터</small></button>
       <button type="button" data-pane="overview" disabled title="공항 정보 · 첨두 스위치"><span>개요</span><small>공항 정보</small></button>
       <button type="button" data-pane="profile" disabled title="시간대별 · 일별 · 요일별 · 월별 운항"><span>운항량</span><small>보기 · 필터</small></button>
       <button type="button" data-pane="mix" disabled title="노선 · 항공사 · 기종"><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
@@ -542,11 +569,16 @@
 
     </div>
 
-    <div class="spane" data-spane="overview" hidden>
+    <div class="spane" data-spane="lib" hidden>
       <div class="step">
-        <div class="step-head">첨두시간 산정 (선택)</div>
-        <label class="switch"><input type="checkbox" id="peakOn" role="switch"><span>ICAO Doc 9184 첨두시간 보기</span></label>
+        <div class="step-head">보관함</div>
+        <p class="text-xs muted">불러오거나 받은 데이터는 모두 여기에 자동으로 보관됩니다. 이름·메모를 달고, 다시 열고, CSV 로 내려받고, 지울 수 있습니다.</p>
+        <label class="btn" style="align-self:flex-start;cursor:pointer">CSV 파일 추가<input id="libAdd" type="file" accept=".csv,text/csv" multiple hidden></label>
+        <p class="text-xs muted" id="libWhere"></p>
       </div>
+    </div>
+
+    <div class="spane" data-spane="overview" hidden>
       <div class="step">
         <p class="text-xs muted">다른 공항·기간이나 다른 CSV 를 보려면 <b>데이터</b> 탭에서 바꾸고 "데이터 보기"를 누르세요.</p>
         <button type="button" class="btn" data-goto-pane="data" style="align-self:flex-start">데이터 탭으로</button>
@@ -563,6 +595,11 @@
           <button type="button" data-ppick="month">월별<small>달마다 하루 평균·합계</small></button>
           <button type="button" data-ppick="year" hidden>연별<small>해마다 합계·하루 평균</small></button>
         </div>
+      </div>
+      <div class="step">
+        <div class="step-head">첨두시간 산정 (선택)</div>
+        <label class="switch"><input type="checkbox" id="peakOn" role="switch"><span>ICAO Doc 9184 첨두시간 보기</span></label>
+        <p class="text-xs muted">켜면 목차에 "첨두시간" 탭이 생기고 운항량 그래프에 설계일이 표시됩니다.</p>
       </div>
       <div data-filterhost="profile"></div>
     </div>
@@ -759,6 +796,50 @@
         </div>
         <div class="dvp-loghead"><b>기록</b><button id="cLogCopy" class="link-btn" type="button">복사</button></div>
         <pre id="cLog" class="dvp-log"></pre>
+      </div>
+    </section>
+
+    <!-- 보관함: 저장한 데이터 보관 · 관리 -->
+    <section id="libView" class="lib">
+      <div class="panel">
+        <div class="panel-head">
+          <h3 class="panel-title">데이터 보관함</h3>
+          <span class="text-xs muted" id="libSub"></span>
+        </div>
+        <div class="lib-stats">
+          <div><b id="lsN">0</b><span>보관한 데이터</span></div>
+          <div><b id="lsAp">0</b><span>공항</span></div>
+          <div><b id="lsFl">–</b><span>운항 (편)</span></div>
+          <div><b id="lsMb">–</b><span id="lsMbSub">보관 용량</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="lib-bar">
+          <input id="libQ" class="field" placeholder="찾기 — 공항·이름·메모" autocomplete="off" aria-label="보관함 찾기">
+          <select id="libSort" class="field" aria-label="정렬">
+            <option value="saved">최근 저장 순</option><option value="ap">공항 순</option><option value="period">기간 순</option><option value="size">큰 것부터</option>
+          </select>
+          <span class="grow"></span>
+          <label class="btn" style="cursor:pointer">CSV 파일 추가<input id="libAdd2" type="file" accept=".csv,text/csv" multiple hidden></label>
+        </div>
+        <div class="lib-sel" id="libSel" hidden>
+          <b id="libSelN"></b>
+          <button id="libOpenSel" class="btn" type="button">함께 열기 (하나로 합쳐 보관)</button>
+          <button id="libDlSel" class="btn" type="button">내려받기</button>
+          <button id="libDelSel" class="btn" type="button">지우기</button>
+          <button id="libSelNone" class="link-btn" type="button">선택 해제</button>
+        </div>
+        <div class="overflow-x-auto" style="margin-top:10px">
+          <table class="lib-tbl" id="libTbl"></table>
+        </div>
+      </div>
+      <div class="panel" id="libDisk" hidden>
+        <div class="panel-head">
+          <h3 class="panel-title">저장 폴더의 CSV <span class="ptitle-sub" id="libDiskDir"></span></h3>
+          <div class="flex gap-2"><button id="libDiskRefresh" class="btn" type="button">새로 고침</button><button id="libDiskOpen" class="btn" type="button">폴더 열기</button></div>
+        </div>
+        <p class="text-xs muted" style="margin:0 0 8px">OpenSky 에서 받은 CSV 파일 (이 PC). 보관함에 없는 파일은 [보관함에 넣기]로 가져올 수 있습니다.</p>
+        <div class="overflow-x-auto"><table class="lib-tbl" id="libDiskTbl"></table></div>
       </div>
     </section>
 
@@ -1656,8 +1737,11 @@ async function saveDataset(files) {
   const lo = ranges.reduce((a, r) => (!a || r[0] < a ? r[0] : a), null), hi = ranges.reduce((a, r) => (!a || r[1] > a ? r[1] : a), null);
   const packed = [];
   for (const f of files) packed.push({ name: f.name, ...(await gz(await f.text())) });
+  const old = await dsTx('readonly', st => req(st.get(id))).catch(() => null);
   const rec = { id, label: `${aps.join(', ')} · ${lo || '?'} ~ ${hi || '?'}`, files: packed, n: files.length,
-                bytes: files.reduce((t, f) => t + f.size, 0), savedAt: Date.now() };
+                bytes: files.reduce((t, f) => t + f.size, 0), savedAt: Date.now(),
+                aps, lo, hi, flights: [...csvSets.values()].reduce((t, x) => t + x.flights.length, 0),
+                name: old?.name || '', note: old?.note || '', createdAt: old?.createdAt || old?.savedAt || Date.now() };
   await dsTx('readwrite', st => st.put(rec));
   try { localStorage.setItem(DS_LAST, id); } catch (e) {}
   renderSaved();
@@ -1676,8 +1760,9 @@ async function renderSaved() {
   let cur = null; try { cur = localStorage.getItem(DS_LAST); } catch (e) {}
   const mb = b => b >= 1e6 ? (b / 1e6).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1e3)) + 'KB';
   const when = t => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-  $('savedList').innerHTML = list.map(r => `<div class="srow"><button type="button" class="sopen" data-open="${esc(r.id)}" aria-current="${r.id === cur}" title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.label)}<small>파일 ${r.n}개 · ${mb(r.bytes)} · ${when(r.savedAt)} 저장</small></button><button type="button" class="sdel" data-del="${esc(r.id)}" title="이 데이터 지우기" aria-label="지우기">✕</button></div>`).join('');
+  $('savedList').innerHTML = list.map(r => `<div class="srow"><button type="button" class="sopen" data-open="${esc(r.id)}" aria-current="${r.id === cur}" title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.name || r.label)}<small>파일 ${r.n}개 · ${mb(r.bytes)} · ${when(r.savedAt)} 저장</small></button><button type="button" class="sdel" data-del="${esc(r.id)}" title="이 데이터 지우기" aria-label="지우기">✕</button></div>`).join('');
   $('savedWrap').hidden = !list.length;
+  renderLib(list);
 }
 async function openSaved(id, restoreDates) {
   const files = await loadDataset(id);
@@ -2513,22 +2598,24 @@ function zoomY(o, tots) {
   o.scales.y.title.text = '운항 (편) · 0부터 아님';
   return true;
 }
-/** y축을 확대하면 쌓은 막대의 아래쪽(도착)이 잘려 보이므로, 그때는 합계 막대 하나로 그리고 도착·출발은 툴팁에 */
+/** y축을 확대하면 쌓은 막대의 아래쪽(도착)이 잘려 색 구분이 안 되므로, 보이는 부분(축 바닥 ~ 합계)을
+    도착·출발 비율대로 나눈 떠 있는 막대로 그림 (사용자 요청: 확대해도 도착·출발 색 구분). 툴팁은 실제 값 */
 function zoomStack(o, datasets, arr, dep, canvasId) {
   const tots = arr.map((v, i) => v + dep[i]);
   const legend = $(canvasId)?.closest('[data-ppane]')?.querySelector('.legend');
   if (legend) delete legend.dataset.zoom;
   if (!zoomY(o, tots)) return;
-  if (legend) legend.dataset.zoom = '1';
-  const ia = datasets.findIndex(d => d.label === '도착'), id = datasets.findIndex(d => d.label === '출발');
-  const pk = o.plugins.overlay?.mark?.index, base = cssVar('--series-arr'), sign = cssVar('--sign');
-  const tot = { ...barDs('합계', tots, base), backgroundColor: c => (c.dataIndex === pk ? sign : base), order: 1 };
-  datasets.splice(Math.max(ia, id), 1);
-  datasets.splice(Math.min(ia, id), 1, tot);
+  const fl = o.scales.y.min;
+  const cut = i => { const t = tots[i]; return t > fl ? fl + (t - fl) * (t ? arr[i] / t : 0) : fl; };
+  for (const d of datasets) {
+    if (d.label === '도착') { d.data = tots.map((t, i) => [fl, cut(i)]); d.grouped = false; }
+    if (d.label === '출발') { d.data = tots.map((t, i) => [cut(i), Math.max(fl, t)]); d.grouped = false; }
+  }
+  o.scales.y.stacked = false;
+  const real = c => c.dataset.label === '도착' ? arr[c.dataIndex] : c.dataset.label === '출발' ? dep[c.dataIndex] : null;
   const lab = o.plugins.tooltip.callbacks.label;
-  o.plugins.tooltip.callbacks.label = c => c.dataset.label === '합계'
-    ? [`도착: ${fmtN(arr[c.dataIndex])}편`, `출발: ${fmtN(dep[c.dataIndex])}편`, `합계: ${fmtN(tots[c.dataIndex])}편`] : lab(c);
-  o.plugins.tooltip.callbacks.footer = () => '';
+  o.plugins.tooltip.callbacks.label = c => real(c) != null ? `${c.dataset.label}: ${fmtN(real(c))}편` : lab(c);
+  o.plugins.tooltip.callbacks.footer = items => { const it = items.find(x => real(x) != null); return it ? `합계: ${fmtN(tots[it.dataIndex])}편` : ''; };
 }
 function baseOptions(tc, extra = {}) {
   return {
@@ -3917,9 +4004,162 @@ async function amapMarks(codes) {
   loadAmap().then(ok => ok && amapSelect(apCode(), true));
 })();
 
+
+/* ---------- 보관함: 저장한 데이터 보관 · 관리 (이 브라우저/프로그램의 IndexedDB) ----------
+   목록 · 찾기 · 정렬 · 이름/메모 · 열기 · 내려받기 · 지우기 · 여러 개 함께 열기. exe 면 저장 폴더의 CSV 도 보여 줌 */
+const LIB = { list: [], sel: new Set(), edit: null };
+const libMB = b => b >= 1e9 ? (b / 1e9).toFixed(2) + 'GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + 'MB' : Math.max(1, Math.round(b / 1e3)) + 'KB';
+const libWhen = t => { const d = new Date(t); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const libAps = r => r.aps || [(r.label || '').split(' · ')[0]];
+const libPeriod = r => {
+  if (r.lo || r.hi) return [r.lo, r.hi];
+  const m = (r.label || '').match(/(\d{4}-\d\d-\d\d) ~ (\d{4}-\d\d-\d\d)/); return m ? [m[1], m[2]] : [null, null];
+};
+async function renderLib(list) {
+  if (!list) { try { list = await dsTx('readonly', st => req(st.getAll())); } catch (e) { list = []; } }
+  LIB.list = list;
+  for (const id of [...LIB.sel]) if (!list.some(r => r.id === id)) LIB.sel.delete(id);
+  let cur = null; try { cur = localStorage.getItem(DS_LAST); } catch (e) {}
+  const q = $('libQ').value.trim().toLowerCase(), sort = $('libSort').value;
+  const rows = list.filter(r => !q || [r.name, r.label, r.note, ...libAps(r), ...r.files.map(f => f.name)].join(' ').toLowerCase().includes(q));
+  const key = { saved: r => -r.savedAt, ap: r => libAps(r).join(','), period: r => libPeriod(r)[0] || '', size: r => -r.bytes }[sort];
+  rows.sort((a, b) => { const x = key(a), y = key(b); return x < y ? -1 : x > y ? 1 : 0; });
+  const apset = new Set(list.flatMap(libAps)), fl = list.reduce((t, r) => t + (r.flights || 0), 0), by = list.reduce((t, r) => t + r.bytes, 0);
+  $('lsN').textContent = list.length; $('lsAp').textContent = apset.size;
+  $('lsFl').textContent = list.some(r => r.flights) ? fl.toLocaleString() : '–';
+  $('lsMb').textContent = list.length ? libMB(by) : '–';
+  $('lsMbSub').textContent = 'CSV 원래 크기 (압축해 보관)';
+  $('libSub').textContent = list.length ? `${list.length}개 · 마지막 저장 ${libWhen(Math.max(...list.map(r => r.savedAt)))}` : '';
+  const days = r => { const [a, b] = libPeriod(r); return a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1 : null; };
+  $('libTbl').innerHTML = !list.length
+    ? '<tr><td class="lib-empty">아직 보관한 데이터가 없습니다. 데이터 탭에서 받거나 CSV 를 불러오면 여기에 자동으로 보관됩니다.</td></tr>'
+    : !rows.length ? '<tr><td class="lib-empty">찾는 데이터가 없습니다</td></tr>'
+    : `<thead><tr><th style="width:28px"><input type="checkbox" id="libAll" aria-label="모두 선택"></th><th>이름</th><th>공항</th><th>기간</th><th class="num">일수</th><th class="num">운항</th><th class="num">파일</th><th class="num">크기</th><th>저장</th><th>메모</th><th></th></tr></thead><tbody>` +
+      rows.map(r => {
+        const [a, b] = libPeriod(r), ed = LIB.edit === r.id;
+        return `<tr class="${r.id === cur ? 'cur' : ''}" data-id="${esc(r.id)}">
+          <td><input type="checkbox" data-sel aria-label="선택" ${LIB.sel.has(r.id) ? 'checked' : ''}></td>
+          <td class="lname">${ed ? `<input class="field" data-ename value="${esc(r.name || r.label)}" aria-label="이름">` : esc(r.name || r.label)}<small title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.files.map(f => f.name).join(', '))}</small></td>
+          <td class="aps">${esc(libAps(r).join(', '))}</td>
+          <td style="white-space:nowrap">${a ? `${esc(a)} ~ ${esc(b)}` : '–'}</td>
+          <td class="num">${days(r) ?? '–'}</td>
+          <td class="num">${r.flights ? r.flights.toLocaleString() : '–'}</td>
+          <td class="num">${r.n}</td>
+          <td class="num">${libMB(r.bytes)}</td>
+          <td style="white-space:nowrap" class="secondary">${libWhen(r.savedAt)}</td>
+          <td class="lnote">${ed ? `<input class="field" data-enote value="${esc(r.note || '')}" placeholder="메모" aria-label="메모">` : esc(r.note || '')}</td>
+          <td><div class="lact">${ed ? '<button class="btn btn-primary" data-act="save">저장</button><button class="btn" data-act="cancel">취소</button>'
+            : `<button class="btn btn-primary" data-act="open">분석</button><button class="btn" data-act="edit" title="이름·메모">✎</button><button class="btn" data-act="dl" title="CSV 내려받기">⤓</button><button class="btn" data-act="del" title="지우기">✕</button>`}</div></td></tr>`;
+      }).join('') + '</tbody>';
+  const all = $('libAll'); if (all) all.checked = rows.length > 0 && rows.every(r => LIB.sel.has(r.id));
+  $('libSel').hidden = !LIB.sel.size; $('libSelN').textContent = `${LIB.sel.size}개 선택`;
+  libWhere();
+}
+async function libWhere() {
+  let t = COLLECTOR ? '이 프로그램 안(exe 폴더의 app_data)에 보관 — 다른 PC 와는 공유되지 않습니다.' : '이 브라우저 안에만 보관 — 다른 브라우저·PC 와는 공유되지 않고, 브라우저 데이터를 지우면 사라집니다.';
+  try { const e = await navigator.storage?.estimate?.(); if (e?.quota) t += ` 사용 ${libMB(e.usage || 0)} / 여유 ${libMB(e.quota)}`; } catch (e) {}
+  $('libWhere').textContent = t;
+}
+async function libPatch(id, patch) {
+  await dsTx('readwrite', async st => { const r = await req(st.get(id)); if (r) st.put({ ...r, ...patch }); });
+  await renderSaved();
+}
+async function libDownload(ids) {
+  const recs = LIB.list.filter(r => ids.includes(r.id));
+  const files = recs.flatMap(r => r.files);
+  const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
+  if (files.length === 1) return save(new Blob([await ungz(files[0])], { type: 'text/csv' }), files[0].name);
+  if (!window.JSZip) { for (const f of files) save(new Blob([await ungz(f)], { type: 'text/csv' }), f.name); return; }
+  const z = new JSZip(); for (const f of files) z.file(f.name, await ungz(f));
+  save(await z.generateAsync({ type: 'blob' }), recs.length === 1 ? `${(recs[0].name || recs[0].label).replace(/[\\/:*?"<>|~]+/g, '_').replace(/\s+/g, '')}.zip` : 'FlightData_보관함.zip');
+}
+async function libDelete(ids) {
+  const names = LIB.list.filter(r => ids.includes(r.id)).map(r => r.name || r.label);
+  if (!confirm(`보관함에서 지울까요?\n\n${names.join('\n')}\n\n(저장 폴더의 CSV 파일은 지우지 않습니다)`)) return;
+  await dsTx('readwrite', st => { ids.forEach(id => st.delete(id)); });
+  try { if (ids.includes(localStorage.getItem(DS_LAST))) localStorage.removeItem(DS_LAST); } catch (e) {}
+  ids.forEach(id => LIB.sel.delete(id));
+  renderSaved();
+}
+async function libOpen(ids) {
+  if (ids.length === 1) { setPane('data'); return openSaved(ids[0], false); }
+  const files = [];
+  for (const id of ids) files.push(...(await loadDataset(id)) || []);
+  const seen = new Set(), uniq = files.filter(f => !seen.has(f.name + f.size) && seen.add(f.name + f.size));
+  setPane('data');
+  $('source').value = 'csv'; $('source').onchange();
+  await onCsvSelected(uniq);                              // 합친 묶음도 보관함에 하나로 저장됨
+  LIB.sel.clear();
+  if (csvFlights) run();
+}
+$('libTbl').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+  const id = tr.dataset.id, b = e.target.closest('[data-act]');
+  if (e.target.matches('[data-sel]')) { e.target.checked ? LIB.sel.add(id) : LIB.sel.delete(id); return renderLib(LIB.list); }
+  if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'open') libOpen([id]);
+  if (act === 'dl') libDownload([id]);
+  if (act === 'del') libDelete([id]);
+  if (act === 'edit') { LIB.edit = id; renderLib(LIB.list); tr.ownerDocument.querySelector('[data-ename]')?.focus(); }
+  if (act === 'cancel') { LIB.edit = null; renderLib(LIB.list); }
+  if (act === 'save') { const r = LIB.list.find(x => x.id === id); LIB.edit = null;
+    const nm = tr.querySelector('[data-ename]').value.trim();
+    libPatch(id, { name: nm && nm !== r.label ? nm : '', note: tr.querySelector('[data-enote]').value.trim() }); }
+});
+$('libTbl').addEventListener('keydown', e => {
+  if (!e.target.matches('[data-ename],[data-enote]')) return;
+  if (e.key === 'Enter') e.target.closest('tr').querySelector('[data-act="save"]').click();
+  if (e.key === 'Escape') { LIB.edit = null; renderLib(LIB.list); }
+});
+$('libTbl').addEventListener('change', e => {
+  if (e.target.id !== 'libAll') return;
+  const vis = [...$('libTbl').querySelectorAll('tr[data-id]')].map(t => t.dataset.id);
+  vis.forEach(id => e.target.checked ? LIB.sel.add(id) : LIB.sel.delete(id)); renderLib(LIB.list);
+});
+$('libQ').addEventListener('input', () => renderLib(LIB.list));
+$('libSort').onchange = () => renderLib(LIB.list);
+$('libSelNone').onclick = () => { LIB.sel.clear(); renderLib(LIB.list); };
+$('libOpenSel').onclick = () => libOpen([...LIB.sel]);
+$('libDlSel').onclick = () => libDownload([...LIB.sel]);
+$('libDelSel').onclick = () => libDelete([...LIB.sel]);
+['libAdd', 'libAdd2'].forEach(id => $(id).addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  if (!files.length) return;
+  $('source').value = 'csv'; $('source').onchange();
+  await onCsvSelected(files);                             // 읽어서 보관함에 저장 (데이터 탭에도 선택됨)
+  setStatus(`보관함에 넣었습니다: ${files.map(f => f.name).join(', ')}`);
+}));
+
+/* exe: 저장 폴더의 CSV 파일 목록 (/api/files) — 보관함에 넣기 · 바로 분석 */
+async function renderDisk() {
+  if (!COLLECTOR) return;
+  try {
+    const j = await (await fetch('/api/files', { cache: 'no-store' })).json();
+    $('libDisk').hidden = false; $('libDiskDir').textContent = '· ' + j.dir;
+    const inLib = new Set(LIB.list.flatMap(r => r.files.map(f => f.name)));
+    $('libDiskTbl').innerHTML = !j.files.length ? '<tr><td class="lib-empty">이 폴더에 CSV 가 없습니다</td></tr>' :
+      `<thead><tr><th>파일</th><th class="num">크기</th><th>수정</th><th>보관함</th><th></th></tr></thead><tbody>` +
+      j.files.map((f, i) => `<tr data-i="${i}" data-name="${esc(f.name)}"><td class="lname">${esc(f.name)}</td><td class="num">${libMB(f.size)}</td><td class="secondary">${libWhen(f.mtime * 1000)}</td>
+        <td>${inLib.has(f.name) ? '<span class="badge">보관됨</span>' : '<span class="muted text-xs">없음</span>'}</td>
+        <td><div class="lact"><button class="btn btn-primary" data-dact="open">분석</button>${inLib.has(f.name) ? '' : '<button class="btn" data-dact="add">보관함에 넣기</button>'}</div></td></tr>`).join('') + '</tbody>';
+  } catch (e) { console.warn(e); }
+}
+$('libDiskTbl').addEventListener('click', async e => {
+  const b = e.target.closest('[data-dact]'); if (!b) return;
+  const tr = b.closest('tr'), txt = await (await fetch('/api/file/' + tr.dataset.i, { cache: 'no-store' })).text();
+  const file = new File([txt], tr.dataset.name, { type: 'text/csv' });
+  if (b.dataset.dact === 'open') setPane('data');
+  $('source').value = 'csv'; $('source').onchange();
+  await onCsvSelected([file]);
+  if (b.dataset.dact === 'open' && csvFlights) run(); else renderDisk();
+});
+$('libDiskRefresh').onclick = renderDisk;
+$('libDiskOpen').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
+
 /* ---------- 사이드바 목차: 누르면 그 장으로 이동하고, 사이드바 내용도 그 장에 맞게 바꿈 ----------
    공항 개요 = 데이터·공항·기간·첨두 스위치 / 운항 프로파일 = 보기 탭 + 필터 / 운항 구성 = 바로 가기 + 필터 / 첨두시간 산정 = 기준 */
-const PANE_TARGET = { data: 'dataView', overview: 'ch-overview', profile: 'sec-profile', mix: 'ch-mix', peak: 'ch-peak' };
+const PANE_TARGET = { data: 'dataView', lib: 'libView', overview: 'ch-overview', profile: 'sec-profile', mix: 'ch-mix', peak: 'ch-peak' };
 let PANE = 'data';
 function setPane(name, scroll = true) {
   const btn = document.querySelector(`#sideNav [data-pane="${name}"]`);
@@ -3934,6 +4174,7 @@ function setPane(name, scroll = true) {
   $('results').dataset.view = name;
   $('mainView').dataset.pane = name;
   if (name === 'data') amapDraw();
+  if (name === 'lib') { renderLib(); renderDisk(); }
   document.querySelectorAll('#sideToc [data-pane]').forEach(a => a.setAttribute('aria-current', String(a.dataset.pane === name)));
   if (STATE.res) {                       // 숨어 있던 동안 크기 0 으로 그려진 그림을 다시 그림
     if (name === 'profile') renderProfileTab();

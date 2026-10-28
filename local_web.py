@@ -6,6 +6,7 @@
   받은 CSV 목록(/api/collector)과 그 내용(/csv/<번호>). 경로를 받지 않고 번호로만 열어 다른 파일은 읽을 수 없다
 - 수집: POST /api/collect → 작업 스레드에서 fetch_flights.collect_many (연도별로 나눠 받기 가능),
   GET /api/collect/status 로 진행·기록, POST /api/collect/stop, POST /api/open-folder
+- 보관함: GET /api/files 로 저장 폴더의 CSV 목록, /api/file/<번호> 로 그 내용 (경로는 받지 않음)
 - 비밀번호는 화면에서 받아 이 PC 의 Windows 자격 증명 관리자에만 저장(선택)하고, 화면으로 돌려주지 않는다
 - 머리의 로그인: POST /api/login 이 OpenSky 인증 서버에서 토큰을 받아 확인하고, 이 실행 동안 메모리에만 들고 있다가 수집에 쓴다
   (POST /api/logout 으로 지움, forget 이면 기억한 비밀번호도 삭제)
@@ -162,6 +163,7 @@ class Collector:
 class AnalyzerServer:
     def __init__(self):
         self.csvs = []                                       # 분석기에 넘길 CSV 경로 (마지막 수집 결과)
+        self.disk = []                                       # 보관함 화면에 보여 준 저장 폴더 CSV 경로 (번호로 연다)
         self.session = None                                  # (사용자명, 비밀번호) — 머리에서 로그인한 동안 메모리에만
         self.httpd = None
         self.collector = Collector(self)
@@ -230,6 +232,22 @@ class AnalyzerServer:
                         return self._json({"saved": bool(oa.load_password((q.get("user") or [""])[0]))})
                     except Exception:  # noqa: BLE001
                         return self._json({"saved": False})
+                if path == "/api/files":                     # 보관함: 저장 폴더의 CSV 목록 (번호로만 열 수 있음)
+                    d = load_settings().get("out_dir") or default_out_dir()
+                    try:
+                        names = sorted((n for n in os.listdir(d) if n.lower().endswith(".csv") and os.path.isfile(os.path.join(d, n))),
+                                       key=lambda n: -os.path.getmtime(os.path.join(d, n)))
+                    except OSError:
+                        names = []
+                    srv.disk = [os.path.join(d, n) for n in names]
+                    return self._json({"dir": d, "files": [{"name": n, "size": os.path.getsize(pth), "mtime": os.path.getmtime(pth)}
+                                                           for n, pth in zip(names, srv.disk)]})
+                if path.startswith("/api/file/"):
+                    try:
+                        with open(srv.disk[int(path[10:])], "rb") as f:
+                            return self._send(200, f.read(), "text/csv; charset=utf-8")
+                    except (ValueError, IndexError, OSError):
+                        return self._send(404, b"not found")
                 if path == "/api/collect/status":
                     return self._json(srv.collector.status(int((q.get("since") or ["0"])[0] or 0)))
                 if path.startswith("/csv/"):
