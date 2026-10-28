@@ -1,5 +1,5 @@
 # main 에 올라오면 Windows exe 를 빌드해 GitHub Release 로 올린다.
-# 배포: FlightData_<VERSION>.zip (폴더 FlightData_<VERSION>\ 안에 FlightData.exe · README_KR.txt · 빈 OpenSky_CSV\) — 사용자 요청 2026-10-28.
+# 배포: FlightData_<VERSION>.zip (폴더 FlightData_<VERSION>\ 안에 FlightData_<VERSION>.exe · README_KR.txt · 빈 OpenSky_CSV\) — 사용자 요청 2026-10-28.
 # 버전: VERSION 파일 (VERSION 파일, 예 1.0.32 — 패치할 때마다 마지막 숫자를 올림, 사용자 요청 2026-10-28)
 # 최신 릴리스 페이지: https://github.com/<owner>/<repo>/releases/latest
 name: Build & release
@@ -40,7 +40,7 @@ jobs:
         run: |
           $d = "pkg\FlightData_${{ env.VER }}"
           New-Item -ItemType Directory -Force -Path "$d\OpenSky_CSV" | Out-Null
-          Copy-Item dist\FlightData.exe $d
+          Copy-Item dist\FlightData.exe "$d\FlightData_${{ env.VER }}.exe"
           Copy-Item README_KR.txt $d
           # 빈 OpenSky_CSV 폴더도 넣으려고 .NET ZipFile 사용 (Compress-Archive 는 빈 폴더를 뺌)
           Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -55,7 +55,7 @@ jobs:
             if ($on) { $out += $l }
           }
           $head = @(
-            "FlightData_${{ env.VER }}.zip 을 받아 **압축을 푼 뒤** 폴더 안의 FlightData.exe 를 더블클릭하세요 (설치 필요 없음).",
+            "FlightData_${{ env.VER }}.zip 을 받아 **압축을 푼 뒤** 폴더 안의 FlightData_${{ env.VER }}.exe 를 더블클릭하세요 (설치 필요 없음).",
             "처음 실행할 때 `"Windows의 PC 보호`" 경고가 뜨면 [추가 정보] → [실행].",
             "",
             "### 이번 버전에서 바뀐 것")

@@ -1,9 +1,8 @@
 """FlightData 업데이트 — GitHub 최신 릴리스를 확인하고, 새 exe 로 바꾼 뒤 다시 시작한다 (사용자 요청 2026-10-28).
 
-실행 중인 exe 는 덮어쓸 수 없지만 이름은 바꿀 수 있다(Windows). 그래서
+exe 이름에 버전이 붙는다 (FlightData_1.2.2.exe, 사용자 요청 2026-10-28). 그래서
   1) 최신 릴리스의 FlightData_<버전>.zip 을 받아 (GitHub 가 알려 주는 sha256 이 있으면 대조)
-  2) 그 안의 FlightData.exe 를 지금 exe 옆에 FlightData.new.exe 로 풀고
-  3) 지금 exe → FlightData.old.exe, 새 exe → 원래 이름으로 바꾼 뒤
+  2) 그 안의 exe 를 지금 exe 옆에 FlightData_<새 버전>.exe 로 풀고 (이름이 같으면 예전 방식: 지금 exe → FlightData.old.exe)
   4) 새 exe 를 임시 폴더에 복사해 --finish-update 도우미로 띄우고 창을 닫으면, 도우미가 끝나기를 기다렸다가
      FlightData.old.exe 를 지우고, 폴더 이름이 FlightData_<버전> 이면 새 버전 이름으로 바꾼 뒤 새 exe 를 --after-update 로 띄운다.
 설정·항공기 DB·보관함(app_data)·OpenSky_CSV 는 exe 옆에 그대로 남는다.
@@ -33,8 +32,22 @@ def exe_path():
     return sys.executable if getattr(sys, "frozen", False) else ""
 
 
+def _old_exes(d, keep):
+    """폴더 안의 이전 버전 exe: FlightData.old.exe · FlightData.new.exe · (버전 이름 exe 를 쓰면) 예전 이름 FlightData.exe · 지금보다 낮은 FlightData_x.y.z.exe."""
+    keep_v = parse_ver(os.path.basename(keep))
+    out = []
+    for f in os.listdir(d):
+        lf = f.lower()
+        if not (lf.startswith("flightdata") and lf.endswith(".exe")) or os.path.normcase(os.path.join(d, f)) == os.path.normcase(keep):
+            continue
+        v = parse_ver(f)
+        if lf in ("flightdata.old.exe", "flightdata.new.exe") or (lf == "flightdata.exe" and keep_v) or (v and keep_v and v < keep_v):
+            out.append(os.path.join(d, f))
+    return out
+
+
 def cleanup_old():
-    """지난 업데이트에서 남은 FlightData.old.exe·도우미를 지운다 (시작할 때)."""
+    """지난 업데이트에서 남은 이전 버전 exe·도우미를 지운다 (시작할 때)."""
     try:
         cleanup_helpers()
     except Exception:  # noqa: BLE001
@@ -42,15 +55,16 @@ def cleanup_old():
     p = exe_path()
     if not p:
         return
-    old = os.path.join(os.path.dirname(p), "FlightData.old.exe")
     for _ in range(20):                                       # 예전 프로세스가 끝날 때까지 잠깐 기다림
-        if not os.path.exists(old):
+        left = []
+        for f in _old_exes(os.path.dirname(p), p):
+            try:
+                os.remove(f)
+            except OSError:
+                left.append(f)
+        if not left:
             return
-        try:
-            os.remove(old)
-            return
-        except OSError:
-            time.sleep(0.5)
+        time.sleep(0.5)
 
 
 class Updater:
@@ -59,6 +73,7 @@ class Updater:
         self.lock = threading.Lock()
         self.cache = (0, None)
         self.state, self.text, self.done_bytes, self.total_bytes, self.error = "idle", "", 0, 0, None
+        self.new_exe = ""
 
     # ---------- 확인 ----------
     def check(self, force=False):
@@ -116,26 +131,35 @@ class Updater:
                 raise RuntimeError("받은 파일이 손상되었습니다 (sha256 불일치). 다시 시도하세요.")
             self._set(text="새 버전으로 바꾸는 중…")
             with zipfile.ZipFile(io.BytesIO(data)) as z:
-                name = next((n for n in z.namelist() if n.lower().endswith("/flightdata.exe") or n.lower() == "flightdata.exe"), None)
+                name = next((n for n in z.namelist() if re.search(r"(^|/)flightdata[^/]*\.exe$", n.lower())), None)
                 if not name:
-                    raise RuntimeError("zip 안에 FlightData.exe 가 없습니다.")
+                    raise RuntimeError("zip 안에 FlightData exe 가 없습니다.")
                 exe_bytes = z.read(name)
             cur = exe_path()
             d = os.path.dirname(cur)
-            new, old = os.path.join(d, "FlightData.new.exe"), os.path.join(d, "FlightData.old.exe")
-            with open(new, "wb") as f:
-                f.write(exe_bytes)
-            if os.path.exists(old):
+            target = os.path.join(d, f"FlightData_{info['latest']}.exe")
+            if os.path.normcase(target) != os.path.normcase(cur):
+                tmp = target + ".part"
+                with open(tmp, "wb") as f:
+                    f.write(exe_bytes)
+                os.replace(tmp, target)                       # 지금 exe 는 그대로 두고 옆에 새 이름으로 (끝난 뒤 도우미가 지움)
+                self.new_exe = target
+            else:                                             # 이름이 같으면 (예전 방식) 실행 중인 exe 는 이름만 바꿀 수 있음
+                new, old = os.path.join(d, "FlightData.new.exe"), os.path.join(d, "FlightData.old.exe")
+                with open(new, "wb") as f:
+                    f.write(exe_bytes)
+                if os.path.exists(old):
+                    try:
+                        os.remove(old)
+                    except OSError:
+                        pass
+                os.replace(cur, old)
                 try:
-                    os.remove(old)
+                    os.replace(new, cur)
                 except OSError:
-                    pass
-            os.replace(cur, old)                              # 실행 중인 exe 는 이름만 바꿀 수 있음
-            try:
-                os.replace(new, cur)
-            except OSError:
-                os.replace(old, cur)                          # 실패하면 원래대로
-                raise
+                    os.replace(old, cur)                      # 실패하면 원래대로
+                    raise
+                self.new_exe = cur
             self._set(state="ready", text=f"FlightData_{info['latest']} 로 바꿨습니다. 다시 시작합니다…")
         except Exception as e:  # noqa: BLE001
             self._set(state="error", error=str(e), text="")
@@ -151,21 +175,31 @@ class Updater:
         d = os.path.dirname(cur)
         parent, base = os.path.dirname(d), os.path.basename(d)
         latest = (self.cache[1] or {}).get("latest", "")
-        to = ""
-        if re.fullmatch(r"FlightData_\d+\.\d+\.\d+", base, re.I) and latest and parse_ver(latest) \
-                and not os.path.exists(os.path.join(parent, f"FlightData_{latest}")):
-            to = f"FlightData_{latest}"
+        to = new_folder_name(base, latest)
+        if to and os.path.exists(os.path.join(parent, to)):
+            to = ""
         import shutil
         import tempfile
         tmp = tempfile.gettempdir()
         helper = os.path.join(tmp, f"FlightData_update_{os.getpid()}.exe")
         shutil.copy2(cur, helper)                         # 폴더 밖에서 돌아야 폴더 이름을 바꿀 수 있음
         pids = [os.getpid()] + ([os.getppid()] if getattr(sys, "frozen", False) else [])   # onefile 은 부모(부트로더)가 exe 를 잡고 있음
-        args = [helper, "--finish-update", "--pids", ",".join(map(str, pids)), "--dir", d, "--to", to]
+        args = [helper, "--finish-update", "--pids", ",".join(map(str, pids)), "--dir", d, "--to", to,
+                "--exe", os.path.basename(self.new_exe or cur)]
         flags = 0x08000000 if sys.platform.startswith("win") else 0   # CREATE_NO_WINDOW
         subprocess.Popen(args, cwd=tmp, creationflags=flags, close_fds=True)
         threading.Timer(0.3, close_window).start()
         threading.Timer(4.0, lambda: os._exit(0)).start()   # 창을 닫아도 프로세스가 남으면 강제로 끝냄 (도우미가 기다리지 않게)
+
+
+def new_folder_name(base, latest):
+    """폴더 이름 안의 버전을 새 버전으로: 'FlightData_1.1.7' → 'FlightData_1.2.2', 'FlightData_1.1.7 (2)' 도. 버전이 없으면 '' (그대로 둠)."""
+    if not latest or not parse_ver(latest) or not base.lower().startswith("flightdata"):
+        return ""
+    m = re.search(r"\d+\.\d+\.\d+", base)
+    if not m or m.group(0) == latest:
+        return ""
+    return base[:m.start()] + latest + base[m.end():]
 
 
 def _arg(argv, name, default=""):
@@ -175,7 +209,7 @@ def _arg(argv, name, default=""):
 def finish_update(argv):
     """--finish-update 로 실행된 도우미 (임시 폴더의 새 exe 복사본). 창·서버 없이 일만 하고 끝남."""
     pids = [int(x) for x in _arg(argv, "--pids").split(",") if x.strip().isdigit()]
-    d, to = _arg(argv, "--dir"), _arg(argv, "--to")
+    d, to, exe_name = _arg(argv, "--dir"), _arg(argv, "--to"), _arg(argv, "--exe", "FlightData.exe")
     if sys.platform.startswith("win"):
         import ctypes
         k = ctypes.windll.kernel32
@@ -185,14 +219,17 @@ def finish_update(argv):
                 k.WaitForSingleObject(h, 30000)
                 k.CloseHandle(h)
     time.sleep(0.5)
-    old = os.path.join(d, "FlightData.old.exe")
-    for _ in range(20):
-        try:
-            if os.path.exists(old):
-                os.remove(old)
+    keep = os.path.join(d, exe_name)
+    for _ in range(20):                                   # 이전 버전 exe 삭제 (사용자 요청)
+        left = []
+        for f in _old_exes(d, keep):
+            try:
+                os.remove(f)
+            except OSError:
+                left.append(f)
+        if not left:
             break
-        except OSError:
-            time.sleep(0.5)
+        time.sleep(0.5)
     target = d
     if to and not os.path.exists(os.path.join(os.path.dirname(d), to)):
         for _ in range(10):                               # 백신 검사 등으로 잠깐 잠겨 있을 수 있음
@@ -202,7 +239,7 @@ def finish_update(argv):
                 break
             except OSError:
                 time.sleep(1)
-    exe = os.path.join(target, "FlightData.exe")
+    exe = os.path.join(target, exe_name)
     subprocess.Popen([exe, "--after-update"], cwd=target, close_fds=True)
     return 0
 

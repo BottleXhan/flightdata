@@ -1069,7 +1069,7 @@
         </div>
         <ol class="kit-steps">
           <li><b>사전 준비</b> OpenSky 계정 생성 및 Trino 사용 승인</li>
-          <li><b>실행</b> 최신 릴리스의 <code>FlightData_1.0.xx.zip</code> 을 받아 압축을 풀고, 폴더 안의 <code>FlightData.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
+          <li><b>실행</b> 최신 릴리스의 <code>FlightData_x.y.z.zip</code> 을 받아 압축을 풀고, 폴더 안의 <code>FlightData_x.y.z.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
           <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [데이터 받기]</li>
           <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
         </ol>
@@ -1965,7 +1965,7 @@ function openUpd() {
   $('updTitle').textContent = `업데이트 가능 — FlightData_${UPD.latest}`;
   $('updSub').textContent = `현재 ${UPD.current} · 설정·보관함·CSV 데이터는 유지됩니다`;
   $('updList').innerHTML = (UPD.changes || []).map(c => `<li>${esc(c)}</li>`).join('') || '<li>변경 사항은 릴리스 페이지를 참고하세요</li>';
-  $('updMsg').textContent = UPD.canApply ? '' : '이 환경에서는 자동 업데이트를 지원하지 않습니다 — 릴리스 페이지의 zip으로 FlightData.exe를 교체하세요.';
+  $('updMsg').textContent = UPD.canApply ? '' : '이 환경에서는 자동 업데이트를 지원하지 않습니다 — 릴리스 페이지의 zip으로 새 버전을 받으세요.';
   $('updGo').disabled = !UPD.canApply; $('updGo').textContent = '업데이트'; $('updLater').disabled = false;
   $('updBarWrap').hidden = true; $('updModal').hidden = false;
 }
@@ -2020,7 +2020,7 @@ function setupCollectUI(info) {
   $('source').prepend(opt);
   const st = info.settings || {};
   $('hLogin').hidden = false;
-  if (info.inTemp) showMsg('<b>압축 파일 내부에서 실행 중입니다.</b> 이 상태에서는 CSV·설정·보관함이 임시 폴더에 저장되어 유실됩니다. 프로그램을 종료하고 zip <b>압축 해제 후</b> 폴더 안의 FlightData.exe를 실행하세요.', 'err');
+  if (info.inTemp) showMsg('<b>압축 파일 내부에서 실행 중입니다.</b> 이 상태에서는 CSV·설정·보관함이 임시 폴더에 저장되어 유실됩니다. 프로그램을 종료하고 zip <b>압축 해제 후</b> 폴더 안의 FlightData exe를 실행하세요.', 'err');
   if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
   document.querySelectorAll('.app-only').forEach(el => { el.hidden = false; });
   $('setVer').textContent = `FlightData_${info.version || '?'}`;
