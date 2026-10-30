@@ -16,12 +16,27 @@
 ## 데이터 출처 · 인용
 
 - 운항 데이터: The OpenSky Network. 발표·논문에 쓰면 인용: Matthias Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.
-- 공항 목록 `airports.json`: [mwgg/Airports](https://github.com/mwgg/Airports) (MIT License)
-- 지도 윤곽 `land.json`: Natural Earth (public domain)
+- 공항 목록 `web/mapdata/airports_min.json`: [mwgg/Airports](https://github.com/mwgg/Airports) (MIT License, 원본 `tools/airports/airports.json`)
+- 지도 윤곽 `web/mapdata/land*.json`: Natural Earth (public domain)
 
-## 직접 실행 (Python 3.13)
+## 구조
+
+| 경로 | 내용 |
+|---|---|
+| `web/` | 분석기 화면 (exe·웹 공통): `index.html` · `css/app.css` · `js/` (ES 모듈, 빌드 도구 없음) · `mapdata/` |
+| `web/js/engine/` | 순수 계산 — CSV 읽기 · 데모 데이터 · ICAO 첨두시간 산정 · 요약 통계 (DOM 없음, node 로 시험) |
+| `web/js/views/` · `ui/` · `data/` · `desktop/` | 화면 장 · 공용 화면 요소 · 공항/기간/불러온 데이터 · 프로그램(exe) 전용 기능 |
+| `app/` | exe: 시작(`main`) · 창(`window`) · 로컬 서버(`server`) · API(`api`) · 수집 작업(`collector`) · 설정(`settings`) · 업데이트(`updater`) |
+| `fetch_flights.py` · `opensky_auth.py` | OpenSky Trino 수집 · 로그인 (명령창 버전도 이 파일을 그대로 씀) |
+| `flightdata_app.py` | exe 시작 파일 |
+| `tests/` | 파이썬 시험(pytest) · 분석 엔진 시험(`tests/js`, node) |
+| `tools/` | 화면 미리보기 · 리팩터링 비교(golden) · import 정리 도구 |
+
+## 직접 실행 · 시험 (Python 3.13, Node 22)
 
 ```
-pip install trino customtkinter tkcalendar tzdata
-python fetch_gui.py
+py -3.13 -m pip install trino tzdata pywebview requests pytest
+py -3.13 flightdata_app.py            # 프로그램 창으로 실행
+py -3.13 -m pytest -q tests           # 파이썬 시험
+npm ci && npm run check               # import 정리 상태 + 분석 엔진 시험
 ```

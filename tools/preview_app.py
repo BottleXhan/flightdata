@@ -1,11 +1,11 @@
 """FlightData 프로그램(exe) 화면 미리보기 — exe 를 실행하지 않고 화면을 확인하기 위한 것 (사용자 요청 2026-10-28).
 
-exe 와 같은 local_web 서버를 이 PC 에서 띄우고(수집·로그인은 가짜, OpenSky 에 접속하지 않음),
-Playwright(Chromium)로 주요 장면을 찍어 이미지를 넣은 한 장짜리 preview/app/index.html 을 만든다.
+exe 와 같은 서버(app.server)를 이 PC 에서 띄우고(수집·로그인은 가짜, OpenSky 에 접속하지 않음),
+Playwright 로 설치된 Microsoft Edge 를 움직여 주요 장면을 찍고, 이미지를 넣은 한 장짜리 preview/app/index.html 을 만든다.
 
     py -3.13 tools/preview_app.py            # → preview/app/01_….png … + index.html
 
-필요: node + playwright(설치돼 있는 것), preview/libs 의 Chart.js·d3·JSZip·tailwind.css (없으면 npm 으로 준비)
+필요: pip install playwright (브라우저는 설치된 Edge 사용, CDN 은 인터넷에서)
 """
 import base64
 import csv
@@ -13,45 +13,20 @@ import json
 import os
 import random
 import shutil
-import subprocess
 import sys
 import tempfile
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "preview", "app")
-LIBS = os.path.join(ROOT, "preview", "libs")
-ANALYZER = os.path.join(ROOT, "web", "analyzer.html")
 sys.path.insert(0, ROOT)
 
 import fetch_flights as ff  # noqa: E402
-import local_web  # noqa: E402
 import opensky_auth as oa  # noqa: E402
+from playwright.sync_api import sync_playwright  # noqa: E402
 
-
-def prepare_libs():
-    """화면을 exe 와 같게 찍으려면 CDN 라이브러리를 로컬에서 대신 준다 (이 환경은 CDN 이 막혀 있음)."""
-    os.makedirs(LIBS, exist_ok=True)
-    need = {"chartjs/package/dist/chart.umd.js": "chart.js@4.4.1", "d3/package/dist/d3.min.js": "d3@7.8.5",
-            "jszip/package/dist/jszip.min.js": "jszip@3.10.1"}
-    for path, pkg in need.items():
-        if os.path.exists(os.path.join(LIBS, path)):
-            continue
-        d = os.path.join(LIBS, path.split("/")[0])
-        os.makedirs(d, exist_ok=True)
-        tgz = subprocess.run(["npm", "pack", pkg, "--silent"], cwd=d, capture_output=True, text=True, check=True).stdout.strip().splitlines()[-1]
-        subprocess.run(["tar", "xzf", tgz], cwd=d, check=True)
-    tw = os.path.join(LIBS, "tw.css")
-    if not os.path.exists(tw) or os.path.getmtime(tw) < os.path.getmtime(ANALYZER):
-        twd = os.path.join(LIBS, "tw")
-        if not os.path.exists(os.path.join(twd, "node_modules", ".bin", "tailwindcss")):
-            os.makedirs(twd, exist_ok=True)
-            subprocess.run(["npm", "install", "tailwindcss@3.4.16", "--silent", "--no-audit", "--no-fund"], cwd=twd, check=True)
-        with open(os.path.join(LIBS, "tw.in.css"), "w") as f:
-            f.write("@tailwind base;\n@tailwind components;\n@tailwind utilities;\n")
-        subprocess.run([os.path.join(twd, "node_modules", ".bin", "tailwindcss"), "-i", os.path.join(LIBS, "tw.in.css"),
-                        "--content", ANALYZER, "-o", tw, "--minify"], check=True, capture_output=True)
+from app import settings  # noqa: E402
+from app.server import AnalyzerServer  # noqa: E402
 
 
 # ---------- 가짜 수집 · 로그인 (OpenSky 에 접속하지 않음) ----------
@@ -116,74 +91,76 @@ class FakeToken:
 
 
 def start_server(tmp):
-    web = os.path.join(tmp, "web")
-    os.makedirs(os.path.join(web, "mapdata"))
-    shutil.copy(ANALYZER, os.path.join(web, "analyzer.html"))
-    for n in ("land.json", "land50.json", "airports_min.json"):
-        shutil.copy(os.path.join(ROOT, "web", "mapdata", n), os.path.join(web, "mapdata", n))
-    local_web.web_dir = lambda: web
-    ff.APP_DIR = os.path.join(tmp, "app")
-    ff.SETTINGS = os.path.join(ff.APP_DIR, "fetch_settings.json")
-    os.makedirs(ff.APP_DIR)
+    settings.APP_DIR = os.path.join(tmp, "app")
+    os.makedirs(settings.APP_DIR)
     ff.collect_many = fake_collect_many
     oa.PasswordToken = FakeToken
     oa.CAN_REMEMBER = True
     oa.save_password = lambda *a: True
     oa.load_password = lambda *a: None
     oa.forget_password = lambda *a: True
-    vf = os.path.join(ROOT, "VERSION")
-    local_web.app_version = lambda: open(vf).read().strip()
-    local_web.in_temp_dir = lambda: False                  # 미리보기는 임시 폴더에서 도니까 "압축 파일 안" 경고는 끔
-    srv = local_web.AnalyzerServer()
-    return srv.url()
+    settings.app_version = lambda: open(os.path.join(ROOT, "VERSION")).read().strip()
+    settings.in_temp_dir = lambda: False                   # 미리보기는 임시 폴더에서 도니까 "압축 파일 안" 경고는 끔
+    return AnalyzerServer().url()
 
 
-SHOTS = r"""
-const { chromium } = require('playwright');
-const fs = require('fs'), path = require('path');
-const [url, out, libs] = process.argv.slice(2);
-const lib = p => fs.readFileSync(path.join(libs, p));
-(async () => {
-  const b = await chromium.launch();
-  const p = await b.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
-  const tw = fs.readFileSync(path.join(libs, 'tw.css'), 'utf8');
-  await p.route('**/cdn.tailwindcss.com/**', r => r.fulfill({ contentType: 'text/javascript', body: `document.head.insertAdjacentHTML('beforeend', ${JSON.stringify('<style>' + tw + '</style>')});` }));
-  await p.route('**/Chart.js/**', r => r.fulfill({ contentType: 'text/javascript', body: lib('chartjs/package/dist/chart.umd.js') }));
-  await p.route('**/d3/**', r => r.fulfill({ contentType: 'text/javascript', body: lib('d3/package/dist/d3.min.js') }));
-  await p.route('**/jszip/**', r => r.fulfill({ contentType: 'text/javascript', body: lib('jszip/package/dist/jszip.min.js') }));
-  await p.route('**/xlsx/**', r => r.fulfill({ contentType: 'text/javascript', body: '' }));
-  await p.route('**/fonts.googleapis.com/**', r => r.fulfill({ contentType: 'text/css', body: '' }));
-  const errs = []; p.on('pageerror', e => errs.push(e.message));
-  let n = 0; const shot = async (name, wait = 500) => { await p.waitForTimeout(wait); await p.screenshot({ path: path.join(out, `${String(++n).padStart(2, '0')}_${name}.png`) }); };
-  const pane = async v => { await p.click(`#sideNav [data-pane="${v}"]`); await p.waitForTimeout(600); };
-  await p.addInitScript(() => { window.pywebview = { api: { win_close: async () => {}, win_min: async () => {}, win_max: async () => true, win_state: async () => true, win_move: async () => {}, set_theme: async () => {} } };
-    window.addEventListener('DOMContentLoaded', () => setTimeout(() => window.dispatchEvent(new Event('pywebviewready')), 300)); });   // 프로그램 창(제목줄 없음) 흉내
-  await p.goto(url); await p.waitForTimeout(2500);
-  await shot('홈', 600);
-  await pane('data');
-  await p.fill('#cUser', 'myname');
-  await shot('데이터_첫화면');
-  await p.click('#hSignup'); await shot('회원가입_안내', 300); await p.click('#hSignupClose');
-  await p.click('#setBtn'); await p.click('.set-src summary'); await shot('설정', 300); await p.click('#setBtn');
-  await p.fill('#cPw', 'password'); await p.click('#hLoginBtn'); await p.waitForTimeout(800);
-  await p.click('[data-dvmode="map"]'); await p.fill('#apSearch', '도쿄'); await shot('지도에서_공항찾기', 900);
-  await p.click('#apResults [data-ap]').catch(() => {}); await p.click('#amapClose');
-  await p.fill('#icao', 'RKSI'); await p.dispatchEvent('#icao', 'input'); await p.dispatchEvent('#icao', 'change');
-  await p.click('[data-q="7"]'); await p.waitForTimeout(300);
-  await p.click('#runBtn'); await shot('받는중', 2200);
-  await p.waitForFunction(() => document.querySelector('#mainView').dataset.pane === 'overview', null, { timeout: 60000 });
-  await shot('개요', 1500);
-  await pane('profile');
-  for (const [v, name] of [['hour', '시간대별'], ['day', '일별'], ['wd', '요일별']]) { await p.click(`[data-ppick="${v}"]`); await shot('운항량_' + name, 800); }
-  await pane('mix');
-  for (const [v, name] of [['route', '노선'], ['airline', '항공사'], ['type', '기종']]) { await p.click(`[data-mpick="${v}"]`); await shot('운항구성_' + name, 1200); }
-  await pane('lib'); await shot('보관함', 1000);
-  await p.evaluate(() => document.getElementById('themeBtn').click()); await pane('profile'); await p.click('[data-ppick="hour"]'); await shot('어둡게_운항량', 900);
-  await pane('home'); await shot('어둡게_홈', 600);
-  if (errs.length) console.error('page errors:', errs.join(' | '));
-  await b.close();
-})();
-"""
+# 프로그램 창(제목줄 없음) 흉내: pywebview js_api 대신
+FAKE_PYWEBVIEW = """window.pywebview = { api: { win_close: async () => {}, win_min: async () => {}, win_max: async () => true, win_state: async () => true,
+  win_move: async () => {}, set_theme: async () => {} } };
+window.addEventListener('DOMContentLoaded', () => setTimeout(() => window.dispatchEvent(new Event('pywebviewready')), 300));"""
+
+
+def shoot(url, out):
+    n = [0]
+    errs = []
+    with sync_playwright() as pw:
+        b = pw.chromium.launch(channel="msedge")
+        p = b.new_page(viewport={"width": 1600, "height": 900}, locale="ko-KR", timezone_id="Asia/Seoul")
+        p.on("pageerror", lambda e: errs.append(str(e)))
+        p.add_init_script(FAKE_PYWEBVIEW)
+
+        def shot(name, wait=500):
+            p.wait_for_timeout(wait)
+            n[0] += 1
+            p.screenshot(path=os.path.join(out, f"{n[0]:02d}_{name}.png"))
+
+        def pane(v):
+            p.click(f'#sideNav [data-pane="{v}"]')
+            p.wait_for_timeout(600)
+
+        p.goto(url)
+        p.wait_for_function("document.getElementById('bootOverlay')?.hidden === true", timeout=30000)
+        shot("홈", 600)
+        pane("data")
+        p.fill("#cUser", "myname")
+        shot("데이터_첫화면")
+        p.click("#hSignup"); shot("회원가입_안내", 300); p.click("#hSignupClose")
+        p.click("#setBtn"); p.click(".set-src summary"); shot("설정", 300); p.click("#setBtn")
+        p.fill("#cPw", "password"); p.click("#hLoginBtn"); p.wait_for_timeout(800)
+        p.click('[data-dvmode="map"]'); p.fill("#apSearch", "도쿄"); shot("지도에서_공항찾기", 900)
+        try:
+            p.click("#apResults [data-ap]", timeout=2000)
+        except Exception:  # noqa: BLE001
+            pass
+        p.click("#amapClose")
+        p.fill("#icao", "RKSI"); p.dispatch_event("#icao", "input"); p.dispatch_event("#icao", "change")
+        p.click('[data-q="7"]'); p.wait_for_timeout(300)
+        p.click("#runBtn"); shot("받는중", 2200)
+        p.wait_for_function("document.querySelector('#mainView').dataset.pane === 'overview'", timeout=60000)
+        shot("개요", 1500)
+        pane("profile")
+        for v, name in (("hour", "시간대별"), ("day", "일별"), ("wd", "요일별")):
+            p.click(f'[data-ppick="{v}"]'); shot("운항량_" + name, 800)
+        pane("mix")
+        for v, name in (("route", "노선"), ("airline", "항공사"), ("type", "기종")):
+            p.click(f'[data-mpick="{v}"]'); shot("운항구성_" + name, 1200)
+        pane("lib"); shot("보관함", 1000)
+        p.evaluate("() => document.getElementById('themeBtn').click()")
+        pane("profile"); p.click('[data-ppick="hour"]'); shot("어둡게_운항량", 900)
+        pane("home"); shot("어둡게_홈", 600)
+        b.close()
+    return errs
+
 
 PAGE = """<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FlightData 미리보기</title><style>
@@ -207,25 +184,21 @@ addEventListener('keydown',e=>{if(e.key==='ArrowRight')show(i+1);if(e.key==='Arr
 
 
 def main():
-    prepare_libs()
     shutil.rmtree(OUT, ignore_errors=True)
     os.makedirs(OUT)
     tmp = tempfile.mkdtemp(prefix="fd_preview_")
-    url = start_server(tmp)
-    js = os.path.join(tmp, "shots.js")
-    with open(js, "w", encoding="utf-8") as f:
-        f.write(SHOTS)
-    env = dict(os.environ, NODE_PATH=subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip())
-    subprocess.run(["node", js, url, OUT, LIBS], check=True, env=env)
+    errs = shoot(start_server(tmp), OUT)
     pngs = sorted(n for n in os.listdir(OUT) if n.endswith(".png"))
     scenes = [{"name": n[3:-4].replace("_", " "), "src": "data:image/png;base64," + base64.b64encode(open(os.path.join(OUT, n), "rb").read()).decode()}
               for n in pngs]
-    ver = local_web.app_version()
     with open(os.path.join(OUT, "index.html"), "w", encoding="utf-8") as f:
-        f.write(PAGE.replace("__TITLE__", f"FlightData_{ver} 화면 미리보기").replace("__SCENES__", json.dumps(scenes, ensure_ascii=False)))
+        f.write(PAGE.replace("__TITLE__", f"FlightData_{settings.app_version()} 화면 미리보기").replace("__SCENES__", json.dumps(scenes, ensure_ascii=False)))
     print("\n".join([os.path.join(OUT, n) for n in pngs] + [os.path.join(OUT, "index.html")]))
+    if errs:
+        print("페이지 오류:", " | ".join(errs))
     shutil.rmtree(tmp, ignore_errors=True)
+    return 1 if errs else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

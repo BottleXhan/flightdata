@@ -11,3 +11,4 @@ build/
 *.tmp
 *.pdf
 icao-source.html
+node_modules/

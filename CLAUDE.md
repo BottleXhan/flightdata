@@ -4,9 +4,9 @@ OpenSky Network Trino(과거 데이터)에서 공항 운항 CSV 를 받고, 같�
 ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 산정은 선택 기능으로 들어 있다.
 
 - 저장소: **BottleXhan/flightdata (Public)** — 2026-10-31 예전 비공개 저장소 ICAO(opensky-peak-hour-app 브랜치)를 여기로 합침. ICAO 히스토리는 저작권 PDF 가 들어 있어 가져오지 않았다 (파일만 복사).
-- 현재 버전: `VERSION` 파일 (1.2.4 기준으로 정리함)
+- 현재 버전: `VERSION` 파일. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
 - 웹 버전(아티팩트): https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5 (링크가 있는 누구나 열람)
-- Python 은 **`py -3.13`** (3.15 는 zstandard 빌드 실패). 의존성: `trino tzdata pywebview requests` (+ 빌드 시 pyinstaller)
+- Python 은 **`py -3.13`** (3.15 는 zstandard 빌드 실패). 의존성: `trino tzdata pywebview requests` (+ 빌드 pyinstaller, 시험 pytest, 미리보기 playwright). Node 22 + `npm ci` (acorn: import 정리 도구)
 
 ## 저작권 자료 — 저장소에 절대 넣지 않음
 
@@ -16,40 +16,55 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 |---|---|
 | `ICAO, Doc 9184, … (Third Edition, 2023).pdf` | ICAO 원문 |
 | `Airport Operations Third Edition_CAA사항 포함.pdf` | Ashford et al. 교재 3판 (McGraw-Hill 2013). Ch.2 첨두 정의(SBR·BHR·TPHP)·UK CAA Table 2.1 에 사용. 공개 페이지에는 요약·인용·수치만 |
-| `icao-source.html` | ICAO 원문 페이지(영문/국문/좌우 비교). 아티팩트에만 올림, exe 에는 넣지 않음 (local_web 이 `/icao-source.html` 을 웹 링크로 돌림) |
+| `icao-source.html` | ICAO 원문 페이지(영문/국문/좌우 비교). 아티팩트에만 올림, exe 에는 넣지 않음 (`app/api.py` 가 `/icao-source.html` 을 웹 링크로 돌림) |
 
 ## 파일 구성
 
 | 경로 | 내용 |
 |---|---|
-| `flightdata_app.py` | exe 시작 파일. local_web 서버 + 분석기를 pywebview(Edge WebView2) 제목줄 없는 창으로. `--selftest`, `--after-update`, `--finish-update` |
-| `local_web.py` | 127.0.0.1:8790~ 서버. `web/` 제공 + API (아래). POST 는 Host+Origin+JSON 검사 |
-| `fetch_flights.py` | Trino 수집 본체 (CLI·대화형 겸용). `collect_many`, 캐시, 항공기 DB 붙이기, `Stopped`/`cancel_current()` |
+| `flightdata_app.py` | exe 시작 파일 (PyInstaller 대상) → `app.main.run`. `--selftest`, `--after-update`, `--finish-update` |
+| `app/main.py` | 시작 순서(무거운 import 먼저 → 서버 → 숨긴 창 → loaded 때 최대화·표시), `_diag`(`app_data\diag.log`), `_watchdog`, `selftest` |
+| `app/window.py` | pywebview js_api `Api`: 제목줄 없는 창 조작(Win32 직접)·폴더 고르기·제목줄 색. **밑줄 없는 속성은 함수만** |
+| `app/server.py` | 127.0.0.1:8790 서버: Host/Origin/JSON 검사, `web/` 정적 파일(알려진 확장자만, 폴더 밖 차단), 나머지는 `api.dispatch` |
+| `app/api.py` | `/api/*` 처리 함수 — `@get("/경로")`·`@post(...)` 로 등록, 끝이 `/` 인 경로는 접두사(`/csv/<n>`, `/api/file/<n>`). 새 API 는 여기에 함수 하나 추가 |
+| `app/collector.py` | 화면에서 시작한 수집 작업(스레드, 연도별 나누기, 중지) |
+| `app/settings.py` | `APP_DIR`(exe 폴더) · `fetch_settings.json` 읽기/쓰기 · 저장 폴더 규칙 · `web_dir()` · 버전(`_build.py`) |
+| `app/updater.py` | GitHub releases/latest 확인·zip 받기·sha256 대조·창 없는 도우미 exe 로 교체·폴더 이름 변경 |
+| `fetch_flights.py` | Trino 수집 본체 (CLI·대화형 겸용 — `kit/run_fetch.bat` 이 같은 폴더의 이 파일을 실행하므로 **루트 단독 파일 유지**). `collect_many`, 캐시, 항공기 DB, `Stopped`/`cancel_current()` |
 | `opensky_auth.py` | Keycloak password grant(client_id=trino-client) → JWT, refresh, 실패 시 브라우저 OAuth2. 비밀번호는 Windows 자격 증명 관리자("FlightData/OpenSky:<사용자>") |
-| `updater.py` | GitHub releases/latest 확인·zip 받기·sha256 대조·창 없는 도우미 exe 로 교체·폴더 이름 변경 |
-| `airport_db.py` · `airports.json` | 공항 검색(mwgg/Airports MIT, ICAO 17,067곳 + 한글 이름), IANA 시간대 → UTC 오프셋 |
-| `web/analyzer.html` | **분석기 단일 원본** (exe·아티팩트 공통). Tailwind Play CDN · Chart.js 4.4.1 · JSZip 3.10.1 · d3 7.8.5 |
+| `web/index.html` · `web/css/app.css` | 분석기 화면 구조 · 스타일 (exe·아티팩트 공통). CDN: Tailwind Play · Chart.js 4.4.1 · JSZip 3.10.1 · d3 7.8.5 |
+| `web/js/` | ES 모듈 35개 (빌드 도구 없음). `main.js` 가 각 모듈의 `init()`(이벤트 연결)을 순서대로 부름 — 순서 의미: period·filters·peak 가 기본값을 채운 뒤 session 이 지난번 값으로 덮어씀 |
+| `web/js/engine/` | **순수 계산** (DOM 없음, node 시험): `csv`(CSV→운항) · `demo`(고정 시드) · `peak`(analyze, ICAO 기준) · `stats`(비율 체인·처리능력·CAA·연별) · `classify`(기종 크기·항공사) |
+| `web/js/lib/` | `fmt`(형식·시간 상수, 순수) · `dom`($·상태 줄·메시지·apiPost) · `select`(펼침 목록 위젯) |
+| `web/js/data/` | `airports`(MAPDATA·공항 찾기) · `period`(공항 코드·UTC·기간) · `datasets`(CSV 가져오기·IndexedDB 저장) |
+| `web/js/views/` | 장: `home` · `library`(보관함) · `overview` · `profile`(운항량) · `profile-target`(표시 대상) · `calendar` · `mix`(운항 구성) · `peak`(첨두시간) |
+| `web/js/ui/` | `nav`(setPane·사이드바) · `charts`(Chart.js 공통) · `session`(최근 분석 기억) · `theme` · `airport-map`(데이터 탭 지도) · `airport-search` · `source-overlay`(ICAO 원문 창) |
+| `web/js/desktop/` | exe 안에서만: `collect`(서버 확인·다운로드 진행) · `login` · `update` · `settings`(⚙) · `window`(창 버튼·끌기) |
+| `web/js/run.js` · `filters.js` · `state.js` | 분석 실행(run·renderAll) · 필터 · 공유 상태 `STATE {data, res}` |
 | `web/mapdata/` | `land.json`(110m), `land50.json`(50m, 데이터 탭 지도), `airports_min.json` = {ICAO: [이름, 도시, 국가, lat, lon, IATA, tz, 표고ft, 주, 한글이름]} |
+| `tests/` | pytest(`test_core` 계산·설정·js_api 규칙, `test_server` 정적 파일·보안·API) · `tests/js/engine.test.mjs`(분석 엔진 = `golden_engine.json`) |
+| `tools/golden.py` · `golden_compare.py` | 리팩터링 전후 비교: 실제 서버 + Edge(Playwright)로 데모 12장면의 화면 글자·차트 값·스크린샷 기록 → 비교 |
+| `tools/preview_app.py` | 화면 미리보기: 가짜 수집·로그인(비밀번호 "password")·가짜 CSV 로 서버를 띄우고 Edge 로 16장면 → `preview/app/index.html` (preview/ 는 git 제외) |
+| `tools/fix_imports.mjs` | `web/js` import 줄을 실제 쓰는 이름에 맞춰 다시 만듦 (`npm run imports`, CI 는 `--check`) |
+| `tools/airports/` | `airport_db.py` · `airports.json`(mwgg/Airports MIT 17,067곳 + 한글 이름) — `airports_min.json` 의 원본 자료, 실행에는 안 씀 |
 | `icon.svg` · `icon.ico` | 노랑 둥근 사각형 + 45° 남색 비행기. 분석기 favicon·머리 로고도 같은 path |
 | `CHANGELOG.md` · `VERSION` | 패치 노트 · 버전 |
 | `README.md` · `README_KR.txt` | 저장소 안내 · zip 에 들어가는 사용법 |
 | `kit/` | 명령창 버전 (`run_fetch.bat` CRLF 유지 + `README_KR.txt`, `fetch_flights.py` 와 함께 씀) |
-| `.github/workflows/release.yml` | main push → exe 빌드 → selftest → `FlightData_<VER>.zip` 릴리스 |
-| `tools/preview_app.py` | 화면 미리보기: 가짜 수집·로그인(비밀번호 "password")·가짜 CSV 로 local_web 을 띄우고 Playwright 로 14장면 → `preview/app/index.html` (preview/ 는 git 제외). 리눅스 환경에서 만든 것이라 Windows 에서는 아직 안 돌려 봄 (npm·node playwright 필요) |
-| `fetch_gui.py` · `map_canvas.py` · `land.json` | 예전 customtkinter 수집기 — 더 이상 빌드하지 않음 (코드만 보존) |
-| `legacy/` | ICAO 저장소에서 옮긴 안 쓰는 것: `app.py`+`Start_OpenSky_Analyzer.bat`(localhost:8788 실행판), `make_kit.py`, `preview_gui.py`, Colab 노트북, 옛 README. **경로를 새 구조에 맞추지 않았음** — 다시 쓰려면 고쳐야 함 |
+| `.github/workflows/release.yml` | main push → 시험(pytest · `npm run check`) → exe 빌드 → selftest → `FlightData_<VER>.zip` 릴리스 |
 
 ## 빌드 · 배포
 
-- main 에 push → `release.yml`: Python 3.13, `pyinstaller --onefile --windowed --name FlightData --icon icon.ico --add-data "web;web" … flightdata_app.py`, `--selftest`, zip = 폴더 `FlightData_<VER>\`(FlightData_<VER>.exe · README_KR.txt · 빈 OpenSky_CSV\), 태그 `v<VER>`, 릴리스 이름 `FlightData_<VER>`, 설명 = CHANGELOG.md 의 그 버전 부분.
+- main 에 push → `release.yml`: Python 3.13, 시험이 실패하면 빌드하지 않음, `pyinstaller --onefile --windowed --name FlightData --icon icon.ico --add-data "web;web" … flightdata_app.py`, `--selftest`, zip = 폴더 `FlightData_<VER>\`(FlightData_<VER>.exe · README_KR.txt · 빈 OpenSky_CSV\), 태그 `v<VER>`, 릴리스 이름 `FlightData_<VER>`, 설명 = CHANGELOG.md 의 그 버전 부분.
 - **패치를 push 할 때마다 `VERSION` 을 올리고 `CHANGELOG.md` 맨 위에 `## x.y.z` 항목을 쓴다.** 작은 패치 = 마지막 숫자 +1, 조금 큰 업데이트 = 가운데 숫자 +1 하고 마지막은 .1 부터. 사용자에게는 `FlightData_x.y.z` 이름으로 알림.
 - 릴리스 자산은 zip 하나. 항공기 DB(OpenSky 자료)는 넣지 않음 — 첫 다운로드 때 받음. 서명 안 됨 → SmartScreen [추가 정보]→[실행].
 - 이 세션은 GitHub 릴리스를 직접 고치지 않는다 — 워크플로로만.
-- 로컬 확인: `py -3.13 flightdata_app.py --selftest` (exit 0), 창 실행은 `py -3.13 flightdata_app.py` (업데이트 적용은 exe 에서만).
+- 로컬 확인: `py -3.13 -m pytest -q tests` · `npm run check` · `py -3.13 flightdata_app.py --selftest` (exit 0), 창 실행은 `py -3.13 flightdata_app.py` (업데이트 적용은 exe 에서만).
+- 화면을 건드리는 큰 변경 전후: `py -3.13 tools/golden.py preview/golden_a` → 변경 → `… preview/golden_b` → `py -3.13 tools/golden_compare.py preview/golden_a preview/golden_b`. 계산을 일부러 바꿨으면 `--engine` 으로 뽑은 engine.json 으로 `tests/js/golden_engine.json` 교체.
 
 ## 웹 버전(아티팩트) 올리기
 
-`web/analyzer.html` 을 페이지로, files 에 `mapdata/land.json`·`mapdata/land50.json`·`mapdata/airports_min.json`(web/mapdata), `icao-source.html`, 그리고 원문 페이지의 "돌아가기" 용으로 분석기 사본 `icao-peak-hour.html`. icao-source.html 은 저장소 밖이라 **scratchpad 에 복사한 뒤** 그 경로를 files 로 넘긴다. 변경할 때마다 위 공유 링크를 사용자에게 준다.
+`web/index.html` 을 페이지로, files 에 `css/app.css` · `js/**/*.js`(35개, 경로 그대로) · `mapdata/land.json`·`mapdata/land50.json`·`mapdata/airports_min.json`, `icao-source.html`, 그리고 원문 페이지의 "돌아가기" 용으로 `web/index.html` 사본을 `icao-peak-hour.html` 로. 모듈 스크립트라 js 파일이 하나라도 빠지면 화면 전체가 안 뜸. 지금 올라가 있는 아티팩트는 1.2.4 때의 한 파일 버전(동작은 같음) — 다음에 화면을 바꿀 때 이 구조로 다시 올릴 것. icao-source.html 은 저장소 밖이라 **scratchpad 에 복사한 뒤** 그 경로를 files 로 넘긴다. 변경할 때마다 위 공유 링크를 사용자에게 준다.
 
 ## exe 동작 (현재)
 
@@ -60,7 +75,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 - **로그인**: 머리 오른쪽(exe 만). POST /api/login 이 실제 토큰으로 확인 → 서버 메모리 세션에 보관, 화면에는 비밀번호를 돌려주지 않음. "자동 로그인"(기본 꺼짐) 켜고 로그인하면 자격 증명 관리자 저장 + remember_pw=true. 로그인 중 잠금·45초 제한. 로그인 안 하면 브라우저 OAuth. [회원가입] 팝업 = OpenSky 가입·Trino 신청 안내 + 홈페이지 열기(/api/open-url, opensky-network.org 만).
 - **중지**: /api/collect/stop 이 실행 중 Trino 쿼리를 cursor.cancel(), 재시도 대기도 0.5초마다 확인. 상태 "stopped", 직후 start 는 최대 10초 대기.
 - **업데이트**: /api/update/check(10분 캐시) → 오른쪽 아래 알림(#updModal.upd-toast) 과 ⚙ 설정 둘 다에서 [업데이트]. 새 exe 를 지금 exe 옆에 `FlightData_<새 버전>.exe` 로 쓰고, `%TEMP%\FlightData_update_<pid>.exe --finish-update` 도우미가 이전 프로세스 종료를 기다려 옛 exe 삭제 + 폴더 이름의 x.y.z 를 새 버전으로 바꾼 뒤 새 exe 실행. 1.2.1 이하는 1.2.2+ 로 자동 업데이트 불가(한 번 새로 받기).
-- **local_web API**: /api/collector(app=true, version, 방금 받은 CSV), /csv/<n>, /api/collect·/status·/stop, /api/open-folder, /api/pwsaved, /api/login·/logout·/autologin, /api/settings{outDir}, /api/files·/api/file/<n>, /api/open-url, /api/update/check·apply·status·restart.
+- **API (`app/api.py`)**: /api/collector(app=true, version, 방금 받은 CSV), /csv/<n>, /api/collect·/status·/stop, /api/open-folder, /api/pwsaved, /api/login·/logout·/autologin, /api/settings{outDir}, /api/files·/api/file/<n>, /api/open-url, /api/update/check·apply·status·restart.
 
 ## 분석기 화면 (현재)
 
@@ -95,6 +110,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 ## 작업 규칙 (사용자 선호)
 
 - 사용자에게는 한국어로 답한다.
+- 코드 구조 규칙: 계산은 `web/js/engine/`(DOM 금지, node 시험), 화면 연결(addEventListener 등)은 각 모듈의 `init()` 안, 다른 모듈의 `let` 은 직접 대입하지 말고 그 모듈에 설정 함수를 둠(ES 모듈 import 는 읽기 전용). JS 모듈을 추가·이동하면 `npm run imports` → `npm run check`. 서버 API 는 `app/api.py` 에 함수 추가.
 - 화면을 바꾸면 `tools/preview_app.py` 로 미리보기를 만들어 `preview/app/index.html` 을 SendUserFile(display=render)로 보낸다 (회사 PC 는 exe 실행마다 보안 검사).
 - UI 문구는 업무용 용어·짧은 명사형: 다운로드, 선택, 입력, 가져오기, 삭제, 추가, 병합 후 분석, 데이터 초기화, 데모 실행, 우측 상단, "~하세요/~됩니다". 화면에 "비상업적·상업" 같은 말 쓰지 않음(발표용).
 - PC 화면만 고려(휴대폰 X). 사용자 화면은 32인치 UHD·배율 150% 안팎 — 물리 픽셀×배율, 흐림·1px 틈 주의.

@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMCIgeTI9IjEiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2Y4ZDI0YSIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2U5YWQxNiIvPjwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InAiIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMyMjMyNGEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwZjFhMmIiLz48L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgcng9IjU2IiBmaWxsPSJ1cmwoI2cpIi8+CiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTI4IDEzMikgcm90YXRlKDQ1KSBzY2FsZSg4LjIpIHRyYW5zbGF0ZSgtMTEuNSAtMTIuNSkiPgogICAgPHBhdGggZD0iTTIxIDE2di0ybC04LTVWMy41YTEuNSAxLjUgMCAwIDAtMyAwVjlsLTggNXYybDgtMi41VjE5bC0yIDEuNVYyMmwzLjUtMSAzLjUgMXYtMS41TDEzIDE5di01LjV6IiBmaWxsPSJ1cmwoI3ApIi8+CiAgPC9nPgo8L3N2Zz4K">
+<title>FlightData</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!--
+  ICAO Doc 9184 (Airport Planning Manual, Part I) 기반 공항 첨두시간(Peak Hour) 분석기
+  - 데이터: OpenSky Network 운항 (Trino 수집 CSV), 데모
+  - 단일 HTML 파일, 외부 의존성: Tailwind CSS(Play CDN), Chart.js 4, SheetJS
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- ───────────── 상단 바 ───────────── -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <button id="sideBtn" class="icon-btn" type="button" aria-controls="sidePanel" aria-expanded="true" title="분석 설정 닫기">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path id="sideBtnArrow" d="M15 10l-2 2 2 2"/></svg>
+    </button>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(45deg)"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg>
+      </span>
+      <div>
+        <div class="brand-name">FlightData <span id="brandVer" class="brand-ver" hidden></span></div>
+        <div class="brand-sub">OpenSky 데이터</div>
+      </div>
+    </div>
+    <!-- 헤더 가운데: 지금 보고 있는 공항·기간 (예전 상단 목차 자리) -->
+    <div class="hrun" id="hrun" hidden>
+      <span class="apcode" id="sumAirport">RKSI</span>
+      <div class="runmeta">
+        <b id="sumPeriod"></b>
+        <span class="text-xs secondary" id="sumApName" hidden></span>
+        <span class="text-xs muted" id="sumMeta"></span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;margin-left:auto">
+      <!-- OpenSky 로그인 (FlightData 프로그램 안에서만 보임) -->
+      <div class="hlogin" id="hLogin" hidden>
+        <form id="hLoginForm" class="hl-form" autocomplete="on">
+          <input id="cUser" class="field" autocomplete="username" placeholder="OpenSky 사용자명" aria-label="OpenSky 사용자명">
+          <input id="cPw" class="field" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호">
+          <label class="hl-rem" title="사용 시 비밀번호를 Windows 자격 증명 관리자에 저장하고 다음 실행 시 자동 로그인합니다"><input type="checkbox" id="cRemember"> 자동 로그인</label>
+          <button id="hLoginBtn" class="btn btn-primary" type="submit">로그인</button>
+          <button id="hSignup" class="link-btn" type="button" aria-expanded="false" aria-controls="hSignupPop">회원가입</button>
+        </form>
+        <div class="hl-on" id="hLoginOn" hidden>
+          <span class="hl-dot" title="로그인됨" aria-label="로그인됨"></span><b id="hLoginUser"></b>
+          <label class="hl-rem" hidden title="다음 실행 시 자동 로그인 (비밀번호는 Windows 자격 증명 관리자에 저장)"><input type="checkbox" id="cAuto2"> 자동 로그인</label>
+          <button id="hLogout" class="link-btn" type="button">로그아웃</button>
+        </div>
+        <p class="hl-msg" id="hLoginMsg" role="status" hidden></p>
+        <div class="hl-pop" id="hSignupPop" role="dialog" aria-label="OpenSky 회원가입 안내" hidden>
+          <b>OpenSky 계정 만들기</b>
+          <p class="text-xs muted">FlightData 는 따로 회원가입이 없고, OpenSky Network 계정으로 로그인합니다. 계정은 무료입니다.</p>
+          <ol>
+            <li><b>회원가입</b> OpenSky 홈페이지에서 계정을 만듭니다 (이메일 확인 포함)</li>
+            <li><b>과거 데이터(Trino) 사용 신청</b> 운항 기록을 받으려면 계정에 과거 데이터 사용 권한이 있어야 합니다 — 홈페이지 안내에 따라 신청하고 승인을 기다립니다</li>
+            <li><b>로그인</b> 승인 후 사용자명·비밀번호 입력 → [로그인]</li>
+          </ol>
+          <p class="text-xs muted">한 사람이 여러 계정을 만들면 OpenSky 규칙에 따라 영구 차단될 수 있습니다.</p>
+          <div class="flex gap-2"><button id="hSignupGo" class="btn btn-primary" type="button">OpenSky 홈페이지 열기</button><button id="hSignupClose" class="btn" type="button">닫기</button></div>
+        </div>
+      </div>
+      <div class="srcwrap" id="setWrap">
+        <button id="setBtn" class="icon-btn" type="button" title="설정" aria-label="설정" aria-expanded="false" aria-controls="setPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        <div id="setPop" class="hl-pop set-pop" role="dialog" aria-label="설정" hidden>
+          <b class="set-h">설정</b>
+          <div class="set-row app-only" hidden>
+            <div><span class="set-k">버전</span><b id="setVer">–</b><small id="setVerNote" class="muted"></small></div>
+            <div class="flex gap-2"><button id="setUpdCheck" class="btn" type="button">업데이트 확인</button><button id="setUpdGo" class="btn btn-primary" type="button" hidden>업데이트</button></div>
+          </div>
+          <div class="set-row app-only" hidden>
+            <div style="min-width:0"><span class="set-k">저장 폴더</span><span id="setDir" class="set-path"></span></div>
+            <div class="flex gap-2"><button id="setDirPick" class="btn" type="button">바꾸기…</button><button id="setDirOpen" class="btn" type="button">열기</button></div>
+          </div>
+          <div class="set-row app-only" hidden>
+            <div><span class="set-k">자동 로그인</span><small class="muted">다음 실행 시 자동 로그인</small></div>
+            <label class="switch"><input type="checkbox" id="setAuto" role="switch"><span></span></label>
+          </div>
+          <div class="set-row">
+            <div><span class="set-k">화면 테마</span><small class="muted">라이트 / 다크</small></div>
+            <div class="seg" id="setTheme"><button type="button" data-th="light">라이트</button><button type="button" data-th="dark">다크</button></div>
+          </div>
+          <details class="set-src">
+            <summary><span class="set-k">데이터 출처</span><span class="muted text-xs">The OpenSky Network · 인용 정보</span></summary>
+            <div class="text-xs muted leading-relaxed">
+      <p><b class="secondary">데이터 출처:</b> The OpenSky Network, <a href="https://opensky-network.org">https://opensky-network.org</a></p>
+      <p class="mt-1"><b class="secondary">인용 (OpenSky 요청):</b> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+      <p class="mt-1">OpenSky 데이터는 ADS-B로 추정한 값이며 공항 운항 스케줄·지연 정보가 아닙니다. 계획 목적으로는 공항 공식 통계와 대조하세요.</p>
+          <p style="margin-top:6px"><a href="icao-source.html" style="color:var(--accent)">참고: ICAO Doc 9184 원문 보기 →</a></p>
+            </div>
+          </details>
+        </div>
+      </div>
+      <button id="themeBtn" class="icon-btn" type="button" hidden></button>
+    </div>
+    <div class="winctl" id="winCtl" hidden>
+      <button type="button" data-win="min" title="최소화" aria-label="최소화"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1 6.5h10" stroke="currentColor" stroke-width="1.2"/></svg></button>
+      <button type="button" data-win="max" title="이전 크기로" aria-label="최대화/이전 크기"><svg id="winMaxIco" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5h7.5V9M1.5 3h7.5v7.5H1.5z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></button>
+      <button type="button" data-win="close" class="wc-close" title="닫기" aria-label="닫기"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 1.5l9 9M10.5 1.5l-9 9" stroke="currentColor" stroke-width="1.2"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <!-- ───────────── 분석 설정 (왼쪽) ───────────── -->
+  <aside class="side" id="sidePanel" aria-label="분석 설정">
+    <nav class="snav" id="sideNav" aria-label="목차">
+      <button type="button" data-pane="home" aria-current="true" title="처음 화면"><span>홈</span><small>시작</small></button>
+      <button type="button" data-pane="data" title="받기 · CSV · 공항 · 기간"><span>데이터</span><small>공항 · 기간</small></button>
+      <button type="button" data-pane="lib" title="저장한 데이터 보관 · 관리"><span>보관함</span><small>저장한 데이터</small></button>
+      <button type="button" data-pane="overview" disabled title="공항 정보 · 첨두 스위치"><span>개요</span><small>공항 정보</small></button>
+      <button type="button" data-pane="profile" disabled title="시간대별 · 일별 · 요일별 · 월별 운항"><span>운항량</span><small>보기 · 필터</small></button>
+      <button type="button" data-pane="mix" disabled title="노선 · 항공사 · 기종"><span>운항 구성</span><small>노선 · 항공사 · 기종</small></button>
+      <button type="button" data-pane="peak" hidden title="ICAO 기준 선택"><span>첨두시간</span><small>ICAO 기준 선택</small></button>
+    </nav>
+    <div class="spane" data-spane="home">
+      <div class="step">
+        <div class="step-head">시작하기</div>
+        <ol class="home-steps">
+          <li><b>로그인</b> 우측 상단에서 OpenSky 계정 로그인 (계정이 없으면 [회원가입] 참고)</li>
+          <li><b>데이터 다운로드</b> 공항·기간 선택 후 다운로드 — 또는 CSV·보관함 데이터 불러오기</li>
+          <li><b>분석</b> 개요 · 운항량 · 운항 구성</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="spane" data-spane="data" hidden>
+    <div class="step">
+      <div class="step-head"><span class="step-num">1</span>데이터</div>
+      <select id="source" class="field" aria-label="데이터 소스">
+        <option value="csv" selected>CSV 가져오기</option>
+        <option value="demo">데모 데이터</option>
+      </select>
+
+      <div id="csvOpts" class="sub-panel">
+        <label class="lbl" for="csvFile" style="margin:0">운항 CSV 파일 (여러 개 가능)</label>
+        <input id="csvFile" class="field" type="file" accept=".csv,text/csv" multiple>
+        <div id="csvAirportWrap" style="display:none">
+          <label class="lbl" for="csvAirport">분석할 공항</label>
+          <select id="csvAirport" class="field"></select>
+        </div>
+        <p class="text-xs muted leading-relaxed" id="csvInfo">
+          CSV 선택 시 공항·기간이 자동 입력됩니다.
+        </p>
+        <div id="savedWrap" hidden>
+          <span class="lbl">저장된 데이터 <span class="snote">이 브라우저에 저장 · 다음 실행 시 마지막 데이터 자동 선택</span></span>
+          <div id="savedList" class="saved"></div>
+        </div>
+        <a id="kitBtn2" class="btn" href="https://github.com/BottleXhan/flightdata/releases/latest" target="_blank" rel="noopener" style="padding:.35rem .7rem;font-size:.75rem;align-self:flex-start;text-decoration:none">FlightData 프로그램 다운로드</a>
+      </div>
+
+      <!-- FlightData 프로그램(exe) 안에서만: OpenSky 에서 바로 받기 (공항·기간은 아래 2번 칸을 씀) -->
+      <div id="collectOpts" class="sub-panel" style="display:none">
+        <p class="text-xs muted">OpenSky 로그인은 우측 상단, 공항·기간 설정과 다운로드는 본문에서 진행합니다. CSV로 분석하려면 위에서 "CSV 가져오기"를 선택하세요.</p>
+      </div>
+    </div>
+
+
+    </div>
+
+    <div class="spane" data-spane="lib" hidden>
+      <div class="step">
+        <div class="step-head">보관함</div>
+        <p class="text-xs muted">다운로드·가져온 데이터는 자동 저장됩니다. 이름·메모 편집, 재분석, CSV 다운로드, 삭제를 지원합니다.</p>
+        <label class="btn" style="align-self:flex-start;cursor:pointer">CSV 가져오기<input id="libAdd" type="file" accept=".csv,text/csv" multiple hidden></label>
+        <p class="text-xs muted" id="libWhere"></p>
+      </div>
+    </div>
+
+    <div class="spane" data-spane="overview" hidden>
+      <div class="step">
+        <p class="text-xs muted">다른 공항·기간 또는 CSV를 분석하려면 <b>데이터</b> 탭에서 변경 후 [분석 시작]을 실행하세요.</p>
+        <button type="button" class="btn" data-goto-pane="data" style="align-self:flex-start">데이터 탭으로 이동</button>
+      </div>
+    </div>
+
+    <div class="spane" data-spane="profile" hidden>
+      <div class="step">
+        <div class="step-head">보기</div>
+        <div class="slist" id="sProfTabs">
+          <button type="button" data-ppick="hour">시간대별<small>하루 24시간 운항</small></button>
+          <button type="button" data-ppick="day">일별<small>날짜별 운항</small></button>
+          <button type="button" data-ppick="wd">요일별<small>월~일 하루 평균</small></button>
+          <button type="button" data-ppick="month">월별<small>달마다 하루 평균·합계</small></button>
+          <button type="button" data-ppick="year" hidden>연별<small>해마다 합계·하루 평균</small></button>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-head">첨두시간 산정 (선택)</div>
+        <label class="switch"><input type="checkbox" id="peakOn" role="switch"><span>ICAO Doc 9184 첨두시간 보기</span></label>
+        <p class="text-xs muted">사용 시 목차에 "첨두시간" 탭 추가 · 운항량 그래프에 설계일 표시</p>
+      </div>
+      <div data-filterhost="profile"></div>
+    </div>
+
+    <div class="spane" data-spane="mix" hidden>
+      <div class="step">
+        <div class="step-head">보기</div>
+        <div class="slist" id="sMixTabs">
+          <button type="button" data-mpick="route" aria-pressed="true">노선<small>지도 · 출발지·목적지 공항</small></button>
+          <button type="button" data-mpick="airline">항공사<small>편명 앞 3자리별 운항</small></button>
+          <button type="button" data-mpick="type">기종<small>기종별 운항</small></button>
+        </div>
+      </div>
+      <div data-filterhost="mix"></div>
+    </div>
+
+    <div class="spane" data-spane="peak" hidden>
+      <div class="step">
+        <div class="step-head">산정 기준</div>
+        <div id="peakOpts"></div>
+      </div>
+    </div>
+
+    <div class="step" id="filterStep" hidden>
+      <div class="step-head">필터 <span class="snote">운항량·운항 구성에 함께 적용</span><button id="fReset" type="button" class="freset" hidden>초기화</button></div>
+      <div>
+        <div>
+          <label class="lbl" for="fDir">방향</label>
+          <select id="fDir" class="field">
+            <option value="all" selected>도착 + 출발</option>
+            <option value="A">도착만</option>
+            <option value="D">출발만</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="lbl" for="fRoute">노선</label>
+        <select id="fRoute" class="field"><option value="all">전체 노선</option></select>
+      </div>
+      <div class="fal">
+        <span class="lbl">항공사</span>
+        <button id="fAlBtn" type="button" class="field dd-btn" aria-haspopup="dialog" aria-expanded="false"><span>전체 항공사</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div id="fAlPop" class="falpop" role="dialog" aria-label="항공사 선택" hidden>
+          <input id="fAlSearch" class="field" placeholder="코드·이름 검색 (예: KAL, Korean)" autocomplete="off">
+          <div id="fAlList" class="fallist"></div>
+          <div class="falfoot"><button type="button" id="fAlNone" class="qbtn">모두 해제</button><button type="button" id="fAlDone" class="qbtn" aria-pressed="true">완료</button></div>
+        </div>
+      </div>
+      <div class="fstack">
+        <div>
+          <label class="lbl" for="fSize">기종 크기</label>
+          <select id="fSize" class="field">
+            <option value="all" selected>전체</option>
+            <option value="L">대형 (광동체)</option>
+            <option value="M">중형 (협동체)</option>
+            <option value="S">소형 (리저널·터보프롭)</option>
+            <option value="U">미상</option>
+          </select>
+        </div>
+        <div>
+          <span class="lbl">시간대 (현지)</span>
+          <div class="fhours">
+            <select id="fH0" class="field" aria-label="시작 시각"><option value="0">00시</option><option value="1">01시</option><option value="2">02시</option><option value="3">03시</option><option value="4">04시</option><option value="5">05시</option><option value="6">06시</option><option value="7">07시</option><option value="8">08시</option><option value="9">09시</option><option value="10">10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option><option value="20">20시</option><option value="21">21시</option><option value="22">22시</option><option value="23">23시</option></select>
+            <span class="muted">~</span>
+            <select id="fH1" class="field" aria-label="끝 시각"><option value="1">01시</option><option value="2">02시</option><option value="3">03시</option><option value="4">04시</option><option value="5">05시</option><option value="6">06시</option><option value="7">07시</option><option value="8">08시</option><option value="9">09시</option><option value="10">10시</option><option value="11">11시</option><option value="12">12시</option><option value="13">13시</option><option value="14">14시</option><option value="15">15시</option><option value="16">16시</option><option value="17">17시</option><option value="18">18시</option><option value="19">19시</option><option value="20">20시</option><option value="21">21시</option><option value="22">22시</option><option value="23">23시</option><option value="24">24시</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="sfoot">
+      <span id="status" class="text-xs secondary" role="status" aria-live="polite"></span>
+      <div id="progressWrap" class="hidden h-1.5 rounded-full overflow-hidden" style="background:var(--surface-2)">
+        <div id="progress" class="h-full" style="width:0;background:var(--accent);transition:width .2s"></div>
+      </div>
+      <div id="msg" class="hidden text-sm p-3"></div>
+    </div>
+
+  </aside>
+
+  <!-- ───────────── 결과 (오른쪽) ───────────── -->
+  <main class="main" id="mainView" data-pane="home">
+
+    <!-- 홈 -->
+    <section id="homeView" class="home">
+      <div class="panel home-hero">
+        <div class="hh-logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor"><path style="transform:rotate(45deg);transform-origin:12px 12px" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/></svg></div>
+        <div class="hh-text">
+          <h2>FlightData <span id="homeVer" class="hh-ver"></span></h2>
+          <p class="secondary">OpenSky 운항 기록 기반 공항 운항량 · 노선 · 항공사 · 기종 분석</p>
+        </div>
+        <div class="hh-status" id="homeStatus"></div>
+      </div>
+      <div class="home-acts">
+        <button type="button" data-home="collect" class="ha-main"><i aria-hidden="true">⤓</i><b id="haCollectT">데이터 다운로드</b><span id="haCollectD">OpenSky 공항·기간 선택 후 다운로드 및 분석</span></button>
+        <button type="button" data-home="lib"><i aria-hidden="true">▤</i><b>보관함</b><span id="haLibD">저장된 데이터 관리 · 재분석</span></button>
+        <button type="button" data-home="csv"><i aria-hidden="true">⇪</i><b>CSV 가져오기</b><span>로컬 운항 CSV 파일 분석</span></button>
+        <button type="button" data-home="demo"><i aria-hidden="true">▶</i><b>데모 실행</b><span>합성 데이터(1년) 기반 기능 미리보기</span></button>
+      </div>
+      <div class="home-grid">
+        <div class="panel">
+          <div class="panel-head"><h3 class="panel-title">최근 데이터</h3><button type="button" class="link-btn" data-home="lib">보관함 전체 →</button></div>
+          <div id="homeRecent" class="home-recent"></div>
+        </div>
+        <div class="panel" id="homeNow">
+          <div class="panel-head"><h3 class="panel-title">지금 보고 있는 데이터</h3></div>
+          <div id="homeNowBody"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 데이터 탭: 공항 지도 (휠 확대 · 끌기 · 클릭으로 공항 고르기) -->
+    <section id="dataView" class="dview">
+      <div class="panel dv-card" id="dvCard" data-mode="form">
+        <div class="panel-head">
+          <h3 class="panel-title" id="dvTitle">데이터 보기</h3>
+          <div class="tabs dv-tabs" role="tablist" aria-label="데이터 화면">
+            <button class="tab" role="tab" type="button" aria-selected="true" data-dvmode="form">데이터 다운로드</button>
+            <button class="tab" role="tab" type="button" aria-selected="false" data-dvmode="map">지도에서 공항 선택</button>
+          </div>
+          <span class="text-xs muted" id="dvSub"></span>
+        </div>
+        <div class="dv-grid">
+          <div class="dv-col">
+            <div class="dv-h" id="apSlotHome"><span class="step-num">1</span>공항</div>
+            <div class="apsearch">
+              <label class="lbl" for="apSearch">공항 검색</label>
+              <input id="apSearch" class="field" placeholder="예: 인천, 인천국제공항, Incheon, ICN, RKSI" autocomplete="off">
+              <div id="apResults" class="apres" hidden></div>
+            </div>
+            <div class="row2">
+              <div>
+                <label class="lbl" for="icao">공항 (ICAO)</label>
+                <input id="icao" class="field uppercase" maxlength="4" placeholder="RKSI" autocomplete="off" style="font-family:var(--font-data);letter-spacing:.06em">
+              </div>
+              <div>
+                <label class="lbl" for="tz">UTC 오프셋 (시간)</label>
+                <input id="tz" class="field" type="number" step="0.5" placeholder="9">
+              </div>
+            </div>
+            <p id="apInfo" class="text-xs secondary" style="margin-top:-2px"></p>
+            <button id="amapToggle" class="btn dv-mapbtn" type="button" aria-expanded="false" aria-controls="amapBox">🗺 지도에서 선택</button>
+          </div>
+          <div class="dv-col">
+            <div class="dv-h"><span class="step-num">2</span>기간</div>
+            <div class="row2">
+              <div>
+                <label class="lbl" for="startDate">시작일 (현지)</label>
+                <input id="startDate" class="field" type="date">
+              </div>
+              <div>
+                <label class="lbl" for="endDate">종료일 (현지)</label>
+                <input id="endDate" class="field" type="date">
+              </div>
+            </div>
+            <div>
+              <span class="lbl">빠른 선택</span>
+              <div class="qgrid" id="quickRange">
+                <span class="qname">최근</span>
+                <div class="qbtns"><button class="qbtn" type="button" data-q="7">7일</button><button class="qbtn" type="button" data-q="30">30일</button></div>
+                <span class="qname">연도</span>
+                <div class="ypick">
+                  <button id="yearBtn" class="qbtn" type="button" aria-haspopup="dialog" aria-expanded="false">📅 연도 선택</button>
+                  <div id="yearPop" class="ypop" role="dialog" aria-label="연도 선택" hidden>
+                    <p id="yearMsg"></p>
+                    <div class="ygrid" id="yearGrid"></div>
+                  </div>
+                </div>
+              </div>
+              <p id="spanInfo" class="text-xs muted" style="margin-top:.4rem"></p>
+            </div>
+          </div>
+          <div class="dv-col dv-go">
+            <div class="dv-h"><span class="step-num">3</span><span id="dvGoName">실행</span></div>
+            <button id="runBtn" class="btn btn-primary btn-lg dv-run" type="button">데이터 보기</button>
+            <button id="recalcBtn" class="btn" type="button" disabled hidden>기준 변경 재계산</button>
+            <p class="text-xs muted" id="runHint">공항·기간 선택 후 실행하세요. 필터·첨두 기준은 결과 화면에서 변경 시 즉시 재계산됩니다.</p>
+            <p id="lastNote" class="text-xs secondary" hidden></p>
+            <div id="dvOpts" hidden>
+              <label class="ccheck"><input type="checkbox" id="cSplit" checked> 연도별 CSV 분할 저장</label>
+              <label class="ccheck"><input type="checkbox" id="cAircraft" checked> 기종·운항사 정보 추가 (최초 1회 항공기 DB 다운로드)</label>
+              <div>
+                <label class="lbl" for="cDir">저장 폴더</label>
+                <div class="flex gap-2"><input id="cDir" class="field" style="flex:1;min-width:0" spellcheck="false" title="경로 직접 입력 가능"><button id="cPickDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">바꾸기…</button><button id="cOpenDir" class="btn" type="button" style="padding:.4rem .7rem;font-size:.75rem">열기</button></div>
+                <p id="cDirMsg" class="text-xs muted" hidden></p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="amapBox" class="amap-box" hidden>
+          <div class="amap-head">
+            <div id="amapSearchSlot" class="amap-search"></div>
+            <div class="amap-pick"><span class="text-xs muted">선택한 공항</span><b id="amapSel"></b></div>
+            <span class="text-xs muted amap-hint">휠: 확대/축소 · 드래그: 이동 · 클릭: 공항 선택</span>
+            <button id="amapClose" class="btn btn-primary" type="button">이 공항 선택</button>
+          </div>
+      <div class="amap" id="amap">
+        <canvas id="amapCv" aria-label="공항 지도"></canvas>
+        <div class="amap-tip" id="amapTip" hidden></div>
+        <div class="amap-ctl">
+          <button type="button" id="amapIn" title="확대" aria-label="확대">+</button>
+          <button type="button" id="amapOut" title="축소" aria-label="축소">−</button>
+          <button type="button" id="amapHome" title="고른 공항으로" aria-label="고른 공항으로">◎</button>
+        </div>
+        <p class="amap-note" id="amapNote">지도: Natural Earth · 공항: mwgg/Airports</p>
+      </div>
+        </div>
+      </div>
+
+      <!-- 받는 중: 큰 진행 막대 + 기록 -->
+      <div class="panel dv-prog" id="dvProg" hidden>
+        <div class="dvp-top">
+          <div class="dvp-txt"><b id="dvpState">다운로드 중</b><span id="dvpText" class="secondary"></span></div>
+          <div class="dvp-pct" id="dvpPct">0%</div>
+        </div>
+        <div class="dvp-bar"><div id="dvpBar"></div></div>
+        <div class="dvp-actions">
+          <button id="cStop" class="btn" type="button" disabled>중지</button>
+          <button id="cOpenDir2" class="btn" type="button">저장 폴더 열기</button>
+          <span class="text-xs muted">다운로드한 날짜는 캐시되어 재조회하지 않습니다 · 중지 시에도 완료된 날짜는 유지됩니다</span>
+        </div>
+        <div class="dvp-loghead"><b>기록</b><button id="cLogCopy" class="link-btn" type="button">복사</button></div>
+        <pre id="cLog" class="dvp-log"></pre>
+      </div>
+    </section>
+
+    <!-- 보관함: 저장한 데이터 보관 · 관리 -->
+    <section id="libView" class="lib">
+      <div class="panel">
+        <div class="panel-head">
+          <h3 class="panel-title">데이터 보관함</h3>
+          <span class="text-xs muted" id="libSub"></span>
+        </div>
+        <div class="lib-stats">
+          <div><b id="lsN">0</b><span>보관한 데이터</span></div>
+          <div><b id="lsAp">0</b><span>공항</span></div>
+          <div><b id="lsFl">–</b><span>운항 (편)</span></div>
+          <div><b id="lsMb">–</b><span id="lsMbSub">보관 용량</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="lib-bar">
+          <input id="libQ" class="field" placeholder="검색 — 공항·이름·메모" autocomplete="off" aria-label="보관함 찾기">
+          <select id="libAp" class="field" aria-label="공항으로 거르기"><option value="">모든 공항</option></select>
+          <select id="libCc" class="field" aria-label="나라로 거르기"><option value="">모든 나라</option></select>
+          <select id="libSort" class="field" aria-label="정렬">
+            <option value="saved">최근 저장 순</option><option value="ap">공항 순</option><option value="period">기간 순</option><option value="size">큰 것부터</option>
+          </select>
+          <span class="grow"></span>
+          <label class="btn" style="cursor:pointer">CSV 가져오기<input id="libAdd2" type="file" accept=".csv,text/csv" multiple hidden></label>
+        </div>
+        <div class="lib-sel" id="libSel" hidden>
+          <b id="libSelN"></b>
+          <button id="libOpenSel" class="btn" type="button">병합 후 분석</button>
+          <button id="libDlSel" class="btn" type="button">다운로드</button>
+          <button id="libDelSel" class="btn" type="button">삭제</button>
+          <button id="libSelNone" class="link-btn" type="button">선택 해제</button>
+        </div>
+        <div class="overflow-x-auto" style="margin-top:10px">
+          <table class="lib-tbl" id="libTbl"></table>
+        </div>
+      </div>
+      <div class="panel" id="libDisk" hidden>
+        <div class="panel-head">
+          <h3 class="panel-title">저장 폴더의 CSV <span class="ptitle-sub" id="libDiskDir"></span></h3>
+          <div class="flex gap-2"><button id="libDiskRefresh" class="btn" type="button">새로 고침</button><button id="libDiskOpen" class="btn" type="button">폴더 열기</button></div>
+        </div>
+        <p class="text-xs muted" style="margin:0 0 8px">이 PC에 저장된 OpenSky CSV 파일입니다. 보관함에 없는 파일은 [보관함에 추가]로 등록할 수 있습니다.</p>
+        <div class="overflow-x-auto"><table class="lib-tbl" id="libDiskTbl"></table></div>
+      </div>
+    </section>
+
+    <!-- 시작 화면 (분석 전) -->
+    <section class="welcome" id="welcome">
+      <div class="steps">
+        <div><b>1. CSV 준비</b>FlightData 프로그램으로 OpenSky 운항 CSV를 다운로드한 뒤, 왼쪽에서 해당 CSV를 선택하세요.</div>
+        <div><b>2. 운항량</b>시간대·일·요일·월별 도착·출발 및 PEAK 분석</div>
+        <div><b>3. 운항 구성</b>노선·항공사·기종별 운항 분석</div>
+      </div>
+      <div class="kit" id="kitGuide">
+        <div class="kit-head">
+          <div>
+            <b>처음이라면: CSV 수집 도구</b>
+            <p class="text-xs muted">웹 버전은 OpenSky에 직접 접속할 수 없으므로, PC용 FlightData 프로그램으로 CSV를 다운로드합니다 (Windows, 설치 불필요).</p>
+          </div>
+          <a id="kitExe" class="btn btn-primary" href="https://github.com/BottleXhan/flightdata/releases/latest" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            FlightData 다운로드 (zip)
+          </a>
+        </div>
+        <ol class="kit-steps">
+          <li><b>사전 준비</b> OpenSky 계정 생성 및 Trino 사용 승인</li>
+          <li><b>실행</b> 최신 릴리스의 <code>FlightData_x.y.z.zip</code> 을 받아 압축을 풀고, 폴더 안의 <code>FlightData_x.y.z.exe</code> 더블클릭 (처음에 "Windows의 PC 보호"가 뜨면 [추가 정보] → [실행]) — 이 분석기가 프로그램 창으로 열립니다</li>
+          <li><b>받기</b> 오른쪽 위에서 OpenSky 로그인 → 첫 화면에서 공항(이름으로 찾기·지도)·기간을 고르고 [데이터 받기]</li>
+          <li><b>보기</b> 다 받으면 같은 창에서 바로 분석됩니다 (이 웹 링크에서는 FlightData exe 옆 OpenSky_CSV 폴더의 CSV를 왼쪽 "운항 CSV 파일"에서 고르세요)</li>
+        </ol>
+        <p class="text-xs muted">수집기 소스·명령창 버전: <a href="https://github.com/BottleXhan/flightdata" target="_blank" rel="noopener" style="color:var(--accent)">github.com/BottleXhan/flightdata</a></p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="demoBtn" class="btn" type="button">데모 실행</button>
+        <a href="icao-source.html" class="btn" style="text-decoration:none" hidden>ICAO 원문 보기</a>
+      </div>
+    </section>
+
+    <div id="results" class="hidden results-wrap" data-view="overview">
+
+      <!-- ═════════ 개요 ═════════ -->
+      <section class="chapter" id="ch-overview">
+        <div id="demoNote" class="demo-note" hidden>
+          <b>데모 데이터</b><span>합성 운항 스케줄 기반 예시입니다. 실제 분석은 데이터 다운로드 또는 CSV 가져오기를 이용하세요.</span>
+        </div>
+        <div id="fChips" class="fchips" hidden></div>
+
+        <div class="panel apcard" id="apCard" data-sec="overview" hidden>
+          <div class="apglobe" id="apGlobe" aria-hidden="true"></div>
+          <div class="apbody">
+            <div class="aptitle"><b id="apcName"></b><span id="apcKo" class="secondary"></span></div>
+            <div class="text-sm secondary" id="apcPlace"></div>
+            <dl class="apgrid" id="apcGrid"></dl>
+          </div>
+        </div>
+
+        <div class="kpis" data-sec="overview">
+          <div class="kpi lead">
+            <div class="kpi-label">총 운항</div>
+            <div class="kpi-value" id="stTotal">–</div>
+            <div class="text-xs muted" id="stTotalSub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">하루 평균</div>
+            <div class="kpi-value" id="stAvg">–</div>
+            <div class="text-xs muted" id="stAvgSub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label"><span>가장 바쁜 날</span><span class="badge">PEAK</span></div>
+            <div class="kpi-value" id="stPeakDay">–</div>
+            <div class="text-xs muted" id="stPeakDaySub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label"><span>가장 바쁜 1시간</span><span class="badge">PEAK</span></div>
+            <div class="kpi-value" id="stPeakHour">–</div>
+            <div class="text-xs muted" id="stPeakHourSub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">도착 : 출발</div>
+            <div class="kpi-value" id="stRatio">–</div>
+            <div class="text-xs muted" id="stRatioSub"></div>
+          </div>
+        </div>
+
+        <!-- 개요: 작은 그래프 3개 (누르면 운항량 탭) -->
+        <div class="ovmini" data-sec="overview">
+          <button type="button" class="panel" data-ovp="hour"><span class="ovh">하루 24시간 <small>시간당 평균</small><i>→</i></span><div class="ovc"><canvas id="ovHour"></canvas></div></button>
+          <button type="button" class="panel" data-ovp="wd"><span class="ovh">요일별 <small>하루 평균</small><i>→</i></span><div class="ovc"><canvas id="ovWd"></canvas></div></button>
+          <button type="button" class="panel" data-ovp="day"><span class="ovh">일별 추이 <small>하루 합계</small><i>→</i></span><div class="ovc"><canvas id="ovDay"></canvas></div></button>
+        </div>
+        <!-- 개요: Top 5 (누르면 운항 구성 탭) -->
+        <div class="ovtop" data-sec="overview">
+          <button type="button" class="panel" data-ovm="route"><span class="ovh">노선 Top 5 <small>출발지·목적지 공항</small><i>→</i></span><ol id="ovTopRoute"></ol></button>
+          <button type="button" class="panel" data-ovm="airline"><span class="ovh">항공사 Top 5 <small>편명 앞 3자리</small><i>→</i></span><ol id="ovTopAirline"></ol></button>
+          <button type="button" class="panel" data-ovm="type"><span class="ovh">기종 Top 5 <small>기종 코드</small><i>→</i></span><ol id="ovTopType"></ol></button>
+        </div>
+
+
+        <!-- 운항 프로파일: 시간대별 · 일별 · 요일별 · 월별 -->
+        <div class="panel" id="sec-profile" data-sec="profile">
+          <div class="panel-head">
+            <h3 class="panel-title">운항량 <span class="ptitle-sub" id="pViewName">· 시간대별</span></h3>
+            <!-- 보기 탭은 사이드바 "보기"로 옮김 (사용자 요청) — 여기 버튼은 숨겨 두고 사이드바가 눌러 씀. 이 자리에 표시 대상 줄이 들어감 -->
+            <div class="tabs" role="tablist" hidden>
+              <button class="tab" role="tab" aria-selected="true" data-ptab="hour">시간대별</button>
+              <button class="tab" role="tab" aria-selected="false" data-ptab="day">일별</button>
+              <button class="tab" role="tab" aria-selected="false" data-ptab="wd">요일별</button>
+              <button class="tab" role="tab" aria-selected="false" data-ptab="month">월별</button>
+              <button class="tab" role="tab" aria-selected="false" data-ptab="year" hidden>연별</button>
+            </div>
+          </div>
+
+          <div class="prow">
+            <div class="pctl">
+            <div data-pctl="hour">
+            <div class="target">
+              <span class="lbl" style="margin:0">표시 대상</span>
+              <div class="tabs" role="group" aria-label="표시 대상">
+                <button class="tab" type="button" aria-pressed="true" data-tmode="avg" data-tkey="profile">평균</button>
+                <button class="tab" type="button" aria-pressed="false" data-tmode="peak" data-tkey="profile">PEAK 일</button>
+                <button class="tab design-only" type="button" aria-pressed="false" data-tmode="design" data-tkey="profile" title="첨두시간 산정에서 고른 기준의 설계일">설계일</button>
+                <button class="tab" type="button" aria-pressed="false" data-tmode="detail" data-tkey="profile">날짜 선택</button>
+              </div>
+              <div class="calwrap" data-tdetail="profile" hidden>
+                <button id="calBtn" class="field dd-btn" type="button" aria-haspopup="dialog" aria-expanded="false" style="width:13rem;max-width:100%">
+                  <span id="calBtnLbl">날짜</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                </button>
+                <div id="calPop" class="cal" role="dialog" aria-label="날짜 선택" hidden></div>
+              </div>
+            </div>
+            </div>
+            <div data-pctl="wd" hidden>
+            <div class="target">
+              <span class="lbl" style="margin:0">표시 대상</span>
+              <div class="tabs" role="group" aria-label="표시 대상">
+                <button class="tab" type="button" aria-pressed="true" data-tmode="avg" data-tkey="wd">평균</button>
+                <button class="tab" type="button" aria-pressed="false" data-tmode="peak" data-tkey="wd">PEAK 월</button>
+                <button class="tab" type="button" aria-pressed="false" data-tmode="detail" data-tkey="wd">월 선택</button>
+              </div>
+              <div class="dd" style="width:12rem;max-width:100%" data-tdetail="wd" hidden><select id="wdDetail" class="field" aria-label="세부 선택"></select></div>
+            </div>
+            </div>
+            <div data-pctl="year" hidden>
+            <div class="target">
+              <label class="lbl" for="yearSel" style="margin:0">표시 값</label>
+              <select id="yearSel" class="field" style="width:auto">
+                <option value="total" selected>연 합계 운항</option>
+                <option value="avg">하루 평균 운항</option>
+              </select>
+            </div>
+            </div>
+            <div data-pctl="month" hidden>
+            <div class="target">
+              <label class="lbl" for="monSel" style="margin:0">표시 값</label>
+              <select id="monSel" class="field" style="width:auto">
+                <option value="avg" selected>하루 평균 운항</option>
+                <option value="total">월 합계 운항</option>
+              </select>
+            </div>
+            </div>
+            </div>
+            <div class="pstats" id="profStats"></div>
+          </div>
+
+          <div data-ppane="hour">
+            <select id="profileSel" hidden aria-hidden="true"></select>
+            <p class="text-xs muted mt-3" id="profileNote" hidden></p>
+            <div class="legend mt-3">
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-arr)"></span>도착</span><span class="lg-tot"><span class="swatch" style="background:var(--series-arr)"></span>합계 (도착+출발)</span>
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-dep)"></span>출발</span>
+              <span><span class="swatch" style="background:var(--series-avg);height:3px"></span>합계 연속 2시간 평균</span>
+              <span><span class="swatch" style="background:var(--text-primary);height:2px"></span>평균 (점선)</span>
+              <span><span class="swatch" style="background:var(--sign)"></span>PEAK 시간 (가장 바쁜 시간)</span>
+              <span class="design-only"><span class="swatch" style="background:var(--band)"></span>설계 첨두시간 창</span>
+            </div>
+            <div class="chart-box mt-2"><canvas id="profileChart" aria-label="시간대별 도착/출발 막대 차트"></canvas></div>
+          </div>
+
+          <div data-ppane="day" style="display:none">
+            <p class="text-xs muted mt-4" id="dailyNote" hidden></p>
+            <div class="legend mt-3">
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-arr)"></span>도착</span><span class="lg-tot"><span class="swatch" style="background:var(--series-arr)"></span>합계 (도착+출발)</span>
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-dep)"></span>출발</span>
+              <span><span class="swatch" style="background:var(--sign)"></span>PEAK 일 (가장 바쁜 날)</span>
+              <span><span class="swatch" style="background:var(--text-primary);height:2px"></span>하루 평균 (점선)</span>
+              <span class="design-only"><span class="swatch" style="background:var(--band)"></span>설계일</span>
+            </div>
+            <div class="chart-box mt-2"><canvas id="dailyChart" aria-label="일별 운항량"></canvas></div>
+          </div>
+
+          <div data-ppane="wd" style="display:none">
+            <select id="wdSel" hidden aria-hidden="true"></select>
+            <p class="text-xs muted mt-3" id="wdNote" hidden></p>
+            <div class="legend mt-3">
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-arr)"></span>도착</span><span class="lg-tot"><span class="swatch" style="background:var(--series-arr)"></span>합계 (도착+출발)</span>
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-dep)"></span>출발</span>
+              <span><span class="swatch" style="background:var(--series-avg);height:3px"></span>일평균 (합계, 점선)</span>
+              <span><span class="swatch" style="background:var(--sign)"></span>PEAK 요일 (가장 바쁜 요일)</span>
+              <span class="design-only"><span class="swatch" style="background:var(--band)"></span>설계일 요일</span>
+            </div>
+            <div class="chart-box mt-2"><canvas id="wdChart" aria-label="요일별 도착/출발 막대 차트"></canvas></div>
+          </div>
+
+          <div data-ppane="month" style="display:none">
+            <p class="text-xs muted mt-3" id="monNote"></p>
+            <div class="legend mt-3">
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-arr)"></span>도착</span><span class="lg-tot"><span class="swatch" style="background:var(--series-arr)"></span>합계 (도착+출발)</span>
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-dep)"></span>출발</span>
+              <span><span class="swatch" style="background:var(--series-avg);height:3px"></span>기간 평균 (합계, 점선)</span>
+              <span><span class="swatch" style="background:var(--sign)"></span>PEAK 월 (가장 바쁜 달)</span>
+              <span><span class="swatch" style="background:var(--band)"></span>피크 월 (일평균 기준, 다를 때)</span>
+            </div>
+            <div class="chart-box mt-2"><canvas id="monChart" aria-label="월별 도착/출발 막대 차트"></canvas></div>
+          </div>
+
+          <div data-ppane="year" style="display:none">
+            <p class="text-xs muted mt-3" id="yearNote" hidden></p>
+            <div class="legend mt-3">
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-arr)"></span>도착</span><span class="lg-tot"><span class="swatch" style="background:var(--series-arr)"></span>합계 (도착+출발)</span>
+              <span class="lg-ad"><span class="swatch" style="background:var(--series-dep)"></span>출발</span>
+              <span><span class="swatch" style="background:var(--series-avg);height:3px"></span>연평균 (합계, 점선)</span>
+              <span><span class="swatch" style="background:var(--sign)"></span>PEAK 연도 (가장 바쁜 해)</span>
+            </div>
+            <div class="chart-box mt-2"><canvas id="yearChart" aria-label="연도별 도착/출발 막대 차트"></canvas></div>
+          </div>
+
+          <!-- 세부 정보: 지금 보이는 차트의 값을 표로 -->
+          <div class="mt-3">
+            <button id="profDetailBtn" class="btn" type="button" aria-expanded="false" aria-controls="profDetail">
+              <span>세부 정보</span>
+              <svg id="profDetailIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true" style="transition:transform .15s"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="profDetail" hidden>
+              <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+                <p class="text-xs muted" id="profDetailNote" style="min-width:0"></p>
+                <div class="tabs" role="group" aria-label="정렬">
+                  <button class="tab" type="button" data-psort="time" aria-pressed="true">시간순</button>
+                  <button class="tab" type="button" data-psort="desc" aria-pressed="false">많은 순</button>
+                </div>
+              </div>
+              <div class="overflow-auto mt-2" style="max-height:440px"><table class="data" id="profDetailTable"></table></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ═════════ 운항 구성 ═════════ -->
+      <section class="chapter" id="ch-mix" data-sec="mix" data-mv="route">
+        <div class="panel" id="sec-route">
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 노선 (출발지 · 목적지 공항)</span></h3>
+          <p class="panel-desc" id="rtNote"></p>
+          <div class="route-grid mt-3">
+            <div class="rtmap-wrap">
+              <div id="rtMap" class="rtmap" role="img" aria-label="노선 지도"></div>
+              <div id="rtTip" class="rttip" hidden></div>
+              <div class="rtmap-foot"><span id="rtMapNote"></span></div>
+            </div>
+            <div><p class="ctitle" id="rtChartTitle"></p><div class="hbar-box"><canvas id="rtChart" aria-label="노선별 운항 막대 차트"></canvas></div></div>
+          </div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="rtDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="rtDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="rtTable"></table></div></div>
+        </div>
+        <div class="panel" id="sec-airline">
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 항공사 (편명 앞 3자리)</span></h3>
+          <p class="panel-desc" id="alNote"></p>
+          <p class="ctitle mt-3" id="alChartTitle"></p>
+          <div class="hbar-box"><canvas id="alChart" aria-label="항공사별 운항 막대 차트"></canvas></div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="alDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div id="alDetail" class="mt-3" hidden><div class="overflow-auto" style="max-height:420px"><table class="data" id="alTable"></table></div></div>
+        </div>
+        <div class="panel" id="sec-type">
+          <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 기종</span></h3>
+          <p class="panel-desc" id="typeNote"></p>
+          <div id="typeChartWrap"><p class="ctitle mt-3" id="typeChartTitle"></p>
+          <div class="hbar-box"><canvas id="typeChart" aria-label="기종별 운항 막대 차트"></canvas></div>
+          <button class="btn dtoggle mt-3" type="button" aria-expanded="false" aria-controls="typeDetail"><span>세부 정보</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+          <div id="typeDetail" class="mt-3" hidden><div class="overflow-x-auto"><table class="data" id="typeTable"></table></div></div>
+        </div>
+      </section>
+
+
+      <!-- ═════════ 첨두시간 (선택) ═════════ -->
+      <section class="chapter" id="ch-peak" data-sec="peak" hidden>
+        <div class="chapter-head"><h2>첨두시간 산정</h2><span class="chip">선택</span><p>ICAO Doc 9184 기준으로 설계 첨두시간을 구할 때 봅니다.</p></div>
+        <div class="panel">
+          <h3 class="panel-title">설계 첨두시간 산정 기준</h3>
+          <p class="panel-desc">기준은 왼쪽 사이드바 "4 첨두시간 산정"에서 고릅니다. 기본은 §3.4.3 a) 30번째 바쁜 시간(SBR)입니다.</p>
+          <div class="peak-ctl mt-3">
+      <div>
+        <label class="lbl" for="method">산정 기준 (Doc 9184 Part I)</label>
+        <select id="method" class="field">
+          <optgroup label="Glossary 정의 (연속 2시간 평균)">
+            <option value="icao_peak">Peak aircraft traffic demand (가장 활발한 시간)</option>
+            <option value="icao_busy">Busy hour aircraft traffic demand (40/30번째)</option>
+          </optgroup>
+          <optgroup label="§3.4.3 첨두시간 지표">
+            <option value="nth_hour" selected>a) 연중 20·30·40번째 바쁜 시간 (30번째 = SBR)</option>
+            <option value="adpm">b) 피크 월 평균일의 피크 시간 (FAA)</option>
+            <option value="iata_sbd">c) 피크 월 평균 주의 두 번째로 바쁜 날 피크 시간 (IATA)</option>
+            <option value="pct_day">d) 90·95 백분위 바쁜 기간의 피크 시간</option>
+            <option value="pct5">e) 5% busy hour</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="row2">
+        <div data-opt="icao_busy nth_hour">
+          <label class="lbl" for="busyN" id="busyNLbl">순위 N</label>
+          <select id="busyN" class="field">
+            <option value="20">20번째</option>
+            <option value="30" selected>30번째</option>
+            <option value="40">40번째</option>
+            <option value="custom">사용자 지정</option>
+          </select>
+        </div>
+        <div data-opt="custom">
+          <label class="lbl" for="customN">사용자 지정 N</label>
+          <input id="customN" class="field" type="number" min="1" value="20" disabled>
+        </div>
+        <div data-opt="icao_peak">
+          <label class="lbl" for="window">시간 창</label>
+          <select id="window" class="field">
+            <option value="clock" selected>정시 기준 (00–60분)</option>
+            <option value="rolling">이동 60분 (15분 간격)</option>
+          </select>
+        </div>
+        <div data-opt="adpm">
+          <label class="lbl" for="adpmDays">평균일 대상</label>
+          <select id="adpmDays" class="field">
+            <option value="all" selected>평균일 (전체 요일)</option>
+            <option value="weekday">평균 평일 (월–금)</option>
+          </select>
+        </div>
+        <div data-opt="adpm">
+          <label class="lbl" for="adpmSpan">피크 기간</label>
+          <select id="adpmSpan" class="field">
+            <option value="1" selected>피크 월</option>
+            <option value="2">피크 2개월 (연속)</option>
+          </select>
+        </div>
+        <div data-opt="pct_day">
+          <label class="lbl" for="pct">백분위</label>
+          <select id="pct" class="field">
+            <option value="0.90">90 백분위</option>
+            <option value="0.95" selected>95 백분위</option>
+          </select>
+        </div>
+      </div>
+      <p id="methodHint" class="text-xs secondary leading-relaxed"></p>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi lead">
+            <div class="kpi-label"><span>설계 첨두시간 수요</span><span class="badge" id="kMethodBadge"></span></div>
+            <div class="kpi-value" id="kDesign">–</div>
+            <div class="text-xs muted" id="kDesignSub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Peak aircraft traffic demand</div>
+            <div class="kpi-value" id="kPeak">–</div>
+            <div class="text-xs muted" id="kPeakSub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label" id="kBusyLbl">Busy hour demand</div>
+            <div class="kpi-value" id="kBusy">–</div>
+            <div class="text-xs muted" id="kBusySub"></div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">첨두 집중률</div>
+            <div class="kpi-value" id="kConc">–</div>
+            <div class="text-xs muted" id="kConcSub"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">기준별 설계 첨두시간</h3>
+          <div class="overflow-x-auto mt-3"><table class="data" id="methodTable"></table></div>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">도착 · 출발 · 합계 (§3.4.5)</h3>
+          <p class="panel-desc">구분마다 따로 산정한 값입니다. Peak·Busy hour는 연속 2시간 평균(편/시간) 기준이며, 구분마다 첨두 시각이 다를 수 있습니다.</p>
+          <div class="overflow-x-auto mt-3"><table class="data" id="splitTable"></table></div>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">시간 순위 곡선 (Busy hour curve)</h3>
+          <p class="panel-desc" id="rankNote"></p>
+          <div class="legend mt-3">
+            <span><span class="swatch" style="background:var(--series-avg);height:3px"></span>연속 2시간 평균 (합계)</span>
+            <span><span class="swatch" style="background:var(--series-arr);height:3px"></span>단일 시간 (합계)</span>
+          </div>
+          <div class="chart-box mt-2"><canvas id="rankChart" aria-label="시간 순위 곡선"></canvas></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">첨두 비율 (연간 → 월 → 일 → 시간)</h3>
+          <p class="panel-desc">연간 운항에서 피크 월, 피크 월 평균일, 첨두일, 설계 첨두시간으로 좁혀 가는 비율입니다.
+            <a href="icao-source.html#src-384">§3.8.4</a>는 연간 예측에 바쁜 달 비율(busy month ratio)과 첨두시간 비율(peak hour ratio)을 적용해 첨두 기간 예측을 도출한다고 합니다.
+            단계 구성은 이 도구가 정한 것이며, 연간 운항은 기간 일평균 × 365 환산값입니다.</p>
+          <p class="text-xs secondary mt-3" id="ratioNote"></p>
+          <div class="overflow-x-auto mt-3"><table class="data" id="ratioChain"></table></div>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">처리능력 비교 · 미래 첨두 예측</h3>
+          <p class="panel-desc">설계 첨두시간 수요를 시간당 처리능력과 비교하고(<a href="icao-source.html#src-capacity">Hourly airport capacity</a>, <a href="icao-source.html#src-saturation">Saturation</a>),
+            첨두시간 비율로 미래 첨두를 예측합니다(<a href="icao-source.html#src-384">§3.8.4</a>). 예측 기간은 보통 5·10·20년(<a href="icao-source.html#src-249">Section I §2.4.9</a>)이며,
+            주의 기준에 닿는 해는 다음 개발 단계를 시작할 처리 용량 트리거(<a href="icao-source.html#src-2811">§2.8.11</a>)로 볼 수 있습니다.</p>
+          <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mt-4">
+            <div>
+              <label class="lbl" for="capTotal">시간당 처리능력 (편)</label>
+              <input id="capTotal" class="field" type="number" min="1" step="1" placeholder="예: 60">
+            </div>
+            <div>
+              <label class="lbl" for="capWarn">주의 기준 (이용률 %)</label>
+              <input id="capWarn" class="field" type="number" min="1" max="100" step="1" value="85" title="ICAO 정의가 아닌 이 도구의 설정값">
+            </div>
+            <div>
+              <label class="lbl" for="fcGrowth">연간 운항 성장률 (%)</label>
+              <input id="fcGrowth" class="field" type="number" step="0.1" value="3">
+            </div>
+            <div>
+              <label class="lbl" for="fcRatio">첨두 비율 연간 변화 (%)</label>
+              <input id="fcRatio" class="field" type="number" step="0.1" value="0" title="§3.8.4: 첨두 분산(peak spreading)이 예상되면 음수로 입력">
+            </div>
+            <div>
+              <label class="lbl" for="fcYears">예측 기간 (년)</label>
+              <input id="fcYears" class="field" type="number" min="1" max="40" step="1" value="20" title="§3.3.4: 마스터플랜 예측은 보통 20–25년">
+            </div>
+            <div>
+              <label class="lbl" for="fcBase">기준 연도</label>
+              <input id="fcBase" class="field" type="number" step="1">
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mt-4" id="capCards"></div>
+          <p class="text-xs muted mt-3" id="capNote"></p>
+          <div class="legend mt-3">
+            <span><span class="swatch" style="background:var(--series-arr);height:3px"></span>예측 첨두시간 수요</span>
+            <span><span class="swatch" style="background:var(--text-primary);height:3px"></span>처리능력</span>
+            <span><span class="swatch" style="background:var(--series-dep);height:3px"></span>주의 기준</span>
+          </div>
+          <div class="chart-box mt-2"><canvas id="fcChart" aria-label="연도별 예측 첨두시간 수요와 처리능력"></canvas></div>
+          <details class="mt-3">
+            <summary class="text-sm font-semibold">연도별 예측 표</summary>
+            <div class="overflow-x-auto mt-2"><table class="data" id="fcTable"></table></div>
+          </details>
+        </div>
+
+        <div class="panel">
+          <h3 class="panel-title">UK CAA 기준표 대조 (참고)</h3>
+          <p class="panel-desc">연간 운항 규모가 비슷한 공항이 보통 어느 정도의 첨두일·첨두시간·SBR을 갖는지 UK CAA 표와 비교합니다.
+            출처: Ashford et al., <i>Airport Operations</i>, 3rd ed. (2013), Table 2.1 (Source: UK CAA), 표 사이 값은 선형 보간.
+            ICAO Doc 9184 의 기준이 아니며 데이터가 실제 규모를 반영하는지 점검하는 용도입니다.</p>
+          <div class="mt-3" style="max-width:20rem">
+            <label class="lbl" for="caaAnnual">공식 연간 운항 (선택)</label>
+            <input id="caaAnnual" class="field" type="number" min="1" step="1" placeholder="비우면 데이터에서 추정">
+          </div>
+          <div class="overflow-x-auto mt-3"><table class="data" id="caaTable"></table></div>
+          <p class="text-xs muted mt-2" id="caaNote"></p>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ───────────── 데이터 출처 · 인용 ───────────── -->
+  </main>
+</div>
+<div class="rsz" id="rsz" hidden><i data-e="n"></i><i data-e="s"></i><i data-e="w"></i><i data-e="e"></i><i data-e="nw"></i><i data-e="ne"></i><i data-e="sw"></i><i data-e="se"></i></div>
+<div id="updModal" class="upd-toast" role="status" aria-live="polite" hidden><div class="upd-card">
+  <div class="upd-top"><span class="upd-ico" aria-hidden="true">↑</span><div><b id="updTitle">새 버전이 있습니다</b><p id="updSub" class="text-xs muted"></p></div></div>
+  <details class="upd-more"><summary>변경 사항</summary><ul id="updList"></ul></details>
+  <div class="dvp-bar" id="updBarWrap" hidden><div id="updBar"></div></div>
+  <p id="updMsg" class="text-xs secondary"></p>
+  <div class="flex gap-2" style="justify-content:flex-end"><button id="updLater" class="btn" type="button">나중에</button><button id="updGo" class="btn btn-primary" type="button">업데이트</button></div>
+</div></div>
+<div id="bootOverlay" class="boot" role="status" aria-live="polite"><div class="boot-card"><span class="boot-spin" aria-hidden="true"></span><b>FlightData 준비 중…</b><span>잠시 기다려 주십시오</span></div></div>
+<div id="srcOverlay" hidden style="position:fixed;inset:0;z-index:200;background:var(--bg)">
+  <iframe id="srcFrame" title="ICAO 원문" style="width:100%;height:100%;border:0;display:block"></iframe>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

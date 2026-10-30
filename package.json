@@ -1,0 +1,13 @@
+{
+  "name": "flightdata-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/js/",
+    "imports": "node tools/fix_imports.mjs",
+    "check": "node tools/fix_imports.mjs --check && node --test tests/js/"
+  },
+  "devDependencies": {
+    "acorn": "8.14.0"
+  }
+}
