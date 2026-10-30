@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 OpenSky Trino 에서 특정 공항의 도착·출발 운항을 받아 CSV 로 저장한다.
-결과 CSV 는 분석기(icao-peak-hour.html)의 "CSV 파일 불러오기"로 읽는다.
+결과 CSV 는 분석기(web/analyzer.html)의 "CSV 파일 불러오기"로 읽는다.
 
 OpenSky "Trino - Historical Data" 가이드의 성능 규칙을 지킨다.
   1. 모든 쿼리에 파티션 열 조건을 건다: flights_data4 는 WHERE day = <UTC 자정 Unix 시각>

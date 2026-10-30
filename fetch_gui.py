@@ -161,11 +161,22 @@ class App(ctk.CTk):
 
     # ---------- 분석기 ----------
     def _open_analyzer(self):
-        """exe 안의 분석기를 브라우저로 연다 (방금 받은 CSV 가 있으면 자동으로 불러옴). 없으면 웹 링크."""
-        if os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html")):
-            webbrowser.open(self.web.url())
-        else:
+        """exe 안의 분석기를 브라우저가 아닌 프로그램 창(Edge WebView2)으로 연다. 방금 받은 CSV 가 있으면 자동으로 불러옴.
+        창은 별도 프로세스(같은 exe 를 --analyzer 로 다시 실행): tkinter 와 웹뷰는 한 프로세스의 메인 스레드를 함께 못 씀.
+        창을 띄우지 못하면 브라우저로, 분석기 파일이 없으면 웹 링크로."""
+        if not os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html")):
             webbrowser.open(ANALYZER_URL)
+            return
+        url = self.web.url()
+        old = getattr(self, "_analyzer_proc", None)
+        if old and old.poll() is None:                      # 이미 열려 있으면 새 데이터로 다시 엶
+            old.terminate()
+        cmd = [sys.executable, "--analyzer", url] if getattr(sys, "frozen", False) else [sys.executable, os.path.abspath(__file__), "--analyzer", url]
+        try:
+            import subprocess
+            self._analyzer_proc = subprocess.Popen(cmd)
+        except Exception:  # noqa: BLE001
+            webbrowser.open(url)
 
     # ---------- 비밀번호 기억 ----------
     def _fill_saved_password(self):
@@ -778,15 +789,36 @@ class App(ctk.CTk):
             if not messagebox.askyesno("닫기", "수집 중입니다. 닫을까요? (받은 날짜는 저장되어 다음에 이어받습니다)"):
                 return
             self.stop_flag = True
+        p = getattr(self, "_analyzer_proc", None)
+        if p and p.poll() is None:                          # 분석기 창도 함께 닫음 (데이터를 주던 서버가 이 프로그램 안에 있음)
+            p.terminate()
         self.destroy()
 
 
+def run_analyzer_window(url):
+    """분석기 창 (pywebview → Windows 는 Edge WebView2). 저장 데이터가 남도록 private_mode 를 끄고 exe 폴더에 보관."""
+    try:
+        import webview
+    except ImportError:
+        webbrowser.open(url)
+        return
+    webview.create_window("FlightData 분석기", url, width=1480, height=920, min_size=(1100, 700), maximized=True)
+    try:
+        webview.start(private_mode=False, storage_path=os.path.join(ff.APP_DIR, "analyzer_data"))
+    except Exception:  # noqa: BLE001 — WebView2 가 없는 PC 등: 브라우저로
+        webbrowser.open(url)
+
+
 if __name__ == "__main__":
+    if "--analyzer" in sys.argv:                            # [분석기 열기] 가 띄우는 분석기 창
+        run_analyzer_window(sys.argv[sys.argv.index("--analyzer") + 1])
+        sys.exit(0)
     if "--selftest" in sys.argv:                            # 빌드 확인용: 필요한 모듈·데이터가 exe 에 들어갔는지
         import trino.auth  # noqa: F401
         import zoneinfo
         assert AirportDB().get("RKSI").utc_offset() == 9
         assert Calendar is not None
+        import webview  # noqa: F401                         # 분석기 창 (pywebview)
         assert os.path.isfile(os.path.join(local_web.web_dir(), "analyzer.html"))   # exe 안의 분석기
         assert os.path.isfile(os.path.join(local_web.web_dir(), "mapdata", "airports_min.json"))
         assert oa.CAN_REMEMBER                              # Windows 자격 증명 관리자 (ctypes): 저장 → 읽기 → 삭제

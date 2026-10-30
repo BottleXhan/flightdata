@@ -1,2 +1,13 @@
 _build.py
 __pycache__/
+preview/
+trino_cache/
+credentials.json
+fetch_settings.json
+aircraftDatabase.csv
+dist/
+build/
+*.spec
+*.tmp
+*.pdf
+icao-source.html
