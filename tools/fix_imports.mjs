@@ -31,9 +31,11 @@ const declsOf = body => {
 };
 
 // 1) 모듈별 export 이름
-const parsed = new Map(), exportOwner = new Map();
+const parsed = new Map(), exportOwner = new Map(), eolOf = new Map();
 for (const f of files) {
-  const src = fs.readFileSync(f, 'utf8');
+  const raw = fs.readFileSync(f, 'utf8');
+  const src = raw.replace(/\r\n/g, '\n');                       // Windows 체크아웃(CRLF)도 같은 결과
+  eolOf.set(f, raw.includes('\r\n') ? '\r\n' : '\n');
   const ast = acorn.parse(src, { ecmaVersion: 2023, sourceType: 'module', locations: true });
   parsed.set(f, { src, ast });
   for (const s of ast.body) {
@@ -123,7 +125,7 @@ for (const f of files) {
   if (next !== src) {
     changed++;
     if (check) console.log('import 정리 필요:', path.relative(ROOT, f));
-    else fs.writeFileSync(f, next);
+    else fs.writeFileSync(f, next.replace(/\n/g, eolOf.get(f)));
   }
 }
 console.log(check ? (changed ? `${changed}개 파일` : 'import 정상') : `${changed}개 파일 고침`);
