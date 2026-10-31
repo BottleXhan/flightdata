@@ -3,7 +3,7 @@ import { loadMapData, MAPDATA, regionName } from '../data/airports.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtPct, HOUR } from '../lib/fmt.js';
 import { STATE } from '../state.js';
-import { airlineMark, airlineName, airlineOf, apFlag, flag } from '../ui/badges.js';
+import { airlineMark, airlineName, airlineOf, apFlag, flag, flagSrc, logoSrc } from '../ui/badges.js';
 import { hbarChart } from '../ui/charts.js';
 import { PANE, setPane } from '../ui/nav.js';
 import { renderAirportCard } from './overview.js';
@@ -89,10 +89,12 @@ export function renderAirlinesRoutes() {
   const CT = 15, shortAp = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[1] || a[0]).split(' ')[0] : ''; };
   const rts = S.routes.filter(r => r.ap !== '미상').slice(0, CT);
   $('rtChartTitle').textContent = `운항이 많은 노선 상위 ${rts.length}곳 (전체 ${S.routes.length.toLocaleString()}곳) · 도착 = 그 공항에서 옴, 출발 = 그 공항으로 감`;
-  hbarChart('rtChart', rts, { labelOf: r => `${r.ap} ${shortAp(r.ap)}`.trim(), arrOf: r => r.from, depOf: r => r.to, total: S.total });
+  hbarChart('rtChart', rts, { labelOf: r => `${r.ap} ${shortAp(r.ap)}`.trim(), arrOf: r => r.from, depOf: r => r.to, total: S.total,
+    iconOf: r => ({ flag: flagSrc(MAPDATA?.airports?.[r.ap]?.[2]) }) });
   const als = S.airlines.slice(0, CT);
   $('alChartTitle').textContent = `운항이 많은 항공사 상위 ${als.length}곳 (전체 ${S.airlines.length.toLocaleString()}곳)`;
-  hbarChart('alChart', als, { labelOf: a => a.name ? `${a.code} ${a.name.length > 14 ? a.name.slice(0, 13) + '…' : a.name}` : a.code, arrOf: a => a.arr, depOf: a => a.dep, total: S.total });
+  hbarChart('alChart', als, { labelOf: a => a.name ? `${a.code} ${a.name.length > 14 ? a.name.slice(0, 13) + '…' : a.name}` : a.code, arrOf: a => a.arr, depOf: a => a.dep, total: S.total,
+    iconOf: a => ({ logo: logoSrc(a.code), flag: flagSrc(a.cc) }) });
   if (!MAPDATA) loadMapData().then(ok => ok && renderAirlinesRoutes());   // 지도·공항명 자료를 받은 뒤 다시 그림
   else { renderRouteMap(S); renderAirportCard(S); }
 }

@@ -9,6 +9,10 @@ export const airlineOf = code => MAPDATA?.airlines?.[code] || null;
 /** 화면에 쓸 항공사 이름: 한글 이름 → 대응표 이름 → fallback(항공기 DB 운영사) */
 export const airlineName = (code, fallback = '') => { const a = airlineOf(code); return a ? (a[3] || a[1]) : fallback; };
 
+/** 그림 주소 (차트 캔버스용 — ui/charts.js 의 라벨 그림) */
+export const flagSrc = cc => (/^[A-Z]{2}$/.test(cc || '') ? `flags/${cc.toLowerCase()}.svg` : '');
+export const logoSrc = code => { const a = airlineOf(code); return a?.[0] ? `https://pics.avs.io/120/40/${a[0]}@2x.png` : ''; };
+
 export function flag(cc) {
   if (!/^[A-Z]{2}$/.test(cc || '')) return '';
   return `<img class="flag" src="flags/${cc.toLowerCase()}.svg" alt="" title="${esc(regionName(cc))}" loading="lazy">`;
@@ -22,7 +26,7 @@ export function airlineMark(code) {
   const a = airlineOf(code);
   if (!a) return '';
   if (!a[0]) return flag(a[2]);
-  return `<img class="al-logo" src="https://pics.avs.io/120/40/${esc(a[0])}@2x.png" alt="${esc(a[1])}" title="${esc(a[1])}" loading="lazy" referrerpolicy="no-referrer" data-cc="${esc(a[2])}">`;
+  return `<img class="al-logo" src="${esc(logoSrc(code))}" alt="${esc(a[1])}" title="${esc(a[1])}" loading="lazy" referrerpolicy="no-referrer" data-cc="${esc(a[2])}">`;
 }
 
 export function init() {

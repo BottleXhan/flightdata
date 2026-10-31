@@ -115,8 +115,48 @@ export function baseOptions(tc, extra = {}) {
   };
 }
 
-/** 운항 구성용 가로 막대 (상위 N개, 도착·출발 쌓기 또는 한 값) */
-export function hbarChart(id, rows, { labelOf, arrOf, depOf, valOf, total, unitNote = '' }) {
+/* ---------- 가로 막대 라벨 앞 그림 (국기·항공사 로고) — 차트는 캔버스라 HTML <img> 를 못 넣어 직접 그림 ---------- */
+const ICON_IMG = new Map();                              // 주소 → Image (한 번 받은 것은 다시 받지 않음)
+function iconImg(src, redraw) {
+  let im = ICON_IMG.get(src);
+  if (!im) { im = new Image(); if (/^https?:/.test(src)) im.crossOrigin = 'anonymous'; im.src = src; ICON_IMG.set(src, im); }
+  if (!im.complete) im.addEventListener('load', redraw, { once: true });
+  return im;
+}
+const ICON = { w: 48, h: 16, gap: 7 };                  // 로고 칸 (국기는 같은 칸의 오른쪽에 4:3)
+
+/** icons[i] = { logo: 주소, flag: 주소 } — 로고를 못 받으면(없거나 실패) 국기 */
+function iconPlugin(icons) {
+  return {
+    id: 'labelIcons',
+    afterDraw(chart) {
+      const { ctx, scales: { y } } = chart, redraw = () => chart.ctx && chart.draw();
+      ctx.save(); ctx.font = Chart.helpers.toFont(y.options.ticks.font).string;
+      chart.data.labels.forEach((lab, i) => {
+        const ic = icons[i]; if (!ic) return;
+        let im = ic.logo && iconImg(ic.logo, redraw), logo = true;
+        if (!im || (im.complete && !im.naturalWidth)) { im = ic.flag && iconImg(ic.flag, redraw); logo = false; }   // 로고 실패 → 국기
+        if (!im || !im.complete || !im.naturalWidth) return;
+        const tx = y._labelItems?.[i]?.options?.translation?.[0] ?? (y.right - y.options.ticks.padding - 8);   // Chart.js 가 그린 라벨의 오른쪽 끝
+        const x = tx - ctx.measureText(lab).width - ICON.gap - ICON.w, top = y.getPixelForTick(i) - ICON.h / 2;
+        if (logo) {                                       // 어두운 글자 로고라 흰 바탕 (HTML 의 img.al-logo 와 같게)
+          ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(x, top, ICON.w, ICON.h, 3); ctx.fill();
+          const r = Math.min((ICON.w - 4) / im.naturalWidth, (ICON.h - 2) / im.naturalHeight), dw = im.naturalWidth * r, dh = im.naturalHeight * r;
+          ctx.drawImage(im, x + (ICON.w - dw) / 2, top + (ICON.h - dh) / 2, dw, dh);
+        } else {
+          const fh = 12, fw = 16;
+          const fx = x + ICON.w - fw, fy = top + (ICON.h - fh) / 2;
+          ctx.drawImage(im, fx, fy, fw, fh);
+          ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = .5; ctx.strokeRect(fx, fy, fw, fh);   // 흰 국기(일본 등) 경계 (img.flag 와 같게)
+        }
+      });
+      ctx.restore();
+    }
+  };
+}
+
+/** 운항 구성용 가로 막대 (상위 N개, 도착·출발 쌓기 또는 한 값). iconOf(r) → { logo, flag } 이면 라벨 앞에 그림 */
+export function hbarChart(id, rows, { labelOf, arrOf, depOf, valOf, total, iconOf, unitNote = '' }) {
   const tc = themeColors(), box = $(id).parentElement;
   box.style.height = Math.max(160, rows.length * 26 + 50) + 'px';
   const labels = rows.map(labelOf), split = !!arrOf;
@@ -132,7 +172,9 @@ export function hbarChart(id, rows, { labelOf, arrOf, depOf, valOf, total, unitN
   if (split) o.plugins.legend = { display: true, position: 'top', align: 'start', labels: { boxWidth: 10, boxHeight: 10, color: tc.text } };
   const hb = (label, data, color) => ({ type: 'bar', label, data, backgroundColor: color, stack: 's', borderRadius: 3, barPercentage: 0.8, categoryPercentage: 0.9 });
   const datasets = split ? [hb('도착', rows.map(arrOf), tc.arr), hb('출발', rows.map(depOf), tc.dep)] : [hb('운항', rows.map(valOf), tc.arr)];
-  mkChart(id, { type: 'bar', data: { labels, datasets }, options: o });
+  const icons = iconOf ? rows.map(iconOf) : null;
+  if (icons) o.scales.y.afterFit = s => { s.width += ICON.w + ICON.gap; };   // 라벨 왼쪽에 그림 자리
+  mkChart(id, { type: 'bar', data: { labels, datasets }, options: o, plugins: icons ? [iconPlugin(icons)] : [] });
 }
 
 export function mkChart(id, config) { charts[id]?.destroy(); charts[id] = new Chart($(id), config); }

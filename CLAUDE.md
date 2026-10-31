@@ -4,7 +4,7 @@ OpenSky Network Trino(과거 데이터)에서 공항 운항 CSV 를 받고, 같�
 ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 산정은 선택 기능으로 들어 있다.
 
 - 저장소: **BottleXhan/flightdata (Public)** — 2026-10-31 예전 비공개 저장소 ICAO(opensky-peak-hour-app 브랜치)를 여기로 합침. ICAO 히스토리는 저작권 PDF 가 들어 있어 가져오지 않았다 (파일만 복사).
-- 현재 버전: `VERSION` 파일. 1.4.1 = 국기·항공사 로고·항공사 이름 + (push 안 한 1.3.2 를 합침) 두 번 실행 방지·창 찾기(이 프로세스 창만)·복원 크기·보관함 등록 표시·API 오류 응답. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
+- 현재 버전: `VERSION` 파일. 1.4.2 = 운항 구성 가로 막대 그래프 라벨에도 국기·로고(`ui/charts.js` 의 `iconPlugin`, `hbarChart({ iconOf })`). 1.4.1 = 국기·항공사 로고·항공사 이름 + (push 안 한 1.3.2 를 합침) 두 번 실행 방지·창 찾기(이 프로세스 창만)·복원 크기·보관함 등록 표시·API 오류 응답. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
 - 웹 버전(아티팩트): https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5 (링크가 있는 누구나 열람)
 - Python 은 **`py -3.13`** (3.15 는 zstandard 빌드 실패). 의존성: `trino tzdata pywebview requests` (+ 빌드 pyinstaller, 시험 pytest, 미리보기 playwright). Node 22 + `npm ci` (acorn: import 정리 도구)
 
