@@ -39,6 +39,10 @@ def test_static_files(srv):
     assert st == 200 and ct.startswith("text/javascript")    # 모듈 스크립트는 JS 형식이어야 실행됨
     assert request(srv, "GET", "/css/app.css")[0] == 200
     assert request(srv, "GET", "/mapdata/land50.json")[0] == 200
+    st, ct, body = request(srv, "GET", "/flags/kr.svg")                # 국기 (flag-icons)
+    assert st == 200 and ct == "image/svg+xml" and body.startswith(b"<svg")
+    al = json.loads(request(srv, "GET", "/mapdata/airlines.json")[2])  # 항공사 대응표 (OpenFlights + 보정)
+    assert al["KAL"] == ["KE", "Korean Air", "KR", "대한항공"] and al["FDX"][0] == "FX"
 
 
 def test_second_server_does_not_share_port(srv):

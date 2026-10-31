@@ -4,6 +4,7 @@ import { autoTz, isoD } from '../data/period.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtDate, fmtN, fmtPct, fmtTime, HOUR, WD, wdOf } from '../lib/fmt.js';
 import { STATE } from '../state.js';
+import { airlineMark, apFlag, flag } from '../ui/badges.js';
 import { charts, mkChart, themeColors } from '../ui/charts.js';
 import { setPane } from '../ui/nav.js';
 import { airlineRouteSummary, setMixView } from './mix.js';
@@ -64,13 +65,13 @@ export function renderOverviewExtras(res) {
   const S = STATE.alrt || airlineRouteSummary(), tot = STATE.view.movements.length;
   const list = (id, rows) => {
     const mx = rows[0]?.n || 1;
-    $(id).innerHTML = rows.length ? rows.map((r, i) => `<li><span class="rk">${i + 1}</span><span class="nm"><b>${esc(r.code)}</b>${esc(r.name || '')}</span>
+    $(id).innerHTML = rows.length ? rows.map((r, i) => `<li><span class="rk">${i + 1}</span><span class="nm">${r.mark || ''}<b>${esc(r.code)}</b>${esc(r.name || '')}</span>
       <span class="br"><span style="width:${(r.n / mx * 100).toFixed(1)}%"></span></span><span class="vl">${r.n.toLocaleString()}<small>${fmtPct(r.n / tot)}</small></span></li>`).join('')
       : '<li class="empty">정보 없음</li>';
   };
   const apNm = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[1] || a[0]) : ''; };
-  list('ovTopRoute', S.routes.filter(r => r.ap !== '미상').slice(0, 5).map(r => ({ code: r.ap, name: apNm(r.ap), n: r.n })));
-  list('ovTopAirline', S.airlines.filter(a => a.code !== '기타').slice(0, 5).map(a => ({ code: a.code, name: a.name, n: a.n })));
+  list('ovTopRoute', S.routes.filter(r => r.ap !== '미상').slice(0, 5).map(r => ({ code: r.ap, name: apNm(r.ap), n: r.n, mark: apFlag(r.ap) })));
+  list('ovTopAirline', S.airlines.filter(a => a.code !== '기타').slice(0, 5).map(a => ({ code: a.code, name: a.name, n: a.n, mark: airlineMark(a.code) })));
   const ty = new Map(); for (const m of STATE.view.movements) if (m.typecode) ty.set(m.typecode, (ty.get(m.typecode) || 0) + 1);
   list('ovTopType', [...ty.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, name: '', n })));
 }
@@ -87,7 +88,7 @@ export function renderAirportCard(S) {
   const off = autoTz(code, isoD(new Date((STATE.data.startLocal) * 1000)));
   $('apcName').textContent = name;
   $('apcKo').textContent = ko ? ko : '';
-  $('apcPlace').textContent = [city, state && state !== city ? state : '', country].filter(Boolean).join(', ');
+  $('apcPlace').innerHTML = flag(cc) + esc([city, state && state !== city ? state : '', country].filter(Boolean).join(', '));
   // 이 데이터에서: 연결 공항·나라, 국제선 비율, 가장 많은 노선
   const known = S.routes.filter(r => A[r.ap]), knownN = known.reduce((t, r) => t + r.n, 0);
   const intlN = known.filter(r => A[r.ap][2] !== cc).reduce((t, r) => t + r.n, 0);
@@ -103,7 +104,7 @@ export function renderAirportCard(S) {
     f('항공사', `${airlines.toLocaleString()}곳 <small>(편명 기준)</small>`) +
     f('연결 공항', `${known.length.toLocaleString()}곳 <small>· ${nations.size}개 나라</small>`) +
     f('국제선 비율', knownN ? `${fmtPct(intlN / knownN)}` : '–') +
-    f('가장 많은 노선', tA ? `${esc(top.ap)} <small>${esc(tA[9] || tA[1] || tA[0])} · ${top.n.toLocaleString()}편</small>` : '–');
+    f('가장 많은 노선', tA ? `${apFlag(top.ap)}${esc(top.ap)} <small>${esc(tA[9] || tA[1] || tA[0])} · ${top.n.toLocaleString()}편</small>` : '–');
   // 작은 지구본 (공항 위치에 노란 점)
   const el = $('apGlobe'); el.innerHTML = '';
   if (!window.d3) return;

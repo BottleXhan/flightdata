@@ -533,6 +533,15 @@
   .ovtop li .vl { font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
   .ovtop li .vl small { color: var(--text-muted); margin-left: 4px; }
   .ovtop .empty { font-size: .8rem; color: var(--text-muted); }
+  /* 국기 (flags/*.svg, 4:3) · 항공사 로고 (pics.avs.io, 3:1 — 어두운 글자 로고라 다크 모드에서도 보이게 흰 바탕) */
+  img.flag, img.al-logo { max-width: none; flex: none; }   /* Tailwind 기본(img max-width:100%)이 좁은 칸에서 줄이지 않게 */
+  img.flag { display: inline-block; height: .9em; width: 1.2em; object-fit: cover; border-radius: 2px; vertical-align: -.08em; margin-right: .4em; box-shadow: 0 0 0 .5px rgba(0,0,0,.18); }
+  img.al-logo { display: inline-block; height: 22px; width: 66px; object-fit: contain; background: #fff; border-radius: 4px; padding: 2px 4px; vertical-align: middle; margin-right: .5em; }
+  td.mark { width: 1%; white-space: nowrap; }
+  td.mark img.al-logo { margin-right: 0; }
+  td.mark img.flag { margin: 0 auto; display: block; }
+  .ovtop li .nm img.al-logo { height: 18px; width: 54px; padding: 1px 3px; margin-right: 6px; }
+  .fallist label span img.al-logo { height: 16px; width: 48px; padding: 1px 3px; margin-right: 6px; }
   .kpi { background: var(--surface); border-radius: 16px; padding: 16px 18px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
   .kpi-label { font-size: .75rem; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .kpi.lead { background: var(--accent); color: var(--accent-ink); }

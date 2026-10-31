@@ -29,5 +29,7 @@ FlightData_1.0.xx.zip 의 압축을 풀고 폴더 안의 FlightData_<버전>.exe
 - 설정·항공기 DB(aircraftDatabase.csv)·프로그램 데이터는 exe 와 같은 폴더에 저장됩니다. exe 를 쓰기 가능한 폴더(예: 바탕 화면의 새 폴더)에 두세요.
 - OpenSky 조회 규칙(하루 단위, 한 번에 하나씩)을 지킵니다. 계정을 여러 개 만들면 정지될 수 있습니다.
 - 공항 목록: mwgg/Airports (MIT License). 지도: Natural Earth.
+- 항공사 이름·나라: OpenFlights (ODbL 1.0). 국기: flag-icons (MIT License).
+- 항공사 로고는 화면에 표시할 때 인터넷(pics.avs.io)에서 받습니다. 인터넷이 없으면 항공사 나라 국기로 표시됩니다.
 - 데이터 출처: The OpenSky Network. 발표·논문에 쓰면 인용하세요:
   Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.

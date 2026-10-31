@@ -1,8 +1,9 @@
 // 운항 구성: 노선(지도) · 항공사 · 기종.
-import { loadMapData, MAPDATA } from '../data/airports.js';
+import { loadMapData, MAPDATA, regionName } from '../data/airports.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtPct, HOUR } from '../lib/fmt.js';
 import { STATE } from '../state.js';
+import { airlineMark, airlineName, airlineOf, apFlag, flag } from '../ui/badges.js';
 import { hbarChart } from '../ui/charts.js';
 import { PANE, setPane } from '../ui/nav.js';
 import { renderAirportCard } from './overview.js';
@@ -44,7 +45,7 @@ export function renderTypes(res, sel) {
   $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:30%"></th></tr></thead><tbody>' +
     top.map(r => `<tr><td><b style="font-family:var(--font-data)">${esc(r.code)}</b></td><td class="secondary">${esc(r.model)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td>
       <td><div style="height:8px;border-radius:4px;background:var(--accent);width:${(r.n / t.rows[0].n * 100).toFixed(1)}%"></div></td></tr>`).join('') +
-    (t.rows.length > 20 ? `<tr><td colspan="5" class="muted">외 ${t.rows.length - 20}개 기종 (엑셀 "기종별" 시트에 전체)</td></tr>` : '') + '</tbody>';
+    (t.rows.length > 20 ? `<tr><td colspan="5" class="muted">외 ${t.rows.length - 20}개 기종</td></tr>` : '') + '</tbody>';
 }
 
 export function airlineRouteSummary() {
@@ -63,7 +64,7 @@ export function airlineRouteSummary() {
   const name = a => [...a.names.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] || '';
   return {
     total: mv.length,
-    airlines: [...al.values()].sort((a, b) => b.n - a.n).map(a => ({ ...a, name: name(a) })),
+    airlines: [...al.values()].sort((a, b) => b.n - a.n).map(a => ({ ...a, name: airlineName(a.code, name(a)), cc: airlineOf(a.code)?.[2] || '' })),
     routes: [...rt.values()].filter(r => r.ap !== '미상').sort((a, b) => b.n - a.n)   // 상대 공항을 모르는 운항(미상)은 노선에서 뺌 (사용자 요청)
   };
 }
@@ -72,17 +73,18 @@ export function renderAirlinesRoutes() {
   const S = STATE.alrt = airlineRouteSummary(), TOP = 50;
   const bar = (v, max) => `<div style="height:8px;border-radius:4px;background:var(--accent);width:${max ? (v / max * 100).toFixed(1) : 0}%"></div>`;
   const amax = S.airlines[0]?.n, rmax = S.routes[0]?.n;
-  $('alNote').textContent = `${S.airlines.length.toLocaleString()}개 항공사 코드 · 운항사 이름은 항공기 데이터베이스 기준 (없으면 빈칸) · "기타" = 항공사 형식이 아닌 편명`;
-  $('alTable').innerHTML = '<thead><tr><th class="num">순위</th><th>코드</th><th>운항사</th><th class="num">운항</th><th style="width:18%"></th><th class="num">비율</th><th class="num">도착</th><th class="num">출발</th></tr></thead><tbody>' +
-    S.airlines.slice(0, TOP).map((a, i) => `<tr><td class="num">${i + 1}</td><td><b style="font-family:var(--font-data)">${esc(a.code)}</b></td><td class="secondary">${esc(a.name)}</td>
+  $('alNote').textContent = `${S.airlines.length.toLocaleString()}개 항공사 코드 · 항공사 이름·나라: OpenFlights (없으면 항공기 데이터베이스의 운영사) · 로고: pics.avs.io · "기타" = 항공사 형식이 아닌 편명`;
+  $('alTable').innerHTML = '<thead><tr><th class="num">순위</th><th></th><th>코드</th><th>항공사</th><th>나라</th><th class="num">운항</th><th style="width:18%"></th><th class="num">비율</th><th class="num">도착</th><th class="num">출발</th></tr></thead><tbody>' +
+    S.airlines.slice(0, TOP).map((a, i) => `<tr><td class="num">${i + 1}</td><td class="mark">${airlineMark(a.code)}</td><td><b style="font-family:var(--font-data)">${esc(a.code)}</b></td><td class="secondary">${esc(a.name)}</td>
+      <td class="secondary" style="white-space:nowrap">${a.cc ? flag(a.cc) + esc(regionName(a.cc)) : ''}</td>
       <td class="num"><b>${a.n.toLocaleString()}</b></td><td>${bar(a.n, amax)}</td><td class="num">${fmtPct(a.n / S.total)}</td><td class="num">${a.arr.toLocaleString()}</td><td class="num">${a.dep.toLocaleString()}</td></tr>`).join('') +
-    (S.airlines.length > TOP ? `<tr><td colspan="8" class="muted">외 ${S.airlines.length - TOP}개 (엑셀 "항공사" 시트에 전체)</td></tr>` : '') + '</tbody>';
+    (S.airlines.length > TOP ? `<tr><td colspan="10" class="muted">외 ${S.airlines.length - TOP}개</td></tr>` : '') + '</tbody>';
   $('rtNote').textContent = `${S.routes.length.toLocaleString()}개 공항 · 지도의 선 굵기 = 운항 수`;
   const apName = c => { const a = MAPDATA?.airports?.[c]; return a ? `${a[0]}${a[1] ? ' · ' + a[1] : ''}` : ''; };
   $('rtTable').innerHTML = '<thead><tr><th class="num">순위</th><th>공항</th><th class="num">운항</th><th style="width:18%"></th><th class="num">비율</th><th class="num">에서 도착</th><th class="num">으로 출발</th></tr></thead><tbody>' +
-    S.routes.slice(0, TOP).map((r, i) => `<tr data-rt="${esc(r.ap)}"><td class="num">${i + 1}</td><td><b>${esc(r.ap)}</b> <span class="text-xs muted">${esc(apName(r.ap))}</span></td>
+    S.routes.slice(0, TOP).map((r, i) => `<tr data-rt="${esc(r.ap)}"><td class="num">${i + 1}</td><td>${apFlag(r.ap)}<b>${esc(r.ap)}</b> <span class="text-xs muted">${esc(apName(r.ap))}</span></td>
       <td class="num"><b>${r.n.toLocaleString()}</b></td><td>${bar(r.n, rmax)}</td><td class="num">${fmtPct(r.n / S.total)}</td><td class="num">${r.from.toLocaleString()}</td><td class="num">${r.to.toLocaleString()}</td></tr>`).join('') +
-    (S.routes.length > TOP ? `<tr><td colspan="7" class="muted">외 ${S.routes.length - TOP}개 (엑셀 "노선" 시트에 전체)</td></tr>` : '') + '</tbody>';
+    (S.routes.length > TOP ? `<tr><td colspan="7" class="muted">외 ${S.routes.length - TOP}개</td></tr>` : '') + '</tbody>';
   // 그래프: 상위 15개 (도착·출발 쌓기)
   const CT = 15, shortAp = c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] || a[1] || a[0]).split(' ')[0] : ''; };
   const rts = S.routes.filter(r => r.ap !== '미상').slice(0, CT);
@@ -118,7 +120,7 @@ function renderRouteMap(S) {
   const tip = $('rtTip');
   const show = (ev, r) => {
     const box = el.getBoundingClientRect();
-    tip.innerHTML = `<b>${esc(r.ap)}</b> ${esc(r.a[0])}<br><span class="muted">${esc([r.a[1], r.a[2]].filter(Boolean).join(', '))}</span><br>` +
+    tip.innerHTML = `${flag(r.a[2])}<b>${esc(r.ap)}</b> ${esc(r.a[0])}<br><span class="muted">${esc([r.a[1], r.a[2]].filter(Boolean).join(', '))}</span><br>` +
       `<b>${r.n.toLocaleString()}편</b> · ${fmtPct(r.n / S.total)}<br>이 공항에서 도착 ${r.from.toLocaleString()} · 이 공항으로 출발 ${r.to.toLocaleString()}`;
     tip.hidden = false;
     tip.style.left = Math.min(ev.clientX - box.left + 12, box.width - 290) + 'px';

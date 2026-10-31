@@ -5,6 +5,7 @@ import { $, showMsg } from './lib/dom.js';
 import { DAY, esc, HOUR, pad } from './lib/fmt.js';
 import { renderAll } from './run.js';
 import { STATE } from './state.js';
+import { airlineMark, airlineName } from './ui/badges.js';
 import { saveLast } from './ui/session.js';
 
 const FILTER = { airlines: new Set() };
@@ -44,7 +45,7 @@ export function buildFilterOptions() {
     '<optgroup label="나라별">' + [...nat].filter(([c]) => c !== home).sort((a, b) => b[1] - a[1])
       .map(([c, n]) => `<option value="cc:${esc(c)}">${esc(regionName(c))} (${n.toLocaleString()})</option>`).join('') + '</optgroup>';
   $('fRoute').value = [...$('fRoute').options].some(o => o.value === cur) ? cur : 'all';
-  STATE.fAirlines = [...al].sort((a, b) => b[1].n - a[1].n).map(([code, a]) => ({ code, n: a.n, name: [...a.names].sort((x, y) => y[1] - x[1])[0]?.[0] || '' }));
+  STATE.fAirlines = [...al].sort((a, b) => b[1].n - a[1].n).map(([code, a]) => ({ code, n: a.n, name: airlineName(code, [...a.names].sort((x, y) => y[1] - x[1])[0]?.[0] || '') }));
   for (const c of [...FILTER.airlines]) if (!al.has(c)) FILTER.airlines.delete(c);
   $('fSize').querySelectorAll('option').forEach(o => { if (o.value !== 'all') o.disabled = !mv.some(m => m.typecode) && o.value !== 'U'; });
   renderAlList(); syncFilterUI();
@@ -52,7 +53,7 @@ export function buildFilterOptions() {
 
 function renderAlList() {
   const q = $('fAlSearch').value.trim().toLowerCase(), list = (STATE.fAirlines || []).filter(a => !q || a.code.toLowerCase().includes(q) || a.name.toLowerCase().includes(q));
-  $('fAlList').innerHTML = list.slice(0, 200).map(a => `<label><input type="checkbox" value="${esc(a.code)}"${FILTER.airlines.has(a.code) ? ' checked' : ''}><b>${esc(a.code)}</b><span>${esc(a.name)}</span><em>${a.n.toLocaleString()}</em></label>`).join('') ||
+  $('fAlList').innerHTML = list.slice(0, 200).map(a => `<label><input type="checkbox" value="${esc(a.code)}"${FILTER.airlines.has(a.code) ? ' checked' : ''}><b>${esc(a.code)}</b><span>${airlineMark(a.code)}${esc(a.name)}</span><em>${a.n.toLocaleString()}</em></label>`).join('') ||
     '<p class="text-xs muted" style="padding:.4rem">맞는 항공사가 없습니다</p>';
 }
 

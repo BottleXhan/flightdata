@@ -26,8 +26,10 @@ export let MAPDATA = null, MAPLOADING = null;
 
 export function loadMapData() {
   if (MAPLOADING) return MAPLOADING;
-  MAPLOADING = Promise.all(['mapdata/land.json', 'mapdata/airports_min.json'].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })))
-    .then(([land, airports]) => { MAPDATA = { land, airports }; return true; })
+  // airlines.json = {ICAO 항공사 코드: [IATA, 이름, 나라, 한글 이름]} (OpenFlights, tools/airlines) — 없어도 나머지는 동작
+  const air = fetch('mapdata/airlines.json').then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+  MAPLOADING = Promise.all([...['mapdata/land.json', 'mapdata/airports_min.json'].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })), air])
+    .then(([land, airports, airlines]) => { MAPDATA = { land, airports, airlines }; return true; })
     .catch(e => { console.warn('지도 자료를 불러오지 못함', e); $('rtMapNote').textContent = '지도 자료를 불러오지 못했습니다 (내 PC에서 HTML만 열면 mapdata 폴더가 같은 곳에 있어야 합니다).'; return false; });
   return MAPLOADING;
 }

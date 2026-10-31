@@ -5,6 +5,7 @@ import { COLLECTOR } from '../desktop/collect.js';
 import { $, apiPost, setStatus } from '../lib/dom.js';
 import { esc, pad } from '../lib/fmt.js';
 import { run } from '../run.js';
+import { flag } from '../ui/badges.js';
 import { setPane } from '../ui/nav.js';
 
 /* ---------- 보관함: 저장한 데이터 보관 · 관리 (이 브라우저/프로그램의 IndexedDB) ----------
@@ -58,7 +59,7 @@ export async function renderLib(list) {
           <td class="lname">${ed ? `<input class="field" data-ename value="${esc(r.name || r.label)}" aria-label="이름">` : esc(r.name || r.label)}<small title="${esc(r.files.map(f => f.name).join(', '))}">${esc(r.files.map(f => f.name).join(', '))}</small></td>
           <td class="aps">${esc(libAps(r).join(', '))}</td>
           <td class="secondary">${libAps(r).map(c => { const a = MAPDATA?.airports?.[c]; return a ? (a[9] ? `${esc(a[9])} <small class="muted">${esc(a[0])}</small>` : esc(a[0])) : ''; }).filter(Boolean).join('<br>') || '–'}</td>
-          <td class="secondary" style="white-space:nowrap">${esc([...new Set(libAps(r).map(c => regionName(libApCc(c))).filter(Boolean))].join(', ') || '–')}</td>
+          <td class="secondary" style="white-space:nowrap">${[...new Set(libAps(r).map(libApCc).filter(Boolean))].map(c => flag(c) + esc(regionName(c))).join(', ') || '–'}</td>
           <td style="white-space:nowrap">${a ? `${esc(a)} ~ ${esc(b)}` : '–'}</td>
           <td class="num">${days(r) ?? '–'}</td>
           <td class="num">${r.flights ? r.flights.toLocaleString() : '–'}</td>

@@ -22,7 +22,7 @@ def selftest():
     import opensky_auth as oa
     assert updater.parse_ver("FlightData_1.0.46") == (1, 0, 46) and updater.parse_ver("1.0.47") > updater.parse_ver("1.0.46")
     web = settings.web_dir()
-    for f in ("index.html", "css/app.css", "js/main.js", "mapdata/airports_min.json", "mapdata/land50.json"):
+    for f in ("index.html", "css/app.css", "js/main.js", "mapdata/airports_min.json", "mapdata/land50.json", "mapdata/airlines.json", "flags/kr.svg"):
         assert os.path.isfile(os.path.join(web, f)), f
     assert oa.CAN_REMEMBER                                  # Windows 자격 증명 관리자: 저장 → 읽기 → 삭제
     assert oa.save_password("flightdata-selftest", "pw-테스트")

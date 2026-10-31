@@ -18,6 +18,9 @@
 - 운항 데이터: The OpenSky Network. 발표·논문에 쓰면 인용: Matthias Schäfer et al., "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research", IPSN 2014.
 - 공항 목록 `web/mapdata/airports_min.json`: [mwgg/Airports](https://github.com/mwgg/Airports) (MIT License, 원본 `tools/airports/airports.json`)
 - 지도 윤곽 `web/mapdata/land*.json`: Natural Earth (public domain)
+- 항공사 이름·나라 `web/mapdata/airlines.json`: [OpenFlights](https://openflights.org/data) airlines·countries, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) (이 파일도 ODbL, 만드는 도구 `tools/airlines/build_airlines.py` — 한국·화물 항공사 보정 포함)
+- 국기 `web/flags/*.svg`: [flag-icons](https://github.com/lipis/flag-icons) (MIT License, `web/flags/LICENSE.txt`)
+- 항공사 로고: 화면에 표시할 때 [pics.avs.io](https://pics.avs.io) 에서 받음 (저장소에 넣지 않음). 로고는 각 항공사의 상표
 
 ## 구조
 

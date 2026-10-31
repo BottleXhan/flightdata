@@ -4,7 +4,7 @@ OpenSky Network Trino(과거 데이터)에서 공항 운항 CSV 를 받고, 같�
 ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 산정은 선택 기능으로 들어 있다.
 
 - 저장소: **BottleXhan/flightdata (Public)** — 2026-10-31 예전 비공개 저장소 ICAO(opensky-peak-hour-app 브랜치)를 여기로 합침. ICAO 히스토리는 저작권 PDF 가 들어 있어 가져오지 않았다 (파일만 복사).
-- 현재 버전: `VERSION` 파일. 1.3.2 = 두 번 실행 방지·창 찾기(이 프로세스 창만)·복원 크기·보관함 등록 표시·API 오류 응답. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
+- 현재 버전: `VERSION` 파일. 1.4.1 = 국기·항공사 로고·항공사 이름 + (push 안 한 1.3.2 를 합침) 두 번 실행 방지·창 찾기(이 프로세스 창만)·복원 크기·보관함 등록 표시·API 오류 응답. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
 - 웹 버전(아티팩트): https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5 (링크가 있는 누구나 열람)
 - Python 은 **`py -3.13`** (3.15 는 zstandard 빌드 실패). 의존성: `trino tzdata pywebview requests` (+ 빌드 pyinstaller, 시험 pytest, 미리보기 playwright). Node 22 + `npm ci` (acorn: import 정리 도구)
 
@@ -33,20 +33,22 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 | `fetch_flights.py` | Trino 수집 본체 (CLI·대화형 겸용 — `kit/run_fetch.bat` 이 같은 폴더의 이 파일을 실행하므로 **루트 단독 파일 유지**). `collect_many`, 캐시, 항공기 DB, `Stopped`/`cancel_current()` |
 | `opensky_auth.py` | Keycloak password grant(client_id=trino-client) → JWT, refresh, 실패 시 브라우저 OAuth2. 비밀번호는 Windows 자격 증명 관리자("FlightData/OpenSky:<사용자>") |
 | `web/index.html` · `web/css/app.css` | 분석기 화면 구조 · 스타일 (exe·아티팩트 공통). CDN: Tailwind Play · Chart.js 4.4.1 · JSZip 3.10.1 · d3 7.8.5 |
-| `web/js/` | ES 모듈 35개 (빌드 도구 없음). `main.js` 가 각 모듈의 `init()`(이벤트 연결)을 순서대로 부름 — 순서 의미: period·filters·peak 가 기본값을 채운 뒤 session 이 지난번 값으로 덮어씀 |
+| `web/js/` | ES 모듈 36개 (빌드 도구 없음). `main.js` 가 각 모듈의 `init()`(이벤트 연결)을 순서대로 부름 — 순서 의미: period·filters·peak 가 기본값을 채운 뒤 session 이 지난번 값으로 덮어씀 |
 | `web/js/engine/` | **순수 계산** (DOM 없음, node 시험): `csv`(CSV→운항) · `demo`(고정 시드) · `peak`(analyze, ICAO 기준) · `stats`(비율 체인·처리능력·CAA·연별) · `classify`(기종 크기·항공사) |
 | `web/js/lib/` | `fmt`(형식·시간 상수, 순수) · `dom`($·상태 줄·메시지·apiPost) · `select`(펼침 목록 위젯) |
 | `web/js/data/` | `airports`(MAPDATA·공항 찾기) · `period`(공항 코드·UTC·기간) · `datasets`(CSV 가져오기·IndexedDB 저장) |
 | `web/js/views/` | 장: `home` · `library`(보관함) · `overview` · `profile`(운항량) · `profile-target`(표시 대상) · `calendar` · `mix`(운항 구성) · `peak`(첨두시간) |
-| `web/js/ui/` | `nav`(setPane·사이드바) · `charts`(Chart.js 공통) · `session`(최근 분석 기억) · `theme` · `airport-map`(데이터 탭 지도) · `airport-search` · `source-overlay`(ICAO 원문 창) |
+| `web/js/ui/` | `nav`(setPane·사이드바) · `charts`(Chart.js 공통) · `session`(최근 분석 기억) · `theme` · `airport-map`(데이터 탭 지도) · `airport-search` · `source-overlay`(ICAO 원문 창) · `badges`(국기 `flag(cc)`·`apFlag(공항)`, 항공사 `airlineMark`·`airlineName`) |
+| `web/flags/` | 국기 SVG 270개(flag-icons 7.2.3, MIT, `LICENSE.txt`) — `tools/flags/get_flags.py` 로 받음. 화면은 `<img src="flags/kr.svg">` 로 필요한 것만 읽음 (Windows 는 국기 이모지를 못 그림) |
 | `web/js/desktop/` | exe 안에서만: `collect`(서버 확인·다운로드 진행) · `login` · `update` · `settings`(⚙) · `window`(창 버튼·끌기) |
 | `web/js/run.js` · `filters.js` · `state.js` | 분석 실행(run·renderAll) · 필터 · 공유 상태 `STATE {data, res}` |
-| `web/mapdata/` | `land.json`(110m), `land50.json`(50m, 데이터 탭 지도), `airports_min.json` = {ICAO: [이름, 도시, 국가, lat, lon, IATA, tz, 표고ft, 주, 한글이름]} |
+| `web/mapdata/` | `land.json`(110m), `land50.json`(50m, 데이터 탭 지도), `airports_min.json` = {ICAO: [이름, 도시, 국가, lat, lon, IATA, tz, 표고ft, 주, 한글이름]}, `airlines.json` = {편명 앞 3자리: [IATA, 이름, 나라, 한글이름]} (OpenFlights ODbL + 한국·화물 항공사 보정, `tools/airlines/build_airlines.py`, IATA 는 운항 중인 곳만 = 로고용). 셋 다 `loadMapData()` 가 `MAPDATA.{land, airports, airlines}` 로 |
 | `tests/` | pytest(`test_core` 계산·설정·js_api 규칙, `test_server` 정적 파일·보안·API) · `tests/js/engine.test.mjs`(분석 엔진 = `golden_engine.json`) |
 | `tools/golden.py` · `golden_compare.py` | 리팩터링 전후 비교: 실제 서버 + Edge(Playwright)로 데모 12장면의 화면 글자·차트 값·스크린샷 기록 → 비교 |
 | `tools/preview_app.py` | 화면 미리보기: 가짜 수집·로그인(비밀번호 "password")·가짜 CSV 로 서버를 띄우고 Edge 로 16장면 → `preview/app/index.html` (preview/ 는 git 제외) |
 | `tools/fix_imports.mjs` | `web/js` import 줄을 실제 쓰는 이름에 맞춰 다시 만듦 (`npm run imports`, CI 는 `--check`) |
 | `tools/airports/` | `airport_db.py` · `airports.json`(mwgg/Airports MIT 17,067곳 + 한글 이름) — `airports_min.json` 의 원본 자료, 실행에는 안 씀 |
+| `tools/airlines/` · `tools/flags/` | `build_airlines.py`(OpenFlights 받아 `airlines.json`, 보정표 OVERRIDE) · `get_flags.py`(flag-icons 받아 `web/flags/`) — 자료를 새로 만들 때만 |
 | `icon.svg` · `icon.ico` | 노랑 둥근 사각형 + 45° 남색 비행기. 분석기 favicon·머리 로고도 같은 path |
 | `CHANGELOG.md` · `VERSION` | 패치 노트 · 버전 |
 | `README.md` · `README_KR.txt` | 저장소 안내 · zip 에 들어가는 사용법 |
@@ -64,7 +66,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 
 ## 웹 버전(아티팩트) 올리기
 
-`web/index.html` 을 페이지로, files 에 `css/app.css` · `js/**/*.js`(35개, 경로 그대로) · `mapdata/land.json`·`mapdata/land50.json`·`mapdata/airports_min.json`, `icao-source.html`, 그리고 원문 페이지의 "돌아가기" 용으로 `web/index.html` 사본을 `icao-peak-hour.html` 로. 모듈 스크립트라 js 파일이 하나라도 빠지면 화면 전체가 안 뜸. 지금 올라가 있는 아티팩트는 1.2.4 때의 한 파일 버전(동작은 같음) — 다음에 화면을 바꿀 때 이 구조로 다시 올릴 것. icao-source.html 은 저장소 밖이라 **scratchpad 에 복사한 뒤** 그 경로를 files 로 넘긴다. 변경할 때마다 위 공유 링크를 사용자에게 준다.
+`web/index.html` 을 페이지로, files 에 `css/app.css` · `js/**/*.js`(36개, 경로 그대로) · `mapdata/land.json`·`mapdata/land50.json`·`mapdata/airports_min.json`·`mapdata/airlines.json` · `flags/*.svg`(270개 — 한 번에 255개까지라 두 번에 나눠 올림), `icao-source.html`, 그리고 원문 페이지의 "돌아가기" 용으로 `web/index.html` 사본을 `icao-peak-hour.html` 로. 모듈 스크립트라 js 파일이 하나라도 빠지면 화면 전체가 안 뜸. 지금 올라가 있는 아티팩트는 1.2.4 때의 한 파일 버전(동작은 같음) — 다음에 화면을 바꿀 때 이 구조로 다시 올릴 것. icao-source.html 은 저장소 밖이라 **scratchpad 에 복사한 뒤** 그 경로를 files 로 넘긴다. 변경할 때마다 위 공유 링크를 사용자에게 준다.
 
 ## exe 동작 (현재)
 
@@ -99,6 +101,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 - 클라우드 IP(Colab 등)는 차단됨 → 사용자 PC 에서만 수집.
 - 항공기 DB: `https://s3.opensky-network.org/data-samples/metadata/aircraftDatabase.csv` 를 한 번 받아 icao24 로 registration·typecode·model·manufacturer·operator 붙임 (실데이터 미검증).
 - 인용: Schäfer et al., "Bringing Up OpenSky", IPSN 2014 — 설정 › 데이터 출처에 표시.
+- 항공사 로고: `https://pics.avs.io/120/40/<IATA>@2x.png` 를 화면에서 바로 읽음 (사용자 선택 2026-10-31: 외부 로고 서비스). 저장소에 로고 파일을 넣지 않음. 못 받으면 `ui/badges.js` 의 문서 error 처리기가 항공사 나라 국기로 바꿈. 로고는 어두운 글자라 흰 바탕 칩(`img.al-logo`). 아티팩트(웹 버전)에서는 외부 이미지가 막히면 국기만 보임.
 - firstSeen/lastSeen·est*Airport 는 추정값. 2026-10-26 RKSI 3일 953건(하루 약 320편)으로 실제보다 크게 적음 → 커버리지 한계, 공식 통계 대조 필요.
 
 ## 산정 기준 (첨두시간 스위치)
