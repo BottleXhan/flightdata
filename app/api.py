@@ -230,7 +230,12 @@ def change_out_dir(srv, body):
 @post("/api/open-folder")
 def open_folder(srv, body):
     d = (body.get("dir") or "").strip() or settings.out_dir()
-    os.makedirs(d, exist_ok=True)
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError as e:
+        return error(f"폴더를 열 수 없습니다: {e}", 400)
+    if not os.path.isdir(d):                                 # 폴더만 연다 (파일 경로면 실행되지 않게)
+        return error("폴더가 아닙니다.", 400)
     if sys.platform.startswith("win"):
         os.startfile(d)  # noqa: S606 — 사용자가 고른 저장 폴더를 탐색기로
     else:

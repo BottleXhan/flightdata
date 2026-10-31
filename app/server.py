@@ -7,6 +7,7 @@
 """
 import json
 import os
+import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,6 +19,17 @@ from app.collector import Collector
 PORT = 8790
 MIME = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
         ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon"}
+
+
+class _HTTPServer(ThreadingHTTPServer):
+    """포트를 혼자만 잡는 서버 (1.3.2). 기본값(SO_REUSEADDR)이면 Windows 에서 이미 듣고 있는 8790 에
+    두 번째 프로그램도 붙어 버려, 요청이 아무 쪽으로나 가고 업데이트 직후 포트 기다리기도 무의미했음."""
+    allow_reuse_address = False
+
+    def server_bind(self):
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):          # Windows: 예전 버전(재사용 옵션)이 위에 덮어 잡는 것도 막음
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
 
 
 def static_path(url_path):
@@ -63,7 +75,7 @@ class AnalyzerServer:
         deadline = time.time() + self.port_wait
         while True:                                          # 업데이트 직후엔 8790 이 비기를 잠깐 기다림
             try:
-                self.httpd = ThreadingHTTPServer(("127.0.0.1", PORT), handler)
+                self.httpd = _HTTPServer(("127.0.0.1", PORT), handler)
                 break
             except OSError:
                 if time.time() >= deadline:
@@ -72,7 +84,7 @@ class AnalyzerServer:
         if self.httpd is None:
             for port in (*range(PORT + 1, PORT + 10), 0):
                 try:
-                    self.httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
+                    self.httpd = _HTTPServer(("127.0.0.1", port), handler)
                     break
                 except OSError:
                     continue
@@ -108,7 +120,14 @@ class _Handler(BaseHTTPRequestHandler):
         if full:
             with open(full, "rb") as f:
                 return self._send(api.Reply(200, f.read(), MIME[os.path.splitext(full)[1].lower()]))
-        return self._send(api.dispatch(api.GET, self.srv, u.path, parse_qs(u.query)))
+        return self._send(self._dispatch(api.GET, u.path, parse_qs(u.query)))
+
+    def _dispatch(self, table, path, arg):
+        """처리 함수가 예상 못 한 오류를 내도 응답은 돌려줌 (예전엔 연결만 끊겨 화면에 이유가 안 보였음, 1.3.2)."""
+        try:
+            return api.dispatch(table, self.srv, path, arg)
+        except Exception as e:  # noqa: BLE001
+            return api.error(f"처리 중 오류: {e}", 500)
 
     def do_POST(self):
         origin = self.headers.get("Origin")
@@ -119,4 +138,6 @@ class _Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         except ValueError:
             return self._send(api.error("잘못된 요청", 400))
-        return self._send(api.dispatch(api.POST, self.srv, urlparse(self.path).path, body))
+        if not isinstance(body, dict):
+            return self._send(api.error("잘못된 요청", 400))
+        return self._send(self._dispatch(api.POST, urlparse(self.path).path, body))

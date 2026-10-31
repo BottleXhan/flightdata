@@ -26,10 +26,32 @@ class Api:
     # (사용자 보고 1.1.4) Windows API 로 직접: 최대화 = 지금 모니터의 작업 영역(작업 표시줄 제외)에 꽉 맞춤
     _maxed = False
     _normal = None                                           # 이전 크기 (물리 픽셀 left, top, width, height)
+    _h = 0                                                   # 찾아 둔 창 핸들
 
     def _hwnd(self):
+        """이 프로세스의 창 — 제목만으로 찾으면(FindWindowW) 같은 제목의 탐색기 탭 등 다른 창이 먼저 걸려
+        최대화·복원·제목줄 색이 엉뚱한 창에 갔음 (1.3.2)."""
         import ctypes
-        return ctypes.windll.user32.FindWindowW(None, self._window.title)
+        from ctypes import wintypes
+        u32 = ctypes.windll.user32
+        if self._h and u32.IsWindow(self._h):
+            return self._h
+        title, pid, found = self._window.title, os.getpid(), []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def each(hwnd, _):
+            p = wintypes.DWORD()
+            u32.GetWindowThreadProcessId(hwnd, ctypes.byref(p))
+            if p.value == pid:
+                buf = ctypes.create_unicode_buffer(256)
+                u32.GetWindowTextW(hwnd, buf, 256)
+                if buf.value == title:
+                    found.append(hwnd)
+                    return False
+            return True
+        u32.EnumWindows(each, 0)
+        self._h = found[0] if found else 0
+        return self._h
 
     def _scale(self, hwnd):
         import ctypes
@@ -84,10 +106,11 @@ class Api:
     def maximize_now(self):
         if not sys.platform.startswith("win"):
             return self._window.maximize()
+        import ctypes
         hwnd = self._hwnd()
         if not hwnd:
             return
-        if not self._maxed:
+        if not self._maxed and ctypes.windll.user32.IsWindowVisible(hwnd):   # 숨긴 채 처음 최대화할 땐 기억하지 않음 → 복원 = 가운데 기본 크기
             self._normal = self._rect(hwnd)
         l, t, r, b = self._work(hwnd)
         self._frame(hwnd, True)
@@ -102,8 +125,11 @@ class Api:
             return
         n = self._normal
         l, t, r, b = self._work(hwnd)
-        if not n or n[2] >= r - l - 10:                       # 처음부터 최대화였으면 기본 크기로
+        if not n or n[2] >= r - l - 10 or n[3] > b - t:      # 처음부터 최대화였거나 작업 영역보다 크면 기본 크기로
             n = self._default_rect(hwnd)
+        else:                                                 # 작업 영역 안으로 (처음 만든 창 위치가 아래로 넘쳐 작업 표시줄에 가리던 것, 1.3.2)
+            x, y, w, h = n
+            n = min(max(x, l), r - w), min(max(y, t), b - h), w, h
         self._frame(hwnd, False)
         self._place(hwnd, *n)
         self._maxed = False
@@ -161,8 +187,8 @@ class Api:
         try:
             import ctypes
             from ctypes import wintypes
-            # 창 찾기: 제목으로 (다른 스레드에서 .NET 창 객체를 건드리지 않게 — 멈춤 방지)
-            hwnd = ctypes.windll.user32.FindWindowW(None, self._window.title)
+            # 창 찾기: 이 프로세스의 같은 제목 창 (다른 스레드에서 .NET 창 객체를 건드리지 않게 — 멈춤 방지)
+            hwnd = self._hwnd()
             if not hwnd:
                 return False
             dwm = ctypes.windll.dwmapi

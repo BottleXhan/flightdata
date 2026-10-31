@@ -41,6 +41,17 @@ def test_static_files(srv):
     assert request(srv, "GET", "/mapdata/land50.json")[0] == 200
 
 
+def test_second_server_does_not_share_port(srv):
+    """두 번째 서버는 같은 포트에 붙지 않고 다음 포트로 (예전엔 Windows 에서 둘 다 18790/8790 을 잡았음, 1.3.2)."""
+    s2 = AnalyzerServer()
+    s2.start()
+    try:
+        assert s2.port != srv.port
+    finally:
+        s2.httpd.shutdown()
+        s2.httpd.server_close()
+
+
 def test_static_path_stays_inside_web():
     assert static_path("/../fetch_flights.py") is None
     assert static_path("/..%2f..%2fwindows/win.ini") is None
@@ -86,6 +97,23 @@ def test_collect_validation(srv):
     assert st == 400 and "4자리" in json.loads(body)["error"]
     st, _, body = request(srv, "GET", "/api/collect/status")
     assert json.loads(body)["state"] == "idle"
+
+
+def test_errors_are_answered_not_dropped(srv, tmp_path, monkeypatch):
+    """처리 중 오류도 JSON 으로 답하고, 폴더 열기는 폴더만 (1.3.2)."""
+    st, ct, body = request(srv, "GET", "/api/collect/status?since=abc")
+    assert st == 500 and ct.startswith("application/json") and "error" in json.loads(body)
+    c = http.client.HTTPConnection("127.0.0.1", srv.port, timeout=10)
+    c.request("POST", "/api/logout", body="[1]", headers={"Host": f"127.0.0.1:{srv.port}", "Content-Type": "application/json"})
+    assert c.getresponse().status == 400
+    c.close()
+    opened = []
+    monkeypatch.setattr("os.startfile", opened.append, raising=False)
+    f = tmp_path / "x.exe"
+    f.write_bytes(b"")
+    assert request(srv, "POST", "/api/open-folder", {"dir": str(f)})[0] == 400
+    assert request(srv, "POST", "/api/open-folder", {"dir": str(tmp_path)})[0] == 200
+    assert opened == [str(tmp_path)]
 
 
 def test_open_url_only_opensky(srv, monkeypatch):

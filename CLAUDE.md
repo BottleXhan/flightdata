@@ -4,7 +4,7 @@ OpenSky Network Trino(과거 데이터)에서 공항 운항 CSV 를 받고, 같�
 ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 산정은 선택 기능으로 들어 있다.
 
 - 저장소: **BottleXhan/flightdata (Public)** — 2026-10-31 예전 비공개 저장소 ICAO(opensky-peak-hour-app 브랜치)를 여기로 합침. ICAO 히스토리는 저작권 PDF 가 들어 있어 가져오지 않았다 (파일만 복사).
-- 현재 버전: `VERSION` 파일. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
+- 현재 버전: `VERSION` 파일. 1.3.2 = 두 번 실행 방지·창 찾기(이 프로세스 창만)·복원 크기·보관함 등록 표시·API 오류 응답. 1.3.1 = 구조 리팩터링(화면·기능 변화 없음, 리팩터링 전후 화면 글자·차트 값·계산 결과가 같음을 golden 비교로 확인)
 - 웹 버전(아티팩트): https://claude.ai/artifact/HUBvzfeuXAMq794VBkYPn5 (링크가 있는 누구나 열람)
 - Python 은 **`py -3.13`** (3.15 는 zstandard 빌드 실패). 의존성: `trino tzdata pywebview requests` (+ 빌드 pyinstaller, 시험 pytest, 미리보기 playwright). Node 22 + `npm ci` (acorn: import 정리 도구)
 
@@ -69,8 +69,9 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 ## exe 동작 (현재)
 
 - **시작**: 창을 띄우기 전에 requests·trino·opensky_auth·updater·zoneinfo 를 동기로 import (뒤 스레드 import 가 GIL 을 잡아 창이 멈추던 문제). `create_window(hidden=True)` → `events.loaded`(첫 번만, 20초 지나면 강제) 때 Win32 최대화 후 show. `app_data\diag.log` 에 단계 시각, watchdog 이 1초마다 `SendMessageTimeoutW(WM_NULL, 2초)` 실패 시 모든 스레드 스택 기록. 업데이트 확인은 8초 뒤.
+- **한 번만 실행**: 이름 있는 뮤텍스 `Local\FlightData.single` — 이미 떠 있으면 제목이 "FlightData …"인 창을 앞으로 가져오고 끝남(`--after-update` 는 예외). 서버는 `SO_EXCLUSIVEADDRUSE`(`allow_reuse_address=False`) — 파이썬 기본값이면 Windows 에서 두 프로세스가 8790 을 함께 잡았음(1.3.1 이하).
 - **js_api(Api) 규칙**: 밑줄 없는 속성은 함수만 (공개 속성 `window` 가 있으면 pywebview 가 페이지 로드마다 .NET 폼 전체를 재귀 getattr → "응답 없음", 1.2.3). selftest 가 확인.
-- **창**: frameless. 헤더 오른쪽 최소화·최대화·닫기(#winCtl), 빈 곳 끌기 = 이동, 더블클릭 = 최대화 전환, 가장자리 8곳(#rsz) 크기 조절(최소 1100×700). 최대화·이동은 Win32 직접(FindWindowW·GetDpiForWindow·MonitorFromWindow 작업 영역·SetWindowPos ASYNC). 제목줄 색은 DwmSetWindowAttribute 20/35/36, 최대화 중 34=COLOR_NONE·33 둥근 모서리 끔.
+- **창**: frameless. 헤더 오른쪽 최소화·최대화·닫기(#winCtl), 빈 곳 끌기 = 이동, 더블클릭 = 최대화 전환, 가장자리 8곳(#rsz) 크기 조절(최소 1100×700). 복원 크기 = 보이는 상태에서 최대화하기 전 크기(작업 영역 안으로 맞춤), 없으면 가운데 1480×920. 최대화·이동은 Win32 직접(창 = EnumWindows 로 이 프로세스의 같은 제목 창 — FindWindowW 는 같은 제목의 탐색기 탭 대리 창을 잡았음 · GetDpiForWindow·MonitorFromWindow 작업 영역·SetWindowPos ASYNC). 제목줄 색은 DwmSetWindowAttribute 20/35/36, 최대화 중 34=COLOR_NONE·33 둥근 모서리 끔.
 - **저장 위치**: 설정 `fetch_settings.json`·항공기 DB·`app_data`(WebView2 저장소 → IndexedDB 보관함 유지) 는 exe 폴더(`fetch_flights.APP_DIR`). CSV·`trino_cache` 기본 = exe 옆 `OpenSky_CSV` (설정 out_dir 은 "" 로 두고, 예전 기본값(문서·OneDrive 문서)이면 새 기본값으로). zip 안에서 바로 실행하면 inTemp 경고.
 - **로그인**: 머리 오른쪽(exe 만). POST /api/login 이 실제 토큰으로 확인 → 서버 메모리 세션에 보관, 화면에는 비밀번호를 돌려주지 않음. "자동 로그인"(기본 꺼짐) 켜고 로그인하면 자격 증명 관리자 저장 + remember_pw=true. 로그인 중 잠금·45초 제한. 로그인 안 하면 브라우저 OAuth. [회원가입] 팝업 = OpenSky 가입·Trino 신청 안내 + 홈페이지 열기(/api/open-url, opensky-network.org 만).
 - **중지**: /api/collect/stop 이 실행 중 Trino 쿼리를 cursor.cancel(), 재시도 대기도 0.5초마다 확인. 상태 "stopped", 직후 start 는 최대 10초 대기.
@@ -81,7 +82,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 
 - 이름 "FlightData", 부제 "OpenSky 데이터". 글꼴 Noto Sans KR(숫자 tabular-nums). 공항 표지 노랑(--sign)은 PEAK·공항 코드에만. 다크 모드. 폭 제한 없음(창 너비 꽉).
 - **머리**: 로고(누르면 홈) + 버전 · 가운데 #hrun(공항·기간·운항 수) · 오른쪽 로그인(초록 점+사용자명) · ⚙ 설정(#setPop: 버전·업데이트 / 저장 폴더 바꾸기·열기 / 자동 로그인 / 테마 라이트·다크 / 접는 "데이터 출처" + ICAO 원문 링크) · 창 버튼. #themeBtn·#homeBtn 은 hidden 으로 남아 코드에서 씀.
-- **사이드바 목차(#sideNav 가로 탭)**: 홈 | 데이터 | 보관함 | 개요 | 운항량 | 운항 구성 | (첨두시간: 스위치 켰을 때). 누르면 사이드바 내용과 본문(#results[data-view])이 함께 바뀜(setPane). 첫 화면은 항상 데이터 탭, 시작 시 자동 분석하지 않음. 준비 중 덮개(#bootOverlay, 최대 15초).
+- **사이드바 목차(#sideNav 가로 탭)**: 홈 | 데이터 | 보관함 | 개요 | 운항량 | 운항 구성 | (첨두시간: 스위치 켰을 때). 누르면 사이드바 내용과 본문(#results[data-view])이 함께 바뀜(setPane). 첫 화면은 항상 홈 탭, 시작 시 자동 분석하지 않음. 준비 중 덮개(#bootOverlay, 최대 15초).
 - **홈**: 바로가기 4개(데이터 다운로드·보관함·CSV 가져오기·데모), 최근 데이터 6개, 지금 보는 데이터. 로고 → resetHome()(받는 중이면 막음).
 - **데이터**: 카드 탭 [데이터 다운로드 | 지도에서 공항 찾기]. 1 공항(공항 검색 "예: 인천, 인천국제공항, Incheon, ICN, RKSI", 비우면 RKSI·공항 시간대 자동) 2 기간(최근 7·30일, 📅 연도 선택 팝업 2017~올해, 범위 선택) 3 [다운로드 시작]/[분석 시작] + exe 옵션(연도별 CSV 나누기·기종 정보·저장 폴더). 받는 중 패널 #dvProg(%·막대·중지·폴더 열기·기록). 지도는 Canvas(land50, 휠 확대·끌기·클릭 선택, 처음 위도 5.2°).
 - **보관함**: IndexedDB "flightdata"/datasets(gzip), 이름·메모·공항 이름·나라 열, 공항·나라 필터, 분석·이름 편집·CSV 내려받기(여러 파일 JSZip)·삭제, 여러 개 병합 후 분석, exe 면 저장 폴더 CSV 목록. CSV 내용은 서버로 보내지 않음. localStorage "flightdata.last"(설정)·"flightdata.lastDataset".
@@ -121,5 +122,7 @@ ICAO Doc 9184(Airport Planning Manual Part I, 3rd ed. 2023) 기준 첨두시간 
 ## 미해결 · 다음 후보
 
 - "응답 없음"이 1.2.4 이후에도 재발하면 사용자에게 `app_data\diag.log` 를 받아 원인 확인. 다음 후보는 onefile → onedir 빌드(단 updater 가 `_internal` 까지 교체해야 하고 1.2.3 이하와 호환 안 됨).
-- 실제 Windows 미검증: frameless 창 조작·제목줄 색, 비밀번호 로그인 실서버, 업데이트 전체 흐름.
+- 실제 Windows 확인됨(2026-10-31, 1.3.1 exe·1.3.2 로컬 빌드): 시작 최대화·창 버튼·끌기·더블클릭·테마·보관함·두 번 실행. 미검증: 비밀번호 로그인 실서버, 업데이트 전체 흐름.
+- **서머타임(DST) 미반영**: UTC 오프셋을 기간 시작일 기준 하나로 고정(`offsetFor`, 수집 `tz`도 숫자 하나). 한국(RKSI 등)은 문제없지만 미국·유럽 공항은 서머타임 기간의 시간대별 그래프·날짜 경계가 1시간 밀림. 고치려면 운항마다 현지 오프셋을 계산해야 해서 engine 전반(`peak`·`stats`)과 golden 이 바뀜.
+- 최소화된 창을 ShowWindow(SW_RESTORE) 로 되살리면 WebView2 화면이 흰색으로 남음 → 다른 프로세스에서 복원할 땐 WM_SYSCOMMAND SC_RESTORE 를 쓸 것.
 - 목표 연도(5·10·20년, Section I §2.4.9)별 요약표, 주기장 소요 추정(Section II §2.2.8).

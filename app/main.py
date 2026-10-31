@@ -94,8 +94,47 @@ def _watchdog(api):
             _diag("창이 2초 넘게 응답 없음. 스레드 상태:\n" + "\n".join(stacks))
 
 
+_MUTEX = None                                               # 프로세스가 끝날 때까지 쥐고 있어야 함
+
+
+def _already_running(focus=True):
+    """이미 FlightData 가 떠 있으면 그 창을 앞으로 가져오고 True (1.3.2).
+    두 번째로 켜면 8790 을 못 잡아 다른 주소(빈 보관함)로 뜨므로, 새로 띄우지 않고 있던 창을 보여 준다.
+    focus=False(업데이트 직후): 예전 창이 닫히는 중이라 표시만 쥐고 False."""
+    global _MUTEX
+    if not sys.platform.startswith("win"):
+        return False
+    import ctypes
+    from ctypes import wintypes
+    k32, u32 = ctypes.windll.kernel32, ctypes.windll.user32
+    k32.CreateMutexW.restype = wintypes.HANDLE
+    _MUTEX = k32.CreateMutexW(None, False, "Local\\FlightData.single")
+    if k32.GetLastError() != 183 or not focus:              # ERROR_ALREADY_EXISTS 가 아니면 처음 켠 것
+        return False
+    found = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def each(hwnd, _):
+        buf, cls = ctypes.create_unicode_buffer(64), ctypes.create_unicode_buffer(64)
+        u32.GetWindowTextW(hwnd, buf, 64)
+        u32.GetClassNameW(hwnd, cls, 64)
+        if cls.value.startswith("WindowsForms") and (buf.value == "FlightData" or buf.value.startswith("FlightData ")):   # pywebview 창 "FlightData 1.3.2" (탐색기 창·탭 아님)
+            found.append(hwnd)
+            return False
+        return True
+    u32.EnumWindows(each, 0)
+    for hwnd in found:
+        if u32.IsIconic(hwnd):                              # 작업 표시줄처럼 SC_RESTORE 로 (ShowWindow 로 되살리면 화면(WebView2)이 흰색으로 남음)
+            u32.PostMessageW(hwnd, 0x0112, 0xF120, 0)       # WM_SYSCOMMAND, SC_RESTORE
+        u32.SetForegroundWindow(hwnd)
+    return True
+
+
 def main():
     _diag(f"시작 {settings.app_version()} {' '.join(sys.argv[1:])}")
+    if _already_running(focus="--after-update" not in sys.argv):  # 업데이트 직후엔 예전 창이 아직 닫히는 중일 수 있음
+        _diag("이미 실행 중 → 그 창을 앞으로")
+        return 0
     _warmup()
     _diag("구성 요소 불러옴")
     srv = AnalyzerServer()

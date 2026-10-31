@@ -23,7 +23,8 @@ export const libPeriod = r => {
 
 export async function renderLib(list) {
   if (!list) { try { list = await dsTx('readonly', st => req(st.getAll())); } catch (e) { list = []; } }
-  LIB.list = list;
+  const changed = list !== LIB.list; LIB.list = list;
+  if (changed && !$('libDisk').hidden) renderDisk();          // 저장 폴더 CSV 의 등록됨/미등록 표시도 새 목록으로 (저장은 비동기라 추가 직후엔 옛 목록이었음)
   for (const id of [...LIB.sel]) if (!list.some(r => r.id === id)) LIB.sel.delete(id);
   let cur = null; try { cur = localStorage.getItem(DS_LAST); } catch (e) {}
   if (!MAPDATA) { await loadMapData(); }
@@ -176,8 +177,8 @@ export function init() {
     const file = new File([txt], tr.dataset.name, { type: 'text/csv' });
     if (b.dataset.dact === 'open') setPane('data');
     $('source').value = 'csv'; $('source').onchange();
-    await onCsvSelected([file]);
-    if (b.dataset.dact === 'open' && csvFlights) run(); else renderDisk();
+    await onCsvSelected([file]);                            // 저장이 끝나면 renderLib → renderDisk 로 "등록됨" 표시
+    if (b.dataset.dact === 'open' && csvFlights) run();
   });
   $('libDiskRefresh').onclick = renderDisk;
   $('libDiskOpen').onclick = () => apiPost('/api/open-folder', { dir: $('cDir').value });
