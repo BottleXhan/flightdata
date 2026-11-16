@@ -28,7 +28,11 @@ export function offsetFor(ap = apCode(), day = $('startDate').value) {
   return autoTz(ap, day) ?? 9;
 }
 
+let apHook = null;                                          // 공항이 바뀔 때 함께 부를 함수 (프로그램: 데이터 출처 안내)
+export const setApHook = f => { apHook = f; };
+
 export function updateApInfo() {
+  apHook?.();
   const ap = apCode(), a = MAPDATA?.airports?.[ap], auto = autoTz(ap, $('startDate').value);
   $('tz').placeholder = auto == null ? '9' : String(auto);
   $('apInfo').textContent = !MAPDATA ? '' : a

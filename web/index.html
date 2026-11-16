@@ -86,6 +86,10 @@
             <div style="min-width:0"><span class="set-k">저장 폴더</span><span id="setDir" class="set-path"></span></div>
             <div class="flex gap-2"><button id="setDirPick" class="btn" type="button">바꾸기…</button><button id="setDirOpen" class="btn" type="button">열기</button></div>
           </div>
+          <div class="set-row set-key app-only" hidden>
+            <div style="min-width:0"><span class="set-k" title="인천 외 국내 공항: 한국공항공사 운항 스케줄">공공데이터 인증키</span><small class="muted" id="setKeyNote">미등록</small></div>
+            <form id="setKeyForm" class="flex gap-2"><input id="setKey" class="field" type="password" autocomplete="off" spellcheck="false" placeholder="인증키 입력" aria-label="공공데이터포털 인증키" style="width:10rem"><button class="btn" type="submit">저장</button></form>
+          </div>
           <div class="set-row app-only" hidden>
             <div><span class="set-k">자동 로그인</span><small class="muted">다음 실행 시 자동 로그인</small></div>
             <label class="switch"><input type="checkbox" id="setAuto" role="switch"><span></span></label>
@@ -99,6 +103,7 @@
             <div class="text-xs muted leading-relaxed">
       <p><b class="secondary">데이터 출처:</b> The OpenSky Network, <a href="https://opensky-network.org">https://opensky-network.org</a></p>
       <p class="mt-1"><b class="secondary">인용 (OpenSky 요청):</b> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+      <p class="mt-1"><b class="secondary">인천 외 국내 공항:</b> 한국공항공사, 항공기 운항 스케줄 정보 (공공데이터포털 15158949) — 계획 운항(결항·부정기편 미반영).</p>
       <p class="mt-1">OpenSky 데이터는 ADS-B로 추정한 값이며 공항 운항 스케줄·지연 정보가 아닙니다. 계획 목적으로는 공항 공식 통계와 대조하세요.</p>
       <p class="mt-1"><b class="secondary">항공사 이름·나라:</b> OpenFlights (<a href="https://openflights.org/data">openflights.org/data</a>, ODbL 1.0) · <b class="secondary">국기:</b> flag-icons (MIT) · <b class="secondary">항공사 로고:</b> pics.avs.io (화면에 표시할 때 받음, 각 항공사의 상표)</p>
           <p style="margin-top:6px"><a href="icao-source.html" style="color:var(--accent)">참고: ICAO Doc 9184 원문 보기 →</a></p>
@@ -348,6 +353,7 @@
               </div>
             </div>
             <p id="apInfo" class="text-xs secondary" style="margin-top:-2px"></p>
+            <p id="apSrc" class="text-xs muted" style="margin-top:-2px" hidden></p>
             <button id="amapToggle" class="btn dv-mapbtn" type="button" aria-expanded="false" aria-controls="amapBox">🗺 지도에서 선택</button>
           </div>
           <div class="dv-col">

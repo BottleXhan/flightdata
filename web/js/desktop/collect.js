@@ -1,6 +1,6 @@
 // 프로그램(exe) 안에서만: 로컬 서버 확인, 'OpenSky에서 받기' 화면 준비와 다운로드 진행.
 import { csvFlights, onCsvSelected } from '../data/datasets.js';
-import { updateSpan } from '../data/period.js';
+import { setApHook, updateSpan } from '../data/period.js';
 import { doLogin, LOGIN_USER, showLogin } from './login.js';
 import { syncSettings } from './settings.js';
 import { checkUpdate } from './update.js';
@@ -10,12 +10,43 @@ import { esc } from '../lib/fmt.js';
 import { run } from '../run.js';
 
 export let COLLECTOR = false;
+let KAC = new Set(), DATA_KEY = false;                    // 한국공항공사 스케줄을 쓰는 공항(인천 외 국내) · 인증키 등록 여부
+export const isKac = ap => KAC.has((ap || '').toUpperCase());
+
+/** 데이터 탭 공항 칸 아래: 이 공항의 데이터 출처 */
+function updateApSrc() {
+  const ap = $('icao').value.trim().toUpperCase() || 'RKSI', kac = isKac(ap);
+  $('apSrc').hidden = !kac;
+  if (kac) $('apSrc').textContent = '한국공항공사 운항 스케줄(계획 운항) 사용 · OpenSky 로그인 불필요 · 결항·부정기편 미반영'
+    + (DATA_KEY ? '' : ' — 우측 상단 ⚙ 설정에서 공공데이터포털 인증키를 먼저 등록하세요');
+  $('cAircraft').closest('label').hidden = kac;
+}
+
+function setupDataKey(has) {
+  DATA_KEY = has;
+  $('setKeyNote').textContent = has ? '등록됨 · 인천 외 국내 공항용' : '미등록 · 인천 외 국내 공항용';
+  $('setKey').placeholder = has ? '새 인증키로 바꾸기' : '인증키 입력';
+  updateApSrc();
+}
 
 function setupCollectUI(info) {
   const opt = document.createElement('option');
   opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기';
   $('source').prepend(opt);
   const st = info.settings || {};
+  KAC = new Set(info.kacAirports || []);
+  setupDataKey(!!info.dataKey);
+  setApHook(updateApSrc);
+  $('setKeyForm').onsubmit = async e => {
+    e.preventDefault();
+    const key = $('setKey').value.trim();
+    if (!key) return $('setKey').focus();
+    $('setKeyNote').textContent = '인증키 확인 중…';
+    const r = await apiPost('/api/datakey', { key }).catch(() => null), j = r ? await r.json().catch(() => ({})) : {};
+    $('setKey').value = '';
+    if (!r?.ok) { setupDataKey(DATA_KEY); return showMsg(esc(j.error || '인증키를 저장하지 못했습니다.'), 'err'); }
+    setupDataKey(j.dataKey); showMsg('공공데이터포털 인증키 저장 완료');
+  };
   $('hLogin').hidden = false;
   if (info.inTemp) showMsg('<b>압축 파일 내부에서 실행 중입니다.</b> 이 상태에서는 CSV·설정·보관함이 임시 폴더에 저장되어 유실됩니다. 프로그램을 종료하고 zip <b>압축 해제 후</b> 폴더 안의 FlightData exe를 실행하세요.', 'err');
   if (info.version) { $('brandVer').textContent = info.version; $('brandVer').hidden = false; document.title = `FlightData ${info.version}`; }
@@ -84,12 +115,13 @@ function dvProg({ state, text, p } = {}) {
 
 export async function collectInApp(airport, beginUtc, endUtc, sd, ed, offsetH) {
   const user = LOGIN_USER || $('cUser').value.trim();
-  if (!user) { $('cUser').focus(); throw new Error('우측 상단에서 OpenSky 로그인 후 진행하세요.'); }
+  if (isKac(airport) && !DATA_KEY) throw new Error('공공데이터포털 인증키가 없습니다. 우측 상단 ⚙ 설정에서 인증키를 등록하세요.');
+  if (!user && !isKac(airport)) { $('cUser').focus(); throw new Error('우측 상단에서 OpenSky 로그인 후 진행하세요.'); }
   const r = await apiPost('/api/collect', { user, password: '', remember: $('cRemember').checked, airport, start: sd, end: ed, tz: offsetH,
     split: $('cSplit').checked, aircraft: $('cAircraft').checked, outDir: $('cDir').value });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `다운로드를 시작하지 못했습니다 (HTTP ${r.status})`);
   $('cStop').disabled = false; $('cLog').textContent = '';
-  dvProg({ state: '다운로드 중', text: `${airport} · ${sd} ~ ${ed} · 준비 중…`, p: 0 });
+  dvProg({ state: '다운로드 중', text: `${airport} · ${sd} ~ ${ed} · ${isKac(airport) ? '한국공항공사 스케줄 ' : ''}준비 중…`, p: 0 });
   $('dvProg').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   let since = 0, st;
   for (;;) {                                              // 진행 지켜보기

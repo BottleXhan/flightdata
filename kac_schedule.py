@@ -1,0 +1,299 @@
+"""한국공항공사 항공기 운항 스케줄(공공데이터포털 15158949)로 공항 운항 CSV 를 만든다.
+
+인천을 뺀 한국공항공사 관할 14개 공항은 OpenSky 대신 이 스케줄만 쓴다 (OpenSky 서버에 접속하지 않음, 로그인 불필요).
+- 국내선 /dom: 운항 시작·종료일 + 요일별 운항 여부 + 출발·도착 시각(현지, HHMM) — 2008년 기록부터 있음
+- 국제선 /int: 이 공항(airportCode) 기준 IN/OUT 과 시각 하나
+- 계획 운항이다: 결항·지연·부정기편·훈련 비행은 들어 있지 않다
+
+결과 CSV 는 fetch_flights.py 와 같은 열(icao24·callsign·firstseen·lastseen·estdepartureairport·estarrivalairport…)이라
+분석기가 그대로 읽는다. icao24 자리에는 편명(같은 분에 도착하는 두 편이 하나로 합쳐지지 않게), source 열 = "KAC".
+
+인증키: ⚙ 설정에서 넣으면 Windows 자격 증명 관리자에 저장. 없으면 환경 변수 DATA_GO_KR_KEY.
+"""
+import csv
+import datetime as dt
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+BASE = "https://apis.data.go.kr/B551178/flight-schedule"
+PAGE = 100                                                   # 이 API 는 한 번에 100건까지 (1000 이면 HTTP 오류)
+KAC_AIRPORTS = {                                             # 한국공항공사 관할 (인천 RKSI 는 인천국제공항공사)
+    "RKSS": "GMP", "RKPK": "PUS", "RKPC": "CJU", "RKTN": "TAE", "RKJJ": "KWJ", "RKTU": "CJJ", "RKJB": "MWX",
+    "RKPU": "USN", "RKJY": "RSU", "RKTH": "KPO", "RKPS": "HIN", "RKNW": "WJU", "RKJK": "KUV", "RKNY": "YNY",
+}
+SOURCE = "KAC"
+_DOM_DAYS = ["domesticMon", "domesticTue", "domesticWed", "domesticThu", "domesticFri", "domesticSat", "domesticSun"]
+_INT_DAYS = [d.replace("domestic", "international") for d in _DOM_DAYS]
+_KEY_USER = "~data.go.kr"                                    # 자격 증명 관리자 항목 이름 (OpenSky 사용자명과 겹치지 않게)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+class KeyMissing(RuntimeError):
+    pass
+
+
+def is_kac(icao):
+    return (icao or "").strip().upper() in KAC_AIRPORTS
+
+
+# ---------- 인증키 ----------
+
+def clean_key(k):
+    k = (k or "").strip()
+    return urllib.parse.unquote(k) if "%" in k else k      # 포털의 Encoding 키를 넣어도 됨
+
+
+def _env_key():
+    k = os.environ.get("DATA_GO_KR_KEY")
+    if not k and sys.platform.startswith("win"):           # setx 로 저장한 값은 이미 떠 있는 프로세스에 안 보임
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as h:
+                k = winreg.QueryValueEx(h, "DATA_GO_KR_KEY")[0]
+        except OSError:
+            k = None
+    return clean_key(k)
+
+
+def load_key():
+    try:
+        import opensky_auth as oa
+        k = oa.load_password(_KEY_USER)
+    except Exception:  # noqa: BLE001
+        k = None
+    return clean_key(k) or _env_key()
+
+
+def save_key(k):
+    import opensky_auth as oa
+    k = clean_key(k)
+    return oa.save_password(_KEY_USER, k) if k else oa.forget_password(_KEY_USER)
+
+
+# ---------- API ----------
+
+def _call(key, op, **params):
+    q = {"serviceKey": key, "type": "json", **params}
+    url = f"{BASE}/{op}?" + urllib.parse.urlencode(q)
+    try:
+        with urllib.request.urlopen(url, timeout=30) as r:
+            raw = r.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", "replace")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"공공데이터포털에 접속하지 못했습니다: {e.reason}") from None
+    try:
+        j = json.loads(raw)
+    except ValueError:
+        raise RuntimeError("공공데이터포털 응답을 읽지 못했습니다.") from None
+    if "response" not in j:                                  # 게이트웨이 오류: 키 미등록·호출 한도 등
+        h = j.get("OpenAPI_ServiceResponse", {}).get("cmmMsgHeader", {})
+        msg = h.get("returnAuthMsg") or h.get("errMsg") or "알 수 없는 오류"
+        if "SERVICE_KEY" in (h.get("errMsg") or ""):
+            msg += " — ⚙ 설정의 공공데이터포털 인증키를 확인하세요 (활용 신청 직후에는 1시간쯤 걸릴 수 있음)"
+        raise RuntimeError(f"공공데이터포털 오류: {msg}")
+    head = j["response"].get("header", {})
+    if head.get("resultCode") not in ("00", None):
+        raise RuntimeError(f"공공데이터포털 오류: {head.get('resultMsg')}")
+    body = j["response"].get("body") or {}
+    items = (body.get("items") or {}).get("item") or []
+    return (items if isinstance(items, list) else [items]), int(body.get("totalCount") or 0)
+
+
+def check_key(key):
+    """키로 1건 조회해 본다 (틀리면 RuntimeError)."""
+    _call(key, "dom", pageNo=1, numOfRows=1)
+
+
+def fetch_all(key, op, log=print, should_stop=None, **flt):
+    out, page = [], 1
+    while True:
+        if should_stop and should_stop():
+            return None
+        for attempt in range(3):
+            try:
+                items, total = _call(key, op, pageNo=page, numOfRows=PAGE, **flt)
+                break
+            except RuntimeError as e:
+                if attempt == 2 or "인증키" in str(e):
+                    raise
+                log(f"  오류: {e} → 5초 후 재시도")
+                time.sleep(5)
+        out += items
+        if not items or page * PAGE >= total:
+            return out
+        page += 1
+
+
+def fetch_airport(key, iata, log=print, should_stop=None):
+    """공항 하나의 스케줄 기록 전부 {'dom': [...], 'int': [...]} (출발·도착 둘 다)."""
+    res = {}
+    for op in ("dom", "int"):
+        recs = []
+        for fld in ("schDeptCityCode", "schArrvCityCode"):  # 가이드 설명과 달리 Dept = 출발 공항
+            r = fetch_all(key, op, log=log, should_stop=should_stop, **{fld: iata})
+            if r is None:
+                return None
+            recs += r
+        res[op] = recs
+        log(f"  {'국내선' if op == 'dom' else '국제선'} 스케줄 {len(recs):,}건")
+    return res
+
+
+# ---------- 코드 변환 ----------
+
+def load_maps(mapdata_dir=None):
+    """IATA → ICAO: 공항(airports_min.json), 항공사(airlines.json, 같은 IATA 면 한국 항공사 우선)."""
+    d = mapdata_dir or os.path.join(_HERE, "web", "mapdata")
+    ap, al = {}, {}
+    try:
+        with open(os.path.join(d, "airports_min.json"), encoding="utf-8") as f:
+            for icao, v in json.load(f).items():
+                if len(v) > 5 and v[5]:
+                    ap.setdefault(v[5].upper(), icao)
+        for k, v in KAC_AIRPORTS.items():
+            ap[v] = k
+        with open(os.path.join(d, "airlines.json"), encoding="utf-8") as f:
+            for icao, v in json.load(f).items():
+                if v and v[0] and (v[0] not in al or (len(v) > 2 and v[2] == "KR")):
+                    al[v[0].upper()] = icao
+    except OSError:
+        pass
+    return ap, al
+
+
+def callsign_of(num, al):
+    """편명(IATA, 예: KE1595) → 콜사인 모양(KAL1595). 분석기는 앞 3자리를 항공사로 쓴다."""
+    num = (num or "").strip().upper()
+    icao = al.get(num[:2])
+    return icao + num[2:] if icao and len(num) > 2 else num
+
+
+# ---------- 날짜별로 펼치기 ----------
+
+def _d(s):
+    return dt.date.fromisoformat((s or "")[:10])
+
+
+def _ts(day, hhmm, tz):
+    hhmm = (hhmm or "").strip().zfill(4)
+    h, m = int(hhmm[:2]), int(hhmm[2:4])
+    t = dt.datetime(day.year, day.month, day.day, tzinfo=dt.timezone.utc) + dt.timedelta(hours=h, minutes=m)
+    return int(t.timestamp() - tz * 3600)
+
+
+def expand(records, airport, start, end, tz, ap=None, al=None):
+    """스케줄 기록 → 기간(현지 start~end) 안의 운항 행 [(icao24, callsign, firstseen, lastseen, dep, arr), …].
+    운항 요일은 출발일 기준. 같은 편·같은 날·같은 방향이 여러 기록에 있으면 운항 시작일이 가장 늦은 것(최신 개정)만."""
+    airport = airport.upper()
+    iata = KAC_AIRPORTS[airport]
+    ap, al = ap or {}, al or {}
+    icao_of = lambda c: ap.get((c or "").upper(), (c or "").upper())
+    s, e = dt.date.fromisoformat(start), dt.date.fromisoformat(end)
+    begin, finish = _ts(s, "0000", tz), _ts(e + dt.timedelta(days=1), "0000", tz)
+    best = {}
+
+    def put(key, stdate, row, t):
+        if begin <= t < finish and (key not in best or stdate > best[key][0]):
+            best[key] = (stdate, row)
+
+    for r in records.get("dom", []):
+        dep, arr = (r.get("startcityCode") or "").upper(), (r.get("arrivalcityCode") or "").upper()
+        if iata not in (dep, arr) or dep == arr:
+            continue
+        a, b = max(_d(r["domesticStdate"]), s - dt.timedelta(days=1)), min(_d(r["domesticEddate"]), e)
+        num = (r.get("domesticNum") or "").strip().upper()
+        d = a
+        while d <= b:
+            if r.get(_DOM_DAYS[d.weekday()]) == "Y":
+                fs = _ts(d, r.get("domesticStartTime"), tz)
+                ls = _ts(d, r.get("domesticArrivalTime"), tz)
+                if ls < fs:                                  # 자정을 넘겨 도착
+                    ls += 86400
+                row = (num, callsign_of(num, al), fs, ls, icao_of(dep), icao_of(arr))
+                if dep == iata:
+                    put((num, "D", d), r["domesticStdate"], row, fs)
+                else:
+                    put((num, "A", d), r["domesticStdate"], row, ls)
+            d += dt.timedelta(days=1)
+
+    for r in records.get("int", []):
+        if (r.get("airportCode") or "").upper() != iata:
+            continue
+        io, other = (r.get("internationalIoType") or "").upper(), icao_of(r.get("cityCode"))
+        a, b = max(_d(r["internationalStdate"]), s), min(_d(r["internationalEddate"]), e)
+        num = (r.get("internationalNum") or "").strip().upper()
+        d = a
+        while d <= b:
+            if r.get(_INT_DAYS[d.weekday()]) == "Y":
+                t = _ts(d, r.get("internationalTime"), tz)
+                if io == "IN":
+                    put((num, "A", d), r["internationalStdate"], (num, callsign_of(num, al), "", t, other, airport), t)
+                elif io == "OUT":
+                    put((num, "D", d), r["internationalStdate"], (num, callsign_of(num, al), t, "", airport, other), t)
+            d += dt.timedelta(days=1)
+
+    rows = [v[1] for v in best.values()]
+    rows.sort(key=lambda r: (r[3] if r[5] == airport else r[2]))
+    return rows
+
+
+# ---------- 수집 (fetch_flights.collect_many 와 같은 모양의 결과) ----------
+
+def _cache_path(cache_root, airport):
+    return os.path.join(cache_root, airport, f"kac_schedule_{dt.date.today():%Y-%m-%d}.json")
+
+
+def load_records(airport, cache_root, key=None, log=print, should_stop=None):
+    """오늘 받은 기록이 캐시에 있으면 그것을, 없으면 API 에서 받아 캐시에 둔다 (같은 날 다시 받지 않음)."""
+    path = _cache_path(cache_root, airport)
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            log(f"{airport}: 오늘 받은 한국공항공사 스케줄 캐시 사용")
+            return json.load(f)
+    key = key or load_key()
+    if not key:
+        raise KeyMissing("공공데이터포털 인증키가 없습니다. 우측 상단 ⚙ 설정에서 인증키를 등록하세요.")
+    log(f"{airport}: 한국공항공사 운항 스케줄 받는 중 (공공데이터포털)")
+    recs = fetch_airport(key, KAC_AIRPORTS[airport], log=log, should_stop=should_stop)
+    if recs is None:
+        return None
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for old in os.listdir(os.path.dirname(path)):            # 예전 날짜 캐시는 지움
+        if old.startswith("kac_schedule_") and old != os.path.basename(path):
+            try:
+                os.remove(os.path.join(os.path.dirname(path), old))
+            except OSError:
+                pass
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(recs, f, ensure_ascii=False)
+    return recs
+
+
+def collect(airport, start, end, tz, out, cache_root="trino_cache", log=print, should_stop=None, mapdata_dir=None):
+    """반환: (CSV 경로, 운항 행 목록, 도착 수, 출발 수) — fetch_flights.collect 와 같은 모양. 중지하면 None."""
+    airport = airport.upper()
+    recs = load_records(airport, cache_root, log=log, should_stop=should_stop)
+    if recs is None:
+        return None
+    ap, al = load_maps(mapdata_dir)
+    rows = expand(recs, airport, start, end, tz, ap, al)
+
+    def local(ts):
+        return dt.datetime.fromtimestamp(int(ts) + tz * 3600, dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if ts != "" else ""
+    cols = ["icao24", "callsign", "firstseen", "lastseen", "estdepartureairport", "estarrivalairport",
+            "firstseen_local", "lastseen_local", "source"]
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    with open(out, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(cols)
+        w.writerows(r + (local(r[2]), local(r[3]), SOURCE) for r in rows)
+    n_arr = sum(1 for r in rows if r[5] == airport)
+    n_dep = len(rows) - n_arr
+    log(f"완료: {out} (스케줄 운항 {len(rows):,}건 · 도착 {n_arr:,} · 출발 {n_dep:,}) — 계획 운항, 결항·부정기편 미반영")
+    return out, rows, n_arr, n_dep

@@ -194,6 +194,8 @@
   .set-row b { color: var(--text-primary); font-size: .9rem; }
   .set-path { font-size: .78rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; }
   .set-row .btn { padding: .35rem .7rem; font-size: .75rem; white-space: nowrap; }
+  .set-key > div:first-child { flex: 0 0 auto; }
+  .set-key .set-k, .set-key small { white-space: nowrap; }
   .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
   .seg button { padding: .3rem .7rem; font-size: .75rem; border-radius: 8px; color: var(--text-secondary); }
   .seg button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -532,7 +534,7 @@
   .ovtop li .br > span { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
   .ovtop li .vl { font-variant-numeric: tabular-nums; color: var(--text-primary); white-space: nowrap; }
   .ovtop li .vl small { color: var(--text-muted); margin-left: 4px; }
-  .ovtop .empty { font-size: .8rem; color: var(--text-muted); }
+  .ovtop .empty { display: block; grid-column: 1 / -1; font-size: .8rem; color: var(--text-muted); }
   /* 국기 (flags/*.svg, 4:3) · 항공사 로고 (pics.avs.io, 3:1 — 어두운 글자 로고라 다크 모드에서도 보이게 흰 바탕) */
   img.flag, img.al-logo { max-width: none; flex: none; }   /* Tailwind 기본(img max-width:100%)이 좁은 칸에서 줄이지 않게 */
   img.flag { display: inline-block; height: .9em; width: 1.2em; object-fit: cover; border-radius: 2px; vertical-align: -.08em; margin-right: .4em; box-shadow: 0 0 0 .5px rgba(0,0,0,.18); }

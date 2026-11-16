@@ -5,6 +5,7 @@ import threading
 import time
 
 import fetch_flights as ff
+import kac_schedule as kac
 import opensky_auth as oa
 
 from app import settings
@@ -54,10 +55,13 @@ class Collector:
             raise RuntimeError("이미 받는 중입니다." + (" 중지하는 중이니 잠시 뒤 다시 누르세요." if self.stop else ""))
         user = (p.get("user") or "").strip().lower()
         airports = ff.parse_airports(p.get("airport") or "")
-        if not user:
-            raise ValueError("OpenSky 사용자명을 입력하세요.")
         if not airports or any(len(a) != 4 for a in airports):
             raise ValueError("공항은 4자리 ICAO 코드로 입력하세요.")
+        osky = [a for a in airports if not kac.is_kac(a)]      # 인천 외 한국 공항은 한국공항공사 스케줄 (OpenSky 접속·로그인 없음)
+        if osky and not user:
+            raise ValueError("OpenSky 사용자명을 입력하세요.")
+        if len(osky) < len(airports) and not kac.load_key():
+            raise ValueError("공공데이터포털 인증키가 없습니다. 우측 상단 ⚙ 설정에서 인증키를 등록하세요.")
         s, e = dt.date.fromisoformat(p["start"]), dt.date.fromisoformat(p["end"])
         if e < s:
             raise ValueError("종료일이 시작일보다 빠릅니다.")
@@ -77,7 +81,7 @@ class Collector:
         out_dir = (p.get("outDir") or "").strip() or settings.out_dir()
         os.makedirs(out_dir, exist_ok=True)
         aircraft, split = bool(p.get("aircraft", True)), bool(p.get("split", True))
-        settings.save({"user": user, "airport": ",".join(airports), "tz": tz, "out_dir": settings.out_dir_value(out_dir),
+        settings.save({**({"user": user} if user else {}), "airport": ",".join(airports), "tz": tz, "out_dir": settings.out_dir_value(out_dir),
                        "aircraft": aircraft, "remember_pw": remember, "split": split})
         segs = year_segments(s, e) if split else [(s, e)]
         with self.lock:
@@ -96,6 +100,25 @@ class Collector:
                     self._log(f"── {a.year}년: {a} ~ {b} ──")
                 outs = {ap: os.path.join(out_dir, f"{ap}_{a}_{b}.csv") for ap in airports}
                 sd = (b - a).days + 1
+                cache = os.path.join(out_dir, "trino_cache")
+                osky = [ap for ap in airports if not kac.is_kac(ap)]
+                for ap in airports:
+                    if ap in osky:
+                        continue
+                    if self.stop:
+                        raise ff.Stopped("중지했습니다.")
+                    with self.lock:
+                        self.text = f"{tag}{ap} 한국공항공사 스케줄"
+                    r = kac.collect(ap, a.isoformat(), b.isoformat(), tz, outs[ap], cache_root=cache, log=self._log,
+                                    should_stop=lambda: self.stop, mapdata_dir=os.path.join(settings.web_dir(), "mapdata"))
+                    if r is None:
+                        raise ff.Stopped("중지했습니다.")
+                    results.append((ap, r[0], len(r[1])))
+                if not osky:
+                    done += sd
+                    with self.lock:
+                        self.i, self.n = done, total
+                    continue
 
                 def prog(i, n, base=done, sd=sd, tag=tag):
                     with self.lock:
@@ -105,8 +128,8 @@ class Collector:
                     with self.lock:
                         self.auth_url, self.text = url, "브라우저에 OpenSky 로그인 창이 열렸습니다. 로그인하면 이어집니다."
 
-                res = ff.collect_many(user, airports, a.isoformat(), b.isoformat(), tz, cache_root=os.path.join(out_dir, "trino_cache"),
-                                      outs=outs, log=self._log, on_auth_url=auth, on_progress=prog,
+                res = ff.collect_many(user, osky, a.isoformat(), b.isoformat(), tz, cache_root=cache,
+                                      outs={ap: outs[ap] for ap in osky}, log=self._log, on_auth_url=auth, on_progress=prog,
                                       should_stop=lambda: self.stop, aircraft_info=aircraft, password=password)
                 done += sd
                 results += [(ap, v[0], len(v[1])) for ap, v in res.items()]

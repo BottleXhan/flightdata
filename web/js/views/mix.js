@@ -31,7 +31,7 @@ function typeSummary(res, sel) {
 export function renderTypes(res, sel) {
   const t = typeSummary(res, sel);
   if (!t.rows.length) {
-    $('typeNote').innerHTML = '이 데이터에는 기종 정보가 없습니다. 최신 <code>fetch_flights.py</code>로 다시 받으면 OpenSky 항공기 데이터베이스에서 기종·운항사를 붙여 줍니다 (이미 받은 날짜는 다시 조회하지 않음).';
+    $('typeNote').innerHTML = STATE.data?.movements?.[0]?.source === 'KAC' ? '한국공항공사 운항 스케줄에는 기종 정보가 없습니다.' : '이 데이터에는 기종 정보가 없습니다. 최신 <code>fetch_flights.py</code>로 다시 받으면 OpenSky 항공기 데이터베이스에서 기종·운항사를 붙여 줍니다 (이미 받은 날짜는 다시 조회하지 않음).';
     $('typeTable').innerHTML = '';
     $('typeChartWrap').hidden = true;
     return;

@@ -31,7 +31,8 @@ export function readFlightsCSV(text) {
   if (miss.length) throw new Error(`CSV에 필요한 열이 없습니다: ${miss.join(', ')}`);
   const ix = Object.fromEntries(need.map(c => [c, head.indexOf(c)]));
   // 선택 열: fetch_flights.py 가 OpenSky aircraft database 로 붙인 항공기 정보
-  const opt = Object.fromEntries(AIRCRAFT_FIELDS.map(c => [c, head.indexOf(c)]).filter(([, i]) => i >= 0));
+  // + source: kac_schedule.py 가 만든 한국공항공사 스케줄 CSV 는 "KAC"
+  const opt = Object.fromEntries([...AIRCRAFT_FIELDS, 'source'].map(c => [c, head.indexOf(c)]).filter(([, i]) => i >= 0));
   return rows.slice(1).map(r => {
     const f = {
       icao24: r[ix.icao24], callsign: r[ix.callsign],
@@ -56,6 +57,7 @@ export function flightsToMovements(flights, airport, beginUtc, endUtc) {
       seen.add(key);
       const mv = { t, type: isArr ? 'A' : 'D', callsign: (f.callsign || '').trim(), icao24: f.icao24, other: isArr ? f.estDepartureAirport : f.estArrivalAirport };
       for (const c of AIRCRAFT_FIELDS) if (f[c]) mv[c] = f[c];
+      if (f.source) mv.source = f.source;
       out.push(mv);
     }
   }

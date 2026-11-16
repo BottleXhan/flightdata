@@ -11,6 +11,7 @@ import sys
 import webbrowser
 from collections import namedtuple
 
+import kac_schedule as kac
 import opensky_auth as oa
 
 from app import settings, updater
@@ -84,6 +85,7 @@ def collector_info(srv, q):
                "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
                "loggedIn": srv.session[0] if srv.session else None,
                "version": settings.app_version(), "inTemp": settings.in_temp_dir(),
+               "kacAirports": sorted(kac.KAC_AIRPORTS), "dataKey": bool(kac.load_key()),
                "settings": {"user": user, "remember": st.get("remember_pw", False), "split": st.get("split", True),
                             "aircraft": st.get("aircraft", True), "outDir": settings.out_dir()}})
 
@@ -204,6 +206,25 @@ def collect_status(srv, q):
 def collect_stop(srv, body):
     srv.collector.request_stop()
     return ok()
+
+
+@post("/api/datakey")
+def data_key(srv, body):
+    """공공데이터포털 인증키 (한국공항공사 스케줄용): 1건 조회로 확인한 뒤 자격 증명 관리자에 저장. 빈 값이면 삭제.
+    키는 화면으로 돌려주지 않는다."""
+    k = (body.get("key") or "").strip()
+    if k:
+        try:
+            kac.check_key(kac.clean_key(k))
+        except RuntimeError as e:
+            return error(str(e), 400)
+    try:
+        saved = kac.save_key(k)
+    except Exception as e:  # noqa: BLE001
+        return error(f"인증키를 저장하지 못했습니다: {e}", 500)
+    if k and not saved:
+        return error("이 PC 에서는 인증키를 저장할 수 없습니다. 환경 변수 DATA_GO_KR_KEY 를 쓰세요.", 500)
+    return ok({"ok": True, "dataKey": bool(kac.load_key())})
 
 
 # ---------- 저장 폴더 · 보관함 ----------
