@@ -8,6 +8,7 @@ import { generateDemo } from '../../web/js/engine/demo.js';
 import { analyze } from '../../web/js/engine/peak.js';
 import { readFlightsCSV, flightsToMovements } from '../../web/js/engine/csv.js';
 import { dateToLocalSec } from '../../web/js/lib/fmt.js';
+import { typeLabel } from '../../web/js/engine/classify.js';
 
 const golden = JSON.parse(fs.readFileSync(new URL('./golden_engine.json', import.meta.url), 'utf8'));
 const got = JSON.parse(JSON.stringify(cases({ generateDemo, analyze, dateToLocalSec, readFlightsCSV, flightsToMovements })));
@@ -17,3 +18,10 @@ for (let i = 0; i < golden.analyze.length; i++) {
   test(`첨두 산정 ${golden.analyze[i].cfg.method}`, () => assert.deepEqual(got.analyze[i], golden.analyze[i]));
 }
 test('CSV 읽기 · 운항 변환', () => assert.deepEqual(got.csv, golden.csv));
+
+test('기종 라벨: 이름이 코드와 같으면 코드만', () => {
+  assert.equal(typeLabel('A320'), 'A320');
+  assert.equal(typeLabel('B738'), 'B738 · 737-800');
+  assert.equal(typeLabel('b77w'), 'b77w · 777-300ER');
+  assert.equal(typeLabel('ZZZZ'), 'ZZZZ');
+});

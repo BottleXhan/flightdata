@@ -1,6 +1,7 @@
 // 개요: 공항 정보 카드 · 숫자 카드 · 작은 그래프 3개 · Top 5.
 import { MAPDATA } from '../data/airports.js';
 import { autoTz, isoD } from '../data/period.js';
+import { typeName } from '../engine/classify.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtDate, fmtN, fmtPct, fmtTime, HOUR, WD, wdOf } from '../lib/fmt.js';
 import { STATE } from '../state.js';
@@ -73,7 +74,7 @@ export function renderOverviewExtras(res) {
   list('ovTopRoute', S.routes.filter(r => r.ap !== '미상').slice(0, 5).map(r => ({ code: r.ap, name: apNm(r.ap), n: r.n, mark: apFlag(r.ap) })));
   list('ovTopAirline', S.airlines.filter(a => a.code !== '기타').slice(0, 5).map(a => ({ code: a.code, name: a.name, n: a.n, mark: airlineMark(a.code) })));
   const ty = new Map(); for (const m of STATE.view.movements) if (m.typecode) ty.set(m.typecode, (ty.get(m.typecode) || 0) + 1);
-  list('ovTopType', [...ty.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, name: '', n })));
+  list('ovTopType', [...ty.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([code, n]) => ({ code, name: (n2 => n2 && n2 !== code ? n2 : '')(typeName(code)), n })));
 }
 
 /* ---------- 공항 정보 카드: 기본 정보(mwgg/Airports) + 이 데이터에서 센 값 ---------- */
