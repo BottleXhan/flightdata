@@ -40,7 +40,7 @@ export function renderAll() {
   $('sumAirport').textContent = STATE.data.airport;
   $('sumPeriod').textContent = `${fmtDate(STATE.data.startLocal)} ~ ${fmtDate(STATE.data.startLocal + (STATE.data.days - 1) * DAY)} · ${STATE.data.days}일`;
   $('sumMeta').textContent = `운항 ${STATE.view.movements.length.toLocaleString()}편` + (movements.length !== STATE.data.movements.length ? ` (전체 ${STATE.data.movements.length.toLocaleString()}편 중 필터)` : '') +
-    ` · ${STATE.data.movements[0]?.source === 'KAC' ? '한국공항공사 운항 스케줄 (계획)' : { demo: '데모 데이터', csv: 'CSV (OpenSky Trino)', collect: 'OpenSky에서 받음' }[STATE.data.source]} · UTC${STATE.data.offsetH >= 0 ? '+' : ''}${STATE.data.offsetH}`;
+    ` · ${kacLabel(STATE.data.movements) || { demo: '데모 데이터', csv: 'CSV (OpenSky Trino)', collect: 'OpenSky에서 받음' }[STATE.data.source]} · UTC${STATE.data.offsetH >= 0 ? '+' : ''}${STATE.data.offsetH}`;
   $('kMethodBadge').textContent = { icao_peak: 'ICAO Peak', icao_busy: 'ICAO Busy', nth_hour: '§3.4.3 a', adpm: '§3.4.3 b', iata_sbd: '§3.4.3 c', pct_day: '§3.4.3 d', pct5: '§3.4.3 e' }[sel.id];
   $('kDesign').innerHTML = `${fmtN(sel.v)} <span class="text-sm font-medium muted">편/시간</span>`;
   $('kDesignSub').textContent = `${sel.when} · 도착 ${fmtN(sel.arr)} / 출발 ${fmtN(sel.dep)}`;
@@ -70,6 +70,14 @@ export function renderAll() {
   renderStats(res);
   setTimeout(() => renderOverviewExtras(res));
   renderAirlinesRoutes();
+}
+
+/** 한국공항공사 자료 표시 이름: 김포 운항 실적(KAC_ACT)·운항 스케줄(KAC) */
+function kacLabel(mv) {
+  const s = mv[0]?.source;
+  if (s !== 'KAC' && s !== 'KAC_ACT') return '';
+  const act = mv.some(m => m.source === 'KAC_ACT'), sch = mv.some(m => m.source === 'KAC');
+  return act && sch ? '한국공항공사 운항 실적 + 스케줄' : act ? '한국공항공사 운항 실적' : '한국공항공사 운항 스케줄 (계획)';
 }
 
 export async function run() {

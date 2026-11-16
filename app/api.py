@@ -11,6 +11,7 @@ import sys
 import webbrowser
 from collections import namedtuple
 
+import kac_actual
 import kac_schedule as kac
 import opensky_auth as oa
 
@@ -85,7 +86,7 @@ def collector_info(srv, q):
                "canRemember": oa.CAN_REMEMBER, "pwSaved": saved,
                "loggedIn": srv.session[0] if srv.session else None,
                "version": settings.app_version(), "inTemp": settings.in_temp_dir(),
-               "kacAirports": sorted(kac.KAC_AIRPORTS), "dataKey": bool(kac.load_key()),
+               "kacAirports": sorted(kac.KAC_AIRPORTS), "dataKey": bool(kac.load_key()), "safetyKey": bool(kac_actual.load_key()),
                "settings": {"user": user, "remember": st.get("remember_pw", False), "split": st.get("split", True),
                             "aircraft": st.get("aircraft", True), "outDir": settings.out_dir()}})
 
@@ -225,6 +226,25 @@ def data_key(srv, body):
     if k and not saved:
         return error("이 PC 에서는 인증키를 저장할 수 없습니다. 환경 변수 DATA_GO_KR_KEY 를 쓰세요.", 500)
     return ok({"ok": True, "dataKey": bool(kac.load_key())})
+
+
+@post("/api/safetykey")
+def safety_key(srv, body):
+    """재난안전데이터공유플랫폼 인증키 (김포 운항 실적·기종용): 1건 조회로 확인한 뒤 자격 증명 관리자에 저장. 빈 값이면 삭제.
+    키는 화면으로 돌려주지 않는다."""
+    k = (body.get("key") or "").strip()
+    if k:
+        try:
+            kac_actual.check_key(kac_actual.clean_key(k))
+        except RuntimeError as e:
+            return error(str(e), 400)
+    try:
+        saved = kac_actual.save_key(k)
+    except Exception as e:  # noqa: BLE001
+        return error(f"인증키를 저장하지 못했습니다: {e}", 500)
+    if k and not saved:
+        return error("이 PC 에서는 인증키를 저장할 수 없습니다. 환경 변수 SAFETYDATA_KEY 를 쓰세요.", 500)
+    return ok({"ok": True, "safetyKey": bool(kac_actual.load_key())})
 
 
 # ---------- 저장 폴더 · 보관함 ----------

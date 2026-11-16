@@ -53,6 +53,16 @@ def build(xlsx):
         out[code] = [str(d.get("Model_FAA") or "").strip(), str(d.get("Manufacturer") or "").strip().title(), span,
                      m("Length_ft"), m("Tail_Height_at_OEW_ft"), round(mtow * LB) if mtow else None,
                      code_letter(span), str(d.get("ICAO_WTC") or "").strip(), m("Main_Gear_Width_ft")]
+    # 계열 이름 (한국공항공사 운항정보 KOMA 에 A330·B787 처럼 세부형 없이 나옴): 계열 안의 ICAO 등급이 모두 같을 때만,
+    # 제원은 계열에서 날개폭이 가장 큰 형. 등급이 섞인 계열(예: B747 = E·F)은 넣지 않음
+    for fam, pre, name in (("A330", "A33", "Airbus A330 (계열)"), ("A340", "A34", "Airbus A340 (계열)"), ("A350", "A35", "Airbus A350 (계열)"),
+                           ("B767", "B76", "Boeing 767 (계열)"), ("B777", "B77", "Boeing 777 (계열)"), ("B787", "B78", "Boeing 787 (계열)"),
+                           ("B737", "B73", "Boeing 737 (계열)"), ("A320", "A32", "")):
+        mem = [v for c, v in out.items() if c.startswith(pre) and c != fam]
+        if fam in out or not mem or len({v[6] for v in mem}) != 1:
+            continue
+        big = max(mem, key=lambda v: v[2])
+        out[fam] = [name, big[1], *big[2:]]
     return dict(sorted(out.items()))
 
 

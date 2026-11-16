@@ -341,25 +341,72 @@ def load_records(airport, cache_root, key=None, log=print, should_stop=None):
     return recs
 
 
-def collect(airport, start, end, tz, out, cache_root="trino_cache", log=print, should_stop=None, mapdata_dir=None):
-    """반환: (CSV 경로, 운항 행 목록, 도착 수, 출발 수) — fetch_flights.collect 와 같은 모양. 중지하면 None."""
+GMP = "RKSS"
+SOURCE_ACTUAL = "KAC_ACT"                                    # 김포 운항 실적 (kac_actual.py)
+
+
+def _gmp_side(row):
+    """스케줄 행의 김포 쪽 (I/O, 시각) — 김포를 오가지 않으면 None."""
+    if row[4] == GMP:
+        return "O", row[2]
+    if row[5] == GMP:
+        return "I", row[3]
+    return None
+
+
+def _kst_day(ts):
+    return dt.datetime.fromtimestamp(int(ts) + 9 * 3600, dt.timezone.utc).date().isoformat()
+
+
+def merge_actual(rows, actual, airport, start, end, tz, ap=None):
+    """스케줄 행(6칸) + 김포 실적 → [(행 7칸 = …+기종, source), …]
+    - 김포를 오가는 편: 김포 기록에 같은 날·같은 편·같은 방향이 있으면 그 기종
+    - 김포 자체: 실적 기록이 충분한 날은 스케줄 대신 실적(실제 시각·기종, 결항 제외·부정기편 포함), 나머지 날은 스케줄"""
+    import kac_actual
+    if not actual:
+        return [(r + ("",), SOURCE) for r in rows]
+    idx = kac_actual.type_index(actual)
+    out = []
+    days = None
+    if airport == GMP:
+        days = {d for d in kac_actual.days_covered(actual) if start <= d <= end}
+        rows = [r for r in rows if _kst_day(r[2] if r[4] == GMP else r[3]) not in days]
+        out += [(r, SOURCE_ACTUAL) for r in kac_actual.flights(actual, start, end, tz, ap, days)]
+    for r in rows:
+        g = _gmp_side(r)
+        typ = idx.get((r[1], _kst_day(g[1]), g[0]), "") if g and g[1] != "" else ""
+        out.append((r + (typ,), SOURCE))
+    out.sort(key=lambda x: x[0][3] if (x[0][5] == airport and x[0][3] != "") or x[0][2] == "" else x[0][2])   # 이 공항 쪽 시각
+    return out
+
+
+def collect(airport, start, end, tz, out, cache_root="trino_cache", log=print, should_stop=None, mapdata_dir=None, actual=None):
+    """반환: (CSV 경로, 운항 행 목록, 도착 수, 출발 수) — fetch_flights.collect 와 같은 모양. 중지하면 None.
+    actual: kac_actual.load() 의 김포 운항 실적 (있으면 김포 노선 편에 기종, 김포는 실적으로)."""
     airport = airport.upper()
     recs = load_records(airport, cache_root, log=log, should_stop=should_stop)
     if recs is None:
         return None
     ap, al = load_maps(mapdata_dir)
-    rows = expand(recs, airport, start, end, tz, ap, al)
+    rows = merge_actual(expand(recs, airport, start, end, tz, ap, al), actual, airport, start, end, tz, ap)
 
     def local(ts):
         return dt.datetime.fromtimestamp(int(ts) + tz * 3600, dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S") if ts != "" else ""
-    cols = ["icao24", "callsign", "firstseen", "lastseen", "estdepartureairport", "estarrivalairport",
+    cols = ["icao24", "callsign", "firstseen", "lastseen", "estdepartureairport", "estarrivalairport", "typecode",
             "firstseen_local", "lastseen_local", "source"]
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(cols)
-        w.writerows(r + (local(r[2]), local(r[3]), SOURCE) for r in rows)
-    n_arr = sum(1 for r in rows if r[5] == airport)
+        w.writerows(r + (local(r[2]), local(r[3]), src) for r, src in rows)
+    n_arr = sum(1 for r, _ in rows if r[5] == airport)
     n_dep = len(rows) - n_arr
-    log(f"완료: {out} (스케줄 운항 {len(rows):,}건 · 도착 {n_arr:,} · 출발 {n_dep:,}) — 계획 운항, 결항·부정기편 미반영")
-    return out, rows, n_arr, n_dep
+    n_act = sum(1 for _, src in rows if src == SOURCE_ACTUAL)
+    n_typ = sum(1 for r, _ in rows if r[6])
+    msg = f"완료: {out} (운항 {len(rows):,}건 · 도착 {n_arr:,} · 출발 {n_dep:,}"
+    if n_act:
+        msg += f" · 김포 운항 실적 {n_act:,}건"
+    if actual:
+        msg += f" · 기종 확인 {n_typ:,}건 ({n_typ / max(len(rows), 1):.0%})"
+    log(msg + ") — 스케줄은 계획 운항, 결항·부정기편 미반영")
+    return out, [r for r, _ in rows], n_arr, n_dep

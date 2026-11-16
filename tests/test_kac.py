@@ -1,4 +1,5 @@
 """한국공항공사 스케줄 → 운항 행 펼치기 (네트워크 없이)."""
+import collections as C
 import datetime as dt
 
 import kac_schedule as kac
@@ -106,3 +107,45 @@ def test_load_maps_prefers_korean_airline():
     ap, al = kac.load_maps()
     assert ap["USN"] == "RKPU" and ap["GMP"] == "RKSS"
     assert al["RS"] == "ASV" and al["KE"] == "KAL"
+
+
+# ---------- 김포 운항 실적 (kac_actual) ----------
+import kac_actual as ka
+
+
+def act(day, cs, io, sched, actual, typ, other, crt="2025-01-01 00:00:00"):
+    return [day, cs, io, sched, actual, typ, other, "Nrm", crt]
+
+
+def test_actual_dedup_keeps_latest_and_distinct_legs():
+    rows = [act("2026-11-09", "KAL1601", "O", "080000", "081000", "BCS3", "USN", "a"),
+            act("2026-11-09", "KAL1601", "O", "080000", "081500", "BCS3", "USN", "b"),   # 같은 기록 두 번 → 나중 것
+            act("2026-11-09", "ESR261", "O", "065000", "070900", "B38M", "ICN"),
+            act("2026-11-09", "ESR261", "O", "124000", "125400", "B38M", "CJU")]        # 같은 편명 다른 구간 → 둘 다
+    d = ka.dedup(rows)
+    assert len(d) == 3 and [r[4] for r in d if r[1] == "KAL1601"] == ["081500"]
+
+
+def test_actual_flights_times_and_overnight():
+    rows = [act("2026-11-09", "KAL1601", "O", "080000", "081000", "BCS3", "USN"),
+            act("2026-11-09", "JJA140", "I", "235000", "001500", "B738", "CJU")]            # 예정 23:50 → 실제 다음날 00:15
+    f = ka.flights(rows, "2026-11-09", "2026-11-09", 9, {"USN": "RKPU", "CJU": "RKPC"})
+    assert f[0] == ("KAL1601", "KAL1601", kst("2026-11-09 08:10"), "", "RKSS", "RKPU", "BCS3")
+    assert f[1] == ("JJA140", "JJA140", "", kst("2026-11-10 00:15"), "RKPC", "RKSS", "B738")
+
+
+def test_merge_actual_types_for_gimpo_route_and_gimpo_uses_actual():
+    sched = {"dom": [dom("KE1601", "GMP", "USN", "0800", "0900", "2026-11-01", "2026-11-30", set(range(7))),
+                     dom("KE1801", "CJU", "USN", "1000", "1100", "2026-11-01", "2026-11-30", set(range(7)))]}
+    actual = [act("2026-11-09", "KAL1601", "O", "080000", "081000", "BCS3", "USN")] * 1
+    rows = kac.merge_actual(kac.expand(sched, "RKPU", "2026-11-09", "2026-11-10", 9, AP, AL), actual, "RKPU", "2026-11-09", "2026-11-10", 9, AP)
+    typ = {(r[1], r[3]): r[6] for r, _ in rows}
+    assert typ[("KAL1601", kst("2026-11-09 09:00"))] == "BCS3"           # 김포 기록에 같은 날·같은 편
+    assert typ[("KAL1601", kst("2026-11-10 09:00"))] == ""               # 그날 김포 기록 없음
+    assert typ[("KAL1801", kst("2026-11-09 11:00"))] == ""               # 김포를 오가지 않는 편
+    assert {s for _, s in rows} == {"KAC"}
+    many = [act("2026-11-09", f"KAL{i}", "O", "090000", "090500", "A321", "CJU") for i in range(120)]   # 기록이 충분한 날만 실적으로
+    g = kac.merge_actual(kac.expand(sched, "RKSS", "2026-11-09", "2026-11-10", 9, AP, AL), many, "RKSS", "2026-11-09", "2026-11-10", 9, AP)
+    src = C.Counter(s for _, s in g)
+    assert src["KAC_ACT"] == 120 and src["KAC"] == 1                     # 11-10 은 스케줄(KE1601 출발)
+    assert kac.merge_actual([("X", "X", 1, 2, "RKPU", "RKSS")], None, "RKPU", "a", "b", 9) == [(("X", "X", 1, 2, "RKPU", "RKSS", ""), "KAC")]

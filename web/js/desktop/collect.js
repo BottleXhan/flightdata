@@ -10,14 +10,17 @@ import { esc } from '../lib/fmt.js';
 import { run } from '../run.js';
 
 export let COLLECTOR = false;
-let KAC = new Set(), DATA_KEY = false;                    // 한국공항공사 스케줄을 쓰는 공항(인천 외 국내) · 인증키 등록 여부
+let KAC = new Set(), DATA_KEY = false, SAFETY_KEY = false;                    // 한국공항공사 스케줄을 쓰는 공항(인천 외 국내) · 인증키 등록 여부
 export const isKac = ap => KAC.has((ap || '').toUpperCase());
 
 /** 데이터 탭 공항 칸 아래: 이 공항의 데이터 출처 */
 function updateApSrc() {
   const ap = $('icao').value.trim().toUpperCase() || 'RKSI', kac = isKac(ap);
   $('apSrc').hidden = !kac;
-  if (kac) $('apSrc').textContent = '한국공항공사 운항 스케줄(계획 운항) 사용 · OpenSky 로그인 불필요 · 결항·부정기편 미반영'
+  if (kac) $('apSrc').textContent = (ap === 'RKSS' && SAFETY_KEY
+      ? '한국공항공사 김포 운항 실적(2024년부터, 실제 시각·기종) 사용, 실적이 없는 날은 운항 스케줄(계획) · OpenSky 로그인 불필요'
+      : '한국공항공사 운항 스케줄(계획 운항) 사용 · OpenSky 로그인 불필요 · 결항·부정기편 미반영'
+        + (SAFETY_KEY ? ' · 김포 노선 편은 김포 운항 실적으로 기종 표시' : ''))
     + (DATA_KEY ? '' : ' — 우측 상단 ⚙ 설정에서 공공데이터포털 인증키를 먼저 등록하세요');
   $('cAircraft').closest('label').hidden = kac;
 }
@@ -29,6 +32,13 @@ function setupDataKey(has) {
   updateApSrc();
 }
 
+function setupSafetyKey(has) {
+  SAFETY_KEY = has;
+  $('setSKeyNote').textContent = has ? '등록됨 · 김포 실적·기종용' : '미등록 · 김포 실적·기종용';
+  $('setSKey').placeholder = has ? '새 인증키로 바꾸기' : '인증키 입력';
+  updateApSrc();
+}
+
 function setupCollectUI(info) {
   const opt = document.createElement('option');
   opt.value = 'collect'; opt.textContent = 'OpenSky에서 받기';
@@ -36,6 +46,7 @@ function setupCollectUI(info) {
   const st = info.settings || {};
   KAC = new Set(info.kacAirports || []);
   setupDataKey(!!info.dataKey);
+  setupSafetyKey(!!info.safetyKey);
   setApHook(updateApSrc);
   $('setKeyForm').onsubmit = async e => {
     e.preventDefault();
@@ -46,6 +57,16 @@ function setupCollectUI(info) {
     $('setKey').value = '';
     if (!r?.ok) { setupDataKey(DATA_KEY); return showMsg(esc(j.error || '인증키를 저장하지 못했습니다.'), 'err'); }
     setupDataKey(j.dataKey); showMsg('공공데이터포털 인증키 저장 완료');
+  };
+  $('setSKeyForm').onsubmit = async e => {
+    e.preventDefault();
+    const key = $('setSKey').value.trim();
+    if (!key) return $('setSKey').focus();
+    $('setSKeyNote').textContent = '인증키 확인 중…';
+    const r = await apiPost('/api/safetykey', { key }).catch(() => null), j = r ? await r.json().catch(() => ({})) : {};
+    $('setSKey').value = '';
+    if (!r?.ok) { setupSafetyKey(SAFETY_KEY); return showMsg(esc(j.error || '인증키를 저장하지 못했습니다.'), 'err'); }
+    setupSafetyKey(j.safetyKey); showMsg('재난안전데이터 인증키 저장 완료');
   };
   $('hLogin').hidden = false;
   if (info.inTemp) showMsg('<b>압축 파일 내부에서 실행 중입니다.</b> 이 상태에서는 CSV·설정·보관함이 임시 폴더에 저장되어 유실됩니다. 프로그램을 종료하고 zip <b>압축 해제 후</b> 폴더 안의 FlightData exe를 실행하세요.', 'err');

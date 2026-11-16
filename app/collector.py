@@ -5,6 +5,7 @@ import threading
 import time
 
 import fetch_flights as ff
+import kac_actual
 import kac_schedule as kac
 import opensky_auth as oa
 
@@ -93,7 +94,17 @@ class Collector:
     def _run(self, user, airports, segs, tz, out_dir, aircraft, password):
         total = sum((b - a).days + 1 for a, b in segs)
         done, results = 0, []
+        actual = None
         try:
+            if any(kac.is_kac(ap) for ap in airports):      # 김포 운항 실적 (기종·김포 실제 운항) — 인증키가 있을 때만
+                with self.lock:
+                    self.text = "김포 운항 실적 확인"
+                try:
+                    actual = kac_actual.load(os.path.join(out_dir, "trino_cache"), log=self._log, should_stop=lambda: self.stop)
+                except kac_actual._Stop:
+                    raise ff.Stopped("중지했습니다.") from None
+                except RuntimeError as ex:
+                    self._log(f"김포 운항 실적을 받지 못해 기종 없이 진행: {ex}")
             for j, (a, b) in enumerate(segs, 1):
                 tag = f"{a.year}년 ({j}/{len(segs)}) · " if len(segs) > 1 else ""
                 if len(segs) > 1:
@@ -110,7 +121,7 @@ class Collector:
                     with self.lock:
                         self.text = f"{tag}{ap} 한국공항공사 스케줄"
                     r = kac.collect(ap, a.isoformat(), b.isoformat(), tz, outs[ap], cache_root=cache, log=self._log,
-                                    should_stop=lambda: self.stop, mapdata_dir=os.path.join(settings.web_dir(), "mapdata"))
+                                    should_stop=lambda: self.stop, mapdata_dir=os.path.join(settings.web_dir(), "mapdata"), actual=actual)
                     if r is None:
                         raise ff.Stopped("중지했습니다.")
                     results.append((ap, r[0], len(r[1])))
