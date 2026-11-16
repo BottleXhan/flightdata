@@ -21,7 +21,7 @@ test('CSV 읽기 · 운항 변환', () => assert.deepEqual(got.csv, golden.csv))
 
 test('기종 라벨: 이름이 코드와 같으면 코드만', () => {
   assert.equal(typeLabel('A320'), 'A320');
-  assert.equal(typeLabel('B738'), 'B738 · 737-800');
-  assert.equal(typeLabel('b77w'), 'b77w · 777-300ER');
+  assert.equal(typeLabel('B738'), 'B738 (737-800)');
+  assert.equal(typeLabel('b77w'), 'b77w (777-300ER)');
   assert.equal(typeLabel('ZZZZ'), 'ZZZZ');
 });

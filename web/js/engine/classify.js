@@ -34,6 +34,6 @@ export const TYPE_NAMES = {
   B190: 'Beech 1900', C208: 'Cessna 208', C172: 'Cessna 172', PC12: 'PC-12', DHC6: 'Twin Otter'
 };
 export const typeName = code => TYPE_NAMES[(code || '').toUpperCase()] || '';
-export const typeLabel = code => { const n = typeName(code); return n && n !== code ? `${code} · ${n}` : code; };
+export const typeLabel = code => { const n = typeName(code); return n && n !== code ? `${code} (${n})` : code; };
 
 export const alCode = m => /^[A-Z]{3}\d/.test(m.callsign || '') ? m.callsign.slice(0, 3) : '기타';
