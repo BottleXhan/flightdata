@@ -66,6 +66,42 @@ def test_kac_airports_and_key_cleaning():
     assert kac.callsign_of("KE1595", AL) == "KAL1595" and kac.callsign_of("ZZ1", AL) == "ZZ1"
 
 
+def _fake_api(records):
+    """실제 API 처럼: 편명은 포함 검색, 한 페이지 100건까지, 페이지 크기에 따라 순서가 달라 페이지끼리 겹침."""
+    def call(key, op, pageNo=1, numOfRows=100, **flt):
+        assert numOfRows <= 100
+        L = [r for r in records[op]
+             if all(r.get(k) == v for k, v in flt.items() if k in ("schDeptCityCode", "schArrvCityCode"))
+             and flt.get("schFlightNum", "") in r["num"]]
+        rot = (numOfRows * 7) % max(len(L), 1)               # 순서가 고정되지 않음
+        order = L[rot:] + L[:rot]
+        lo = (pageNo - 1) * numOfRows
+        lo = max(0, lo - 13 * (pageNo - 1))                  # 페이지마다 앞 페이지와 13건 겹침 → 그만큼 빠짐
+        return [dict(r) for r in order[lo:lo + numOfRows]], len(L)
+    return call
+
+
+def test_fetch_gets_every_record_despite_overlapping_pages(monkeypatch):
+    recs = [{"num": f"{al}{n}", "schDeptCityCode": "PUS", "seq": i}
+            for al, nums in (("BX", range(8100, 8130)), ("KE", range(1, 60)), ("C7", range(700, 703)))
+            for n in nums for i in range(7)]
+    recs += [{"num": "7C7351", "schDeptCityCode": "PUS", "seq": i} for i in range(130)]   # 100건 넘는 편명, "C7" 포함
+    for r in recs:
+        r["domesticNum"] = r["num"]
+    monkeypatch.setattr(kac, "_call", _fake_api({"dom": recs}))
+    f = kac._Fetcher("k", log=lambda *a: None)
+    got = f.fetch("dom", "PUS")
+    key = lambda r: (r["num"], r["seq"])
+    assert sorted(map(key, got)) == sorted(map(key, recs))
+    naive, _ = f.pages("dom", schDeptCityCode="PUS")
+    assert len({key(r) for r in naive}) < len(recs)          # 그냥 페이지를 넘기면 빠짐 (이 시험의 전제)
+
+
+def test_fetch_airport_stops(monkeypatch):
+    monkeypatch.setattr(kac, "_call", _fake_api({"dom": [], "int": []}))
+    assert kac.fetch_airport("k", "PUS", log=lambda *a: None, should_stop=lambda: True) is None
+
+
 def test_load_maps_prefers_korean_airline():
     ap, al = kac.load_maps()
     assert ap["USN"] == "RKPU" and ap["GMP"] == "RKSS"

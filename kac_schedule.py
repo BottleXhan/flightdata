@@ -110,38 +110,104 @@ def check_key(key):
     _call(key, "dom", pageNo=1, numOfRows=1)
 
 
-def fetch_all(key, op, log=print, should_stop=None, **flt):
-    out, page = [], 1
-    while True:
-        if should_stop and should_stop():
-            return None
+class _Stop(Exception):
+    pass
+
+
+class _Fetcher:
+    """페이지를 넘기면 순서가 고정되지 않아 페이지끼리 기록이 겹치고 그만큼 다른 기록이 빠진다
+    (2026-11-16 김해 국제선: 7,748건 중 1,936건이 겹침, 결과적으로 2025 운항의 약 40% 누락).
+    그래서 편명 앞부분(schFlightNum, 포함 검색)을 항공사 코드 → 숫자 한 자리씩 늘려 100건 이하로 나눠
+    한 페이지 조회만 쓴다. 한 편명이 100건을 넘을 때만 페이지 크기를 바꿔 가며 받은 것을 합친다."""
+
+    SIZES = (100, 60, 51, 34, 27)                            # 크기마다 겹치는 위치가 달라 합치면 채워짐
+
+    def __init__(self, key, log=print, should_stop=None):
+        self.key, self.log, self.should_stop, self.calls = key, log, should_stop, 0
+
+    def get(self, op, page=1, rows=PAGE, **flt):
+        if self.should_stop and self.should_stop():
+            raise _Stop
         for attempt in range(3):
             try:
-                items, total = _call(key, op, pageNo=page, numOfRows=PAGE, **flt)
-                break
+                self.calls += 1
+                return _call(self.key, op, pageNo=page, numOfRows=rows, **flt)
             except RuntimeError as e:
                 if attempt == 2 or "인증키" in str(e):
                     raise
-                log(f"  오류: {e} → 5초 후 재시도")
+                self.log(f"  오류: {e} → 5초 후 재시도")
                 time.sleep(5)
-        out += items
-        if not items or page * PAGE >= total:
-            return out
-        page += 1
+
+    def pages(self, op, rows=PAGE, **flt):
+        out, page = [], 1
+        while True:
+            items, total = self.get(op, page, rows, **flt)
+            out += items
+            if not items or page * rows >= total:
+                return out, total
+            page += 1
+
+    def pages_union(self, op, **flt):
+        """페이지를 넘겨야 하는 조회: 페이지 크기를 바꿔 가며 받아 합친다 (진짜 중복 기록은 하나로)."""
+        got, total = {}, None
+        for size in self.SIZES:
+            items, total = self.pages(op, size, **flt)
+            for x in items:
+                got.setdefault(json.dumps(x, sort_keys=True, ensure_ascii=False), x)
+            if len(got) >= total:
+                break
+        return list(got.values())
+
+    def walk(self, op, numf, base, prefix, total, out):
+        """편명이 prefix 로 시작하는 기록 → out."""
+        if total <= PAGE:
+            items, _ = self.get(op, **base, schFlightNum=prefix)
+            out += [x for x in items if (x.get(numf) or "").strip().upper().startswith(prefix)]
+            return
+        rest = total
+        if len(prefix) < 6:                                  # 편명은 항공사 2자 + 숫자 4자리까지
+            for ch in "0123456789":
+                items, t = self.get(op, **base, schFlightNum=prefix + ch)
+                if t:
+                    rest -= t
+                    if t <= PAGE:
+                        out += [x for x in items if (x.get(numf) or "").strip().upper().startswith(prefix + ch)]
+                    else:
+                        self.walk(op, numf, base, prefix + ch, t, out)
+        if rest > 0:                                         # 편명이 정확히 prefix 인 기록이 100건 넘음
+            out += [x for x in self.pages_union(op, **base, schFlightNum=prefix)
+                    if (x.get(numf) or "").strip().upper() == prefix]
+
+    def fetch(self, op, iata):
+        numf = "domesticNum" if op == "dom" else "internationalNum"
+        bases = [{"schDeptCityCode": iata}, {"schArrvCityCode": iata}]  # 가이드 설명과 달리 Dept = 출발 공항
+        first = [self.pages(op, **b) for b in bases]         # 항공사 목록만 얻는 용도 (빠진 기록이 있음)
+        airlines = sorted({(x.get(numf) or "").strip().upper()[:2] for items, _ in first for x in items} - {""})
+        self.log(f"  {'국내선' if op == 'dom' else '국제선'}: 항공사 {len(airlines)}곳 편명별로 나눠 받는 중")
+        out, short = [], 0
+        for b, (_, total) in zip(bases, first):
+            s = 0
+            for al in airlines:
+                _, t = self.get(op, **b, schFlightNum=al)    # walk 와 같은 포함 검색 건수
+                if t:
+                    s += t
+                    self.walk(op, numf, b, al, t, out)
+            short += max(0, total - s)
+        if short:
+            self.log(f"  (항공사 목록에 안 잡힌 기록 {short}건 제외)")
+        return out
 
 
 def fetch_airport(key, iata, log=print, should_stop=None):
-    """공항 하나의 스케줄 기록 전부 {'dom': [...], 'int': [...]} (출발·도착 둘 다)."""
-    res = {}
-    for op in ("dom", "int"):
-        recs = []
-        for fld in ("schDeptCityCode", "schArrvCityCode"):  # 가이드 설명과 달리 Dept = 출발 공항
-            r = fetch_all(key, op, log=log, should_stop=should_stop, **{fld: iata})
-            if r is None:
-                return None
-            recs += r
-        res[op] = recs
-        log(f"  {'국내선' if op == 'dom' else '국제선'} 스케줄 {len(recs):,}건")
+    """공항 하나의 스케줄 기록 전부 {'dom': [...], 'int': [...]} (출발·도착 둘 다). 중지하면 None."""
+    f, res = _Fetcher(key, log, should_stop), {}
+    try:
+        for op in ("dom", "int"):
+            res[op] = f.fetch(op, iata)
+            log(f"  {'국내선' if op == 'dom' else '국제선'} 스케줄 {len(res[op]):,}건")
+    except _Stop:
+        return None
+    log(f"  (공공데이터포털 조회 {f.calls:,}회)")
     return res
 
 
@@ -246,7 +312,7 @@ def expand(records, airport, start, end, tz, ap=None, al=None):
 # ---------- 수집 (fetch_flights.collect_many 와 같은 모양의 결과) ----------
 
 def _cache_path(cache_root, airport):
-    return os.path.join(cache_root, airport, f"kac_schedule_{dt.date.today():%Y-%m-%d}.json")
+    return os.path.join(cache_root, airport, f"kac_schedule_v2_{dt.date.today():%Y-%m-%d}.json")   # v2: 1.5.1 의 누락 캐시를 쓰지 않음
 
 
 def load_records(airport, cache_root, key=None, log=print, should_stop=None):
