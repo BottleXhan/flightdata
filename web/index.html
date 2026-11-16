@@ -105,7 +105,7 @@
       <p class="mt-1"><b class="secondary">인용 (OpenSky 요청):</b> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
       <p class="mt-1"><b class="secondary">인천 외 국내 공항:</b> 한국공항공사, 항공기 운항 스케줄 정보 (공공데이터포털 15158949) — 계획 운항(결항·부정기편 미반영).</p>
       <p class="mt-1">OpenSky 데이터는 ADS-B로 추정한 값이며 공항 운항 스케줄·지연 정보가 아닙니다. 계획 목적으로는 공항 공식 통계와 대조하세요.</p>
-      <p class="mt-1"><b class="secondary">항공사 이름·나라:</b> OpenFlights (<a href="https://openflights.org/data">openflights.org/data</a>, ODbL 1.0) · <b class="secondary">국기:</b> flag-icons (MIT) · <b class="secondary">항공사 로고:</b> pics.avs.io (화면에 표시할 때 받음, 각 항공사의 상표)</p>
+      <p class="mt-1"><b class="secondary">항공사 이름·나라:</b> OpenFlights (<a href="https://openflights.org/data">openflights.org/data</a>, ODbL 1.0) · <b class="secondary">기종 제원·ICAO 등급:</b> FAA Aircraft Characteristics Database (<a href="https://www.faa.gov/airports/engineering/aircraft_char_database">faa.gov</a>, 2024-10) · <b class="secondary">국기:</b> flag-icons (MIT) · <b class="secondary">항공사 로고:</b> pics.avs.io (화면에 표시할 때 받음, 각 항공사의 상표)</p>
           <p style="margin-top:6px"><a href="icao-source.html" style="color:var(--accent)">참고: ICAO Doc 9184 원문 보기 →</a></p>
             </div>
           </details>
@@ -261,13 +261,16 @@
       </div>
       <div class="fstack">
         <div>
-          <label class="lbl" for="fSize">기종 크기</label>
+          <label class="lbl" for="fSize">ICAO 등급 <span class="muted">(날개폭)</span></label>
           <select id="fSize" class="field">
             <option value="all" selected>전체</option>
-            <option value="L">대형 (광동체)</option>
-            <option value="M">중형 (협동체)</option>
-            <option value="S">소형 (리저널·터보프롭)</option>
-            <option value="U">미상</option>
+            <option value="A" data-t="A (15 m 미만)">A (15 m 미만)</option>
+            <option value="B" data-t="B (15~24 m)">B (15~24 m)</option>
+            <option value="C" data-t="C (24~36 m)">C (24~36 m)</option>
+            <option value="D" data-t="D (36~52 m)">D (36~52 m)</option>
+            <option value="E" data-t="E (52~65 m)">E (52~65 m)</option>
+            <option value="F" data-t="F (65~80 m)">F (65~80 m)</option>
+            <option value="U" data-t="미상">미상</option>
           </select>
         </div>
         <div>

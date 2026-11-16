@@ -21,7 +21,7 @@ export function init() {
     let L = null;
     try { L = JSON.parse(localStorage.getItem(LAST_KEY) || 'null'); } catch (e) {}
     if (!L) return;
-    for (const id of LAST_IDS) if (L[id] != null && $(id)) $(id).value = L[id];
+    for (const id of LAST_IDS) if (L[id] != null && $(id)) { $(id).value = L[id]; if ($(id).tagName === 'SELECT' && $(id).selectedIndex < 0) $(id).selectedIndex = 0; }
     updateMethodOptions();
     setPeak(!!L.peakOn);
     syncLastAp();

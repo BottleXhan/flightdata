@@ -1,6 +1,6 @@
 // 운항 구성: 노선(지도) · 항공사 · 기종.
 import { loadMapData, MAPDATA, regionName } from '../data/airports.js';
-import { typeLabel, typeName } from '../engine/classify.js';
+import { CODE_LETTERS, sizeOf, typeInfo, typeLabel, typeName } from '../engine/classify.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtPct, HOUR } from '../lib/fmt.js';
 import { STATE } from '../state.js';
@@ -26,7 +26,9 @@ function typeSummary(res, sel) {
     code: e.code, n: e.n, share: e.n / mv.length, inPeak: sel.start != null ? e.inPeak : null,
     model: [...e.models.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || ''
   }));
-  return { rows, coverage: mv.length ? withType.length / mv.length : 0, total: mv.length };
+  const byCode = new Map();                                 // ICAO 등급별 운항 (날개폭, FAA 제원)
+  for (const m of withType) { const k = sizeOf(m, MAPDATA?.types); byCode.set(k, (byCode.get(k) || 0) + 1); }
+  return { rows, byCode, coverage: mv.length ? withType.length / mv.length : 0, total: mv.length };
 }
 
 export function renderTypes(res, sel) {
@@ -41,12 +43,14 @@ export function renderTypes(res, sel) {
   const tops = t.rows.slice(0, 15);
   $('typeChartTitle').textContent = `운항이 많은 기종 상위 ${tops.length}개 (전체 ${t.rows.length.toLocaleString()}개)`;
   hbarChart('typeChart', tops, { labelOf: r => typeLabel(r.code), valOf: r => r.n, total: t.total });
-  $('typeNote').textContent = `기종 확인 ${fmtPct(t.coverage)} (${(t.coverage * t.total).toLocaleString()} / ${t.total.toLocaleString()}편) · 출처: OpenSky aircraft database (icao24 기준 연결, 등록 정보라 실제 운항 기종과 다를 수 있음)`;
+  const nType = t.coverage * t.total;
+  const codes = [...CODE_LETTERS, 'U'].filter(c => t.byCode.get(c)).map(c => `<b>${c === 'U' ? '미상' : c}</b> ${fmtPct(t.byCode.get(c) / nType)}`).join(' · ');
+  $('typeNote').innerHTML = `ICAO 등급별: ${codes}<br>기종 확인 ${fmtPct(t.coverage)} (${nType.toLocaleString()} / ${t.total.toLocaleString()}편) · 기종 출처: OpenSky aircraft database (icao24 기준 연결, 등록 정보라 실제 운항 기종과 다를 수 있음) · 등급: 날개폭(FAA 제원) 기준 비행장 참조 코드 문자 (ICAO Annex 14 Table 1-1)`;
   const top = t.rows.slice(0, 20);
-  $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>이름</th><th>대표 등록 모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:30%"></th></tr></thead><tbody>' +
-    top.map(r => `<tr><td><b style="font-family:var(--font-data)">${esc(r.code)}</b></td><td>${esc(typeName(r.code))}</td><td class="secondary">${esc(r.model)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td>
+  $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>이름</th><th>ICAO 등급</th><th class="num">날개폭 (m)</th><th>대표 등록 모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:30%"></th></tr></thead><tbody>' +
+    top.map(r => `<tr><td><b style="font-family:var(--font-data)">${esc(r.code)}</b></td><td>${esc(typeName(r.code))}</td><td>${(i => i?.[6] || '—')(typeInfo(r.code, MAPDATA?.types))}</td><td class="num">${(i => i?.[2] ? i[2].toFixed(1) : '—')(typeInfo(r.code, MAPDATA?.types))}</td><td class="secondary">${esc(r.model)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td>
       <td><div style="height:8px;border-radius:4px;background:var(--accent);width:${(r.n / t.rows[0].n * 100).toFixed(1)}%"></div></td></tr>`).join('') +
-    (t.rows.length > 20 ? `<tr><td colspan="6" class="muted">외 ${t.rows.length - 20}개 기종</td></tr>` : '') + '</tbody>';
+    (t.rows.length > 20 ? `<tr><td colspan="8" class="muted">외 ${t.rows.length - 20}개 기종</td></tr>` : '') + '</tbody>';
 }
 
 export function airlineRouteSummary() {

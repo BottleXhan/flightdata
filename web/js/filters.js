@@ -1,5 +1,5 @@
-// 필터 (운항량·운항 구성 공용): 방향 · 노선(국내/국제/나라) · 항공사 · 기종 크기 · 시간대.
-import { countryOf, regionName } from './data/airports.js';
+// 필터 (운항량·운항 구성 공용): 방향 · 노선(국내/국제/나라) · 항공사 · ICAO 등급 · 시간대.
+import { countryOf, MAPDATA, regionName } from './data/airports.js';
 import { alCode, sizeOf } from './engine/classify.js';
 import { $, showMsg } from './lib/dom.js';
 import { DAY, esc, HOUR, pad } from './lib/fmt.js';
@@ -22,7 +22,7 @@ export function applyFilters(mv, ctx = STATE.data) {
       if (route === 'dom' ? c !== home || !c : route === 'intl' ? c === home || !c : c !== route.slice(3)) return false;
     }
     if (al.size && !al.has(alCode(m))) return false;
-    if (size !== 'all' && sizeOf(m) !== size) return false;
+    if (size !== 'all' && sizeOf(m, MAPDATA?.types) !== size) return false;
     if (!allDay) {
       const h = Math.floor((((m.t + off) % DAY) + DAY) % DAY / HOUR);
       if (h0 < h1 ? (h < h0 || h >= h1) : (h < h0 && h >= h1)) return false;   // 23시~06시처럼 자정을 넘기는 범위도
@@ -47,7 +47,8 @@ export function buildFilterOptions() {
   $('fRoute').value = [...$('fRoute').options].some(o => o.value === cur) ? cur : 'all';
   STATE.fAirlines = [...al].sort((a, b) => b[1].n - a[1].n).map(([code, a]) => ({ code, n: a.n, name: airlineName(code, [...a.names].sort((x, y) => y[1] - x[1])[0]?.[0] || '') }));
   for (const c of [...FILTER.airlines]) if (!al.has(c)) FILTER.airlines.delete(c);
-  $('fSize').querySelectorAll('option').forEach(o => { if (o.value !== 'all') o.disabled = !mv.some(m => m.typecode) && o.value !== 'U'; });
+  const sz = new Map(); for (const m of mv) { const k = sizeOf(m, MAPDATA?.types); sz.set(k, (sz.get(k) || 0) + 1); }
+  $('fSize').querySelectorAll('option').forEach(o => { if (o.value !== 'all') { o.disabled = !sz.get(o.value); o.textContent = o.dataset.t + (sz.get(o.value) ? ` (${sz.get(o.value).toLocaleString()})` : ''); } });
   renderAlList(); syncFilterUI();
 }
 
@@ -66,7 +67,7 @@ export function syncFilterUI() {
   if ($('fDir').value !== 'all') chips.push(['fDir', txt('fDir')]);
   if ($('fRoute').value !== 'all') chips.push(['fRoute', txt('fRoute')]);
   if (al.length) chips.push(['fAl', '항공사 ' + $('fAlBtn').firstChild.textContent]);
-  if ($('fSize').value !== 'all') chips.push(['fSize', '기종 ' + txt('fSize')]);
+  if ($('fSize').value !== 'all') chips.push(['fSize', 'ICAO 등급 ' + txt('fSize')]);
   if (!($('fH0').value === '0' && $('fH1').value === '24')) chips.push(['fH', `${pad(+$('fH0').value)}~${pad(+$('fH1').value)}시`]);
   $('fChips').innerHTML = chips.map(([k, t]) => `<button type="button" data-f="${k}" title="이 필터 해제">${esc(t)} ✕</button>`).join('');
   $('fChips').hidden = !chips.length;

@@ -28,8 +28,10 @@ export function loadMapData() {
   if (MAPLOADING) return MAPLOADING;
   // airlines.json = {ICAO 항공사 코드: [IATA, 이름, 나라, 한글 이름]} (OpenFlights, tools/airlines) — 없어도 나머지는 동작
   const air = fetch('mapdata/airlines.json').then(r => (r.ok ? r.json() : {})).catch(() => ({}));
-  MAPLOADING = Promise.all([...['mapdata/land.json', 'mapdata/airports_min.json'].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })), air])
-    .then(([land, airports, airlines]) => { MAPDATA = { land, airports, airlines }; return true; })
+  // aircraft_types.json = {ICAO 기종 코드: [모델, 제조사, 날개폭 m, 길이 m, 꼬리 높이 m, MTOW kg, ICAO 등급, WTC, 주 바퀴 폭 m]} (FAA, tools/aircraft)
+  const types = fetch('mapdata/aircraft_types.json').then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+  MAPLOADING = Promise.all([...['mapdata/land.json', 'mapdata/airports_min.json'].map(u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); })), air, types])
+    .then(([land, airports, airlines, types]) => { MAPDATA = { land, airports, airlines, types }; return true; })
     .catch(e => { console.warn('지도 자료를 불러오지 못함', e); $('rtMapNote').textContent = '지도 자료를 불러오지 못했습니다 (내 PC에서 HTML만 열면 mapdata 폴더가 같은 곳에 있어야 합니다).'; return false; });
   return MAPLOADING;
 }
