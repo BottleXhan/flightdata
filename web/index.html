@@ -761,6 +761,11 @@
         </div>
         <div class="panel" id="sec-type">
           <h3 class="panel-title">운항 구성 <span class="ptitle-sub">· 기종</span></h3>
+          <div class="type-ctl" id="typeCtl" hidden>
+            <div class="seg" role="group" aria-label="보기"><button type="button" data-tv="type">기종</button><button type="button" data-tv="code">ICAO 등급</button><button type="button" data-tv="wtc">무게</button><button type="button" data-tv="maker">제작사</button></div>
+            <div class="seg" id="typeSortSeg" role="group" aria-label="정렬"><button type="button" data-ts="n">운항 많은 순</button><button type="button" data-ts="span">날개폭 긴 순</button><button type="button" data-ts="mtow">무게 무거운 순</button></div>
+            <div class="seg" role="group" aria-label="기종 미상"><button type="button" data-tu="1">미상 포함</button><button type="button" data-tu="0">미상 제외</button></div>
+          </div>
           <p class="panel-desc" id="typeNote"></p>
           <div id="typeChartWrap"><p class="ctitle mt-3" id="typeChartTitle"></p>
           <div class="hbar-box"><canvas id="typeChart" aria-label="기종별 운항 막대 차트"></canvas></div>

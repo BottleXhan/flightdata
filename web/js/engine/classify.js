@@ -27,6 +27,7 @@ export const TYPE_NAMES = {
   B74S: '747SP', B752: '757-200', B753: '757-300', B762: '767-200', B763: '767-300', B764: '767-400',
   B772: '777-200', B77L: '777-200LR·777F', B773: '777-300', B77W: '777-300ER', B778: '777-8', B779: '777-9',
   B788: '787-8', B789: '787-9', B78X: '787-10',
+  A330: 'A330 계열', A340: 'A340 계열', A350: 'A350 계열', B747: '747 계열', B767: '767 계열', B777: '777 계열', B787: '787 계열',
   MD11: 'MD-11', MD82: 'MD-82', MD83: 'MD-83', MD88: 'MD-88', MD90: 'MD-90', DC10: 'DC-10',
   E170: 'E170', E175: 'E175', E190: 'E190', E195: 'E195', E290: 'E190-E2', E295: 'E195-E2', E75L: 'E175', E75S: 'E175',
   E135: 'ERJ-135', E145: 'ERJ-145', CRJ1: 'CRJ100', CRJ2: 'CRJ200', CRJ7: 'CRJ700', CRJ9: 'CRJ900', CRJX: 'CRJ1000',
@@ -37,6 +38,13 @@ export const TYPE_NAMES = {
   IL76: 'Il-76', IL96: 'Il-96', C130: 'C-130', C30J: 'C-130J', C17: 'C-17', K35R: 'KC-135', A400: 'A400M',
   B190: 'Beech 1900', C208: 'Cessna 208', C172: 'Cessna 172', PC12: 'PC-12', DHC6: 'Twin Otter'
 };
+// 무게: ICAO 후류 등급(WTC, 최대이륙중량 기준) J 슈퍼 · H 136 t 초과 · M 7~136 t · L 7 t 이하 (FAA 표의 ICAO_WTC)
+export const WTC_KEYS = ['J', 'H', 'M', 'L'];
+export const wtcOf = (code, types) => ({ Super: 'J', Heavy: 'H', Medium: 'M', Light: 'L' })[typeInfo(code, types)?.[7]] || 'U';
+// 제작사: FAA 표 이름을 흔히 쓰는 이름으로 (A220 은 Airbus)
+const MAKER_FIX = { Atr: 'ATR', 'Dehavilland Canada': 'De Havilland Canada', 'Boeing-Mcdonnell Douglas': 'Boeing (McDonnell Douglas)',
+  'Gulfstream Aerospace': 'Gulfstream', 'Airbus-Bombardier': 'Airbus', Iai: 'IAI', Bac: 'BAC', Casa: 'CASA' };
+export const makerOf = (code, types) => { const m = typeInfo(code, types)?.[1]; return m ? (MAKER_FIX[m] || m) : ''; };
 export const typeName = code => TYPE_NAMES[(code || '').toUpperCase()] || '';
 export const typeLabel = code => { const n = typeName(code); return n && n !== code ? `${code} (${n})` : code; };
 

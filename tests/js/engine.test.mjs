@@ -8,7 +8,7 @@ import { generateDemo } from '../../web/js/engine/demo.js';
 import { analyze } from '../../web/js/engine/peak.js';
 import { readFlightsCSV, flightsToMovements } from '../../web/js/engine/csv.js';
 import { dateToLocalSec } from '../../web/js/lib/fmt.js';
-import { codeLetter, sizeOf, typeLabel } from '../../web/js/engine/classify.js';
+import { codeLetter, makerOf, sizeOf, typeLabel, wtcOf } from '../../web/js/engine/classify.js';
 
 const golden = JSON.parse(fs.readFileSync(new URL('./golden_engine.json', import.meta.url), 'utf8'));
 const got = JSON.parse(JSON.stringify(cases({ generateDemo, analyze, dateToLocalSec, readFlightsCSV, flightsToMovements })));
@@ -34,4 +34,14 @@ test('ICAO 등급: 날개폭 경계 (Annex 14 Table 1-1)', () => {
   assert.equal(sizeOf({ typecode: 'A388' }, types), 'F');
   assert.equal(sizeOf({ typecode: 'ZZZZ' }, types), 'U');
   assert.equal(sizeOf({ typecode: '' }, types), 'U');
+});
+
+test('무게·제작사: 등급이 섞인 계열(B777)은 등급만 미상', () => {
+  const types = JSON.parse(fs.readFileSync(new URL('../../web/mapdata/aircraft_types.json', import.meta.url), 'utf8'));
+  assert.equal(sizeOf({ typecode: 'B777' }, types), 'U');
+  assert.equal(wtcOf('B777', types), 'H');
+  assert.equal(makerOf('B777', types), 'Boeing');
+  assert.equal(makerOf('BCS3', types), 'Airbus');
+  assert.equal(wtcOf('A388', types), 'J');
+  assert.equal(typeLabel('A330'), 'A330 (A330 계열)');
 });

@@ -1,6 +1,6 @@
 // 운항 구성: 노선(지도) · 항공사 · 기종.
 import { loadMapData, MAPDATA, regionName } from '../data/airports.js';
-import { CODE_LETTERS, sizeOf, typeInfo, typeLabel, typeName } from '../engine/classify.js';
+import { CODE_LETTERS, makerOf, sizeOf, typeInfo, typeLabel, typeName, WTC_KEYS, wtcOf } from '../engine/classify.js';
 import { $, cssVar } from '../lib/dom.js';
 import { esc, fmtPct, HOUR } from '../lib/fmt.js';
 import { STATE } from '../state.js';
@@ -10,9 +10,16 @@ import { PANE, setPane } from '../ui/nav.js';
 import { renderAirportCard } from './overview.js';
 import { cfgFromUI } from './peak.js';
 
-/* ---------- 기종별 운항 (CSV 에 OpenSky aircraft database 기종 정보가 있을 때) ---------- */
+/* ---------- 기종별 운항 (OpenSky 항공기 DB 또는 한국공항공사 김포 실적의 기종) ---------- */
+// 보기: 기종 · ICAO 등급(날개폭) · 무게(ICAO WTC) · 제작사 / 정렬(기종 보기): 운항 · 날개폭 · 무게 / 미상 포함·제외
+const TV = { view: 'type', sort: 'n', unk: true };
+const TV_KEY = 'flightdata.typeView';
+let LAST = null;
+const CODE_DESC = { A: '15 m 미만', B: '15~24 m', C: '24~36 m', D: '36~52 m', E: '52~65 m', F: '65~80 m' };
+const WTC_DESC = { J: 'J 슈퍼 (A380)', H: 'H 대형 (136 t 초과)', M: 'M 중형 (7~136 t)', L: 'L 소형 (7 t 이하)' };
+
 function typeSummary(res, sel) {
-  const mv = STATE.view.movements;
+  const mv = STATE.view.movements, T = MAPDATA?.types;
   const withType = mv.filter(m => m.typecode);
   const inWin = m => sel.start != null && m.t + STATE.data.offsetH * HOUR >= sel.start && m.t + STATE.data.offsetH * HOUR < sel.start + sel.len;
   const by = new Map();
@@ -23,34 +30,83 @@ function typeSummary(res, sel) {
     by.set(m.typecode, e);
   }
   const rows = [...by.values()].sort((a, b) => b.n - a.n).map(e => ({
-    code: e.code, n: e.n, share: e.n / mv.length, inPeak: sel.start != null ? e.inPeak : null,
+    code: e.code, n: e.n, inPeak: sel.start != null ? e.inPeak : null, info: typeInfo(e.code, T),
     model: [...e.models.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || ''
   }));
-  const byCode = new Map();                                 // ICAO 등급별 운항 (날개폭, FAA 제원)
-  for (const m of withType) { const k = sizeOf(m, MAPDATA?.types); byCode.set(k, (byCode.get(k) || 0) + 1); }
-  return { rows, byCode, coverage: mv.length ? withType.length / mv.length : 0, total: mv.length };
+  return { rows, typed: withType.length, total: mv.length };
+}
+
+/** 기종 행 → 묶음 (ICAO 등급·무게·제작사). 표에 없는 기종과 기종 미상은 'U' */
+function groupRows(t, view) {
+  const T = MAPDATA?.types, g = new Map();
+  const add = (k, n, code) => { const e = g.get(k) || { key: k, n: 0, types: [] }; e.n += n; if (code) e.types.push([code, n]); g.set(k, e); };
+  for (const r of t.rows) add(view === 'code' ? sizeOf({ typecode: r.code }, T) : view === 'wtc' ? wtcOf(r.code, T) : (makerOf(r.code, T) || 'U'), r.n, r.code);
+  if (t.total > t.typed) add('U', t.total - t.typed);
+  const order = view === 'code' ? [...CODE_LETTERS, 'U'] : view === 'wtc' ? [...WTC_KEYS, 'U'] : null;
+  const out = [...g.values()].sort((a, b) => order ? order.indexOf(a.key) - order.indexOf(b.key) : (a.key === 'U') - (b.key === 'U') || b.n - a.n);
+  return out.map(e => ({ ...e, label: e.key === 'U' ? '미상' : view === 'code' ? `${e.key} (${CODE_DESC[e.key]})` : view === 'wtc' ? WTC_DESC[e.key] : e.key }));
+}
+
+function syncTypeCtl() {
+  document.querySelectorAll('[data-tv]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tv === TV.view)));
+  document.querySelectorAll('[data-ts]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ts === TV.sort)));
+  document.querySelectorAll('[data-tu]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.tu === '1') === TV.unk)));
+  $('typeSortSeg').hidden = TV.view !== 'type';
 }
 
 export function renderTypes(res, sel) {
-  const t = typeSummary(res, sel);
+  LAST = [res, sel];
+  const t = typeSummary(res, sel), T = MAPDATA?.types;
   if (!t.rows.length) {
     $('typeNote').innerHTML = /^KAC/.test(STATE.data?.movements?.[0]?.source || '') ? '한국공항공사 운항 스케줄에는 기종 정보가 없습니다. ⚙ 설정에 재난안전데이터 인증키를 등록하고 다시 받으면 김포 노선 편에 기종이 붙습니다.' : '이 데이터에는 기종 정보가 없습니다. 최신 <code>fetch_flights.py</code>로 다시 받으면 OpenSky 항공기 데이터베이스에서 기종·운항사를 붙여 줍니다 (이미 받은 날짜는 다시 조회하지 않음).';
     $('typeTable').innerHTML = '';
-    $('typeChartWrap').hidden = true;
+    $('typeChartWrap').hidden = true; $('typeCtl').hidden = true;
     return;
   }
-  $('typeChartWrap').hidden = false;
-  const tops = t.rows.slice(0, 15);
-  $('typeChartTitle').textContent = `운항이 많은 기종 상위 ${tops.length}개 (전체 ${t.rows.length.toLocaleString()}개)`;
-  hbarChart('typeChart', tops, { labelOf: r => typeLabel(r.code), valOf: r => r.n, total: t.total });
-  const nType = t.coverage * t.total;
-  const codes = [...CODE_LETTERS, 'U'].filter(c => t.byCode.get(c)).map(c => `<b>${c === 'U' ? '미상' : c}</b> ${fmtPct(t.byCode.get(c) / nType)}`).join(' · ');
-  $('typeNote').innerHTML = `ICAO 등급별: ${codes}<br>기종 확인 ${fmtPct(t.coverage)} (${nType.toLocaleString()} / ${t.total.toLocaleString()}편) · 기종 출처: ${/^KAC/.test(STATE.data.movements[0]?.source || '') ? '한국공항공사 김포 운항 실적 (김포 노선 편만, 같은 날·같은 편)' : 'OpenSky aircraft database (icao24 기준 연결, 등록 정보라 실제 운항 기종과 다를 수 있음)'} · 등급: 날개폭(FAA 제원) 기준 비행장 참조 코드 문자 (ICAO Annex 14 Table 1-1)`;
-  const top = t.rows.slice(0, 20);
-  $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>이름</th><th>ICAO 등급</th><th class="num">날개폭 (m)</th><th>대표 등록 모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:30%"></th></tr></thead><tbody>' +
-    top.map(r => `<tr><td><b style="font-family:var(--font-data)">${esc(r.code)}</b></td><td>${esc(typeName(r.code))}</td><td>${(i => i?.[6] || '—')(typeInfo(r.code, MAPDATA?.types))}</td><td class="num">${(i => i?.[2] ? i[2].toFixed(1) : '—')(typeInfo(r.code, MAPDATA?.types))}</td><td class="secondary">${esc(r.model)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${fmtPct(r.share)}</td>
-      <td><div style="height:8px;border-radius:4px;background:var(--accent);width:${(r.n / t.rows[0].n * 100).toFixed(1)}%"></div></td></tr>`).join('') +
-    (t.rows.length > 20 ? `<tr><td colspan="8" class="muted">외 ${t.rows.length - 20}개 기종</td></tr>` : '') + '</tbody>';
+  $('typeChartWrap').hidden = false; $('typeCtl').hidden = false;
+  syncTypeCtl();
+  const unk = t.total - t.typed;
+  const src = /^KAC/.test(STATE.data.movements[0]?.source || '') ? '한국공항공사 김포 운항 실적 (김포 노선 편만, 같은 날·같은 편)' : 'OpenSky aircraft database (icao24 기준 연결, 등록 정보라 실제 운항 기종과 다를 수 있음)';
+  const pct = (n, d) => (n && n / d < 0.0005 ? '0.1% 미만' : fmtPct(n / d));
+  const bar = (n, max) => `<td><div style="height:8px;border-radius:4px;background:var(--accent);width:${(n / max * 100).toFixed(1)}%"></div></td>`;
+
+  if (TV.view === 'type') {
+    const rows = t.rows.slice();
+    const k = TV.sort === 'span' ? 2 : TV.sort === 'mtow' ? 5 : -1;
+    if (k > 0) rows.sort((a, b) => (b.info?.[k] || -1) - (a.info?.[k] || -1) || b.n - a.n);
+    if (TV.unk && unk) { rows.push({ code: '', unknown: true, n: unk, info: null, model: '' }); if (k < 0) rows.sort((a, b) => b.n - a.n); }
+    const denom = TV.unk ? t.total : t.typed;
+    const shown = k < 0 ? rows.slice(0, 15) : rows;
+    const unit = r => (r.unknown || !r.info ? '' : k === 2 && r.info[2] ? ` · ${r.info[2].toFixed(1)} m` : k === 5 && r.info[5] ? ` · ${Math.round(r.info[5] / 1000)} t` : '');
+    $('typeChartTitle').textContent = k < 0 ? `운항이 많은 기종 상위 ${shown.length}개 (전체 ${t.rows.length.toLocaleString()}개)` : `기종 ${shown.length}개 · ${k === 2 ? '날개폭이 긴' : '최대이륙중량이 무거운'} 순 (제원이 없는 기종은 아래)`;
+    hbarChart('typeChart', shown, { labelOf: r => (r.unknown ? '기종 미상' : typeLabel(r.code) + unit(r)), valOf: r => r.n, total: denom });
+    const max = Math.max(...rows.map(r => r.n)), list = rows.slice(0, k < 0 ? 20 : rows.length);
+    $('typeTable').innerHTML = '<thead><tr><th>기종 코드</th><th>이름</th><th>ICAO 등급</th><th class="num">날개폭 (m)</th><th class="num">최대이륙중량 (t)</th><th>제작사</th><th>대표 등록 모델</th><th class="num">운항</th><th class="num">비율</th><th style="width:20%"></th></tr></thead><tbody>' +
+      list.map(r => (r.unknown ? `<tr><td colspan="7" class="muted">기종 미상</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pct(r.n, denom)}</td>${bar(r.n, max)}</tr>` :
+        `<tr><td><b style="font-family:var(--font-data)">${esc(r.code)}</b></td><td>${esc(typeName(r.code))}</td><td>${r.info?.[6] || '—'}</td><td class="num">${r.info?.[2] ? r.info[2].toFixed(1) : '—'}</td><td class="num">${r.info?.[5] ? (r.info[5] / 1000).toFixed(1) : '—'}</td><td>${esc(makerOf(r.code, T) || '—')}</td><td class="secondary">${esc(r.model)}</td><td class="num">${r.n.toLocaleString()}</td><td class="num">${pct(r.n, denom)}</td>${bar(r.n, max)}</tr>`)).join('') +
+      (rows.length > list.length ? `<tr><td colspan="10" class="muted">외 ${rows.length - list.length}개 기종</td></tr>` : '') + '</tbody>';
+  } else {
+    let groups = groupRows(t, TV.view);
+    if (!TV.unk) groups = groups.filter(g => g.key !== 'U');
+    const denom = groups.reduce((s, g) => s + g.n, 0) || 1;
+    const name = { code: 'ICAO 등급 (날개폭)', wtc: '무게 (ICAO 후류 등급, 최대이륙중량)', maker: '제작사' }[TV.view];
+    $('typeChartTitle').textContent = `${name}별 운항`;
+    hbarChart('typeChart', groups, { labelOf: g => g.label, valOf: g => g.n, total: denom });
+    const max = Math.max(...groups.map(g => g.n));
+    const tops = g => g.types.sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, n]) => `${esc(typeLabel(c))} ${n.toLocaleString()}`).join(' · ') + (g.types.length > 4 ? ` 외 ${g.types.length - 4}` : '');
+    const noType = g => (g.key === 'U' && t.total > t.typed ? `${g.types.length ? ' · ' : ''}기종 정보 없음 ${(t.total - t.typed).toLocaleString()}` : '');
+    $('typeTable').innerHTML = `<thead><tr><th>${name}</th><th class="num">운항</th><th class="num">비율</th><th>주요 기종</th><th style="width:20%"></th></tr></thead><tbody>` +
+      groups.map(g => `<tr><td><b>${esc(g.label)}</b></td><td class="num">${g.n.toLocaleString()}</td><td class="num">${pct(g.n, denom)}</td><td class="secondary">${tops(g)}${noType(g)}</td>${bar(g.n, max)}</tr>`).join('') + '</tbody>';
+  }
+  const cg = groupRows(t, 'code').filter(g => TV.unk || g.key !== 'U'), cd = cg.reduce((s, g) => s + g.n, 0) || 1;
+  $('typeNote').innerHTML = `ICAO 등급별${TV.unk ? '' : ' (미상 제외)'}: ${cg.map(g => `<b>${g.key === 'U' ? '미상' : g.key}</b> ${pct(g.n, cd)}`).join(' · ')}<br>` +
+    `기종 확인 ${fmtPct(t.typed / t.total)} (${t.typed.toLocaleString()} / ${t.total.toLocaleString()}편) · 기종 출처: ${src} · 등급·무게·제작사: FAA Aircraft Characteristics Database (등급 = 날개폭 기준 비행장 참조 코드 문자, ICAO Annex 14 Table 1-1 · 무게 = ICAO 후류 등급)`;
+}
+
+function setTypeView(patch) {
+  Object.assign(TV, patch);
+  try { localStorage.setItem(TV_KEY, JSON.stringify(TV)); } catch (e) {}
+  if (LAST) renderTypes(...LAST);
 }
 
 export function airlineRouteSummary() {
@@ -178,5 +234,12 @@ export function setMixView(v) {
 }
 
 export function init() {
+  try { const v = JSON.parse(localStorage.getItem(TV_KEY) || 'null'); if (v) Object.assign(TV, { view: v.view || 'type', sort: v.sort || 'n', unk: v.unk !== false }); } catch (e) {}
+  $('typeCtl').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.tv) setTypeView({ view: b.dataset.tv });
+    else if (b.dataset.ts) setTypeView({ sort: b.dataset.ts });
+    else if (b.dataset.tu) setTypeView({ unk: b.dataset.tu === '1' });
+  };
   $('sMixTabs').onclick = e => { const b = e.target.closest('[data-mpick]'); if (b) setMixView(b.dataset.mpick); };
 }

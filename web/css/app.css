@@ -196,6 +196,7 @@
   .set-row .btn { padding: .35rem .7rem; font-size: .75rem; white-space: nowrap; }
   .set-key > div:first-child { flex: 0 0 auto; }
   .set-key .set-k, .set-key small { white-space: nowrap; }
+  .type-ctl { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
   .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; }
   .seg button { padding: .3rem .7rem; font-size: .75rem; border-radius: 8px; color: var(--text-secondary); }
   .seg button[aria-pressed="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
